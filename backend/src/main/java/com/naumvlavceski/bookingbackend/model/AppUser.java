@@ -16,23 +16,33 @@ public class AppUser {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID Id;
+
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
     private Owner owner;
+
     @Column(unique = true, nullable = false)
     private String email;
+
     @Column(nullable = false)
-    private String password_hash;
+    private String passwordHash;
+
     private String fullName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @ColumnDefault("'OWNER'")
+
     private Role role;
+    @ColumnDefault("true")
     @Column(nullable = false)
     private boolean active = true;
+
     private LocalDateTime lastLoginAt;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 

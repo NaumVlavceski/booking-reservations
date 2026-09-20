@@ -17,21 +17,28 @@ import java.util.UUID;
 public class Owner {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+
     private UUID id;
     @Column(nullable = false)
+
     private String businessName;
     @Column(nullable = false)
+
     private String contactEmail;
+
     private String contactPhone;
+
     @Column(nullable = false)
     @ColumnDefault("'Europe/Skopje'")
-    private String timezone;
+    private String timezone = "Europe/Skopje";
+
     @ColumnDefault("true")
     @Column(nullable = false)
     private boolean active;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-
 }
