@@ -3,8 +3,12 @@ spring:
     url: jdbc:postgresql://localhost:5432/booking
     username: booking
     password: booking
-  jpa:
-    hibernate:
-      ddl-auto: none
   flyway:
     enabled: true
+  management:
+    endpoint:
+      health:
+        show-details: always
+    health:
+      db:
+        enabled: true
