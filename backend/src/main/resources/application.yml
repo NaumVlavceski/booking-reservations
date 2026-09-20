@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/booking
+    username: booking
+    password: booking
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
