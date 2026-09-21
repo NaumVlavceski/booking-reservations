@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/booking
+    username: booking
+    password: booking
+  flyway:
+    enabled: true
+  management:
+    endpoint:
+      health:
+        show-details: always
+    health:
+      db:
+        enabled: true
+app:
+  jwt:
+    secret: "8f3a7b2c9d4e1f6a5b8c7d2e9f0a3b6c4d8e2f9a0b5c8d7e1f4a9b2c5d8e3f7a"
+    expiration-ms: 86400000
