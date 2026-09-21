@@ -15,7 +15,6 @@ export default function LoginPage() {
             navigate("/dashboard");
         },
     });
-    console.log("Mut:",mutation)
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         mutation.mutate(form);
