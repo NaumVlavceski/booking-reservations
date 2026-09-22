@@ -31,7 +31,10 @@ public class UnitService {
         return unitRepository.findAllByPropertyIdAndOwnerId(propertyId, ownerId)
                 .stream().map(this::toResponse).toList();
     }
-
+    public UnitResponse findOne(UUID ownerId, UUID unitId){
+        Unit unit = unitRepository.findByIdAndOwnerId(unitId,ownerId).orElseThrow(()->new NoSuchElementException("Unit not found"));
+        return toResponse(unit);
+    }
     @Transactional
     public UnitResponse create(UUID ownerId, UUID propertyId, UnitRequest request) {
         Property property = propertyRepository.findByIdAndOwnerId(propertyId, ownerId)

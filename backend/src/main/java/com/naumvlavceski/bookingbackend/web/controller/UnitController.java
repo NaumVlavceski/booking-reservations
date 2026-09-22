@@ -31,6 +31,13 @@ public class UnitController {
         return unitService.findAllUnitsFromPropertyAndOwner(ownerId, propertyId);
     }
 
+    @GetMapping("/api/units/{unitId}")
+    public ResponseEntity<UnitResponse> getUnit(
+            @CurrentUserId UUID ownerId,
+            @PathVariable UUID unitId
+    ){
+        return ResponseEntity.ok(unitService.findOne(ownerId,unitId));
+    }
     @PostMapping("/api/properties/{propertyId}/units")
     public ResponseEntity<UnitResponse> create(
             @CurrentUserId UUID ownerId,

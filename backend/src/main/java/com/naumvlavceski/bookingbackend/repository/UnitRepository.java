@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.repository;
 
+import com.naumvlavceski.bookingbackend.dto.UnitResponse;
 import com.naumvlavceski.bookingbackend.model.Unit;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,4 +12,6 @@ public interface UnitRepository extends JpaRepository<Unit, UUID> {
     List<Unit> findAllByOwnerId(UUID ownerId);
     List<Unit> findAllByPropertyIdAndOwnerId(UUID propertyId, UUID ownerId);
     Optional<Unit> findByIdAndOwnerId(UUID id, UUID ownerId);
+
+    UnitResponse findByOwnerId(UUID ownerId);
 }

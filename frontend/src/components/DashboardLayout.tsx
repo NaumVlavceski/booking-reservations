@@ -1,5 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { tokenStorage } from "../lib/auth/tokenStorage";
+import * as querystring from "node:querystring";
+import {useQueryClient} from "@tanstack/react-query";
 
 const navItems = [
     { to: "/dashboard", label: "Overview" },
@@ -9,9 +11,11 @@ const navItems = [
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
+    // const queryClient = useQueryClient();
 
     function handleLogout() {
         tokenStorage.clear();
+        // queryClient.clear();
         navigate("/login", { replace: true });
     }
 
