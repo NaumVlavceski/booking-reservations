@@ -3,7 +3,7 @@ import { apiClient } from "./client";
 
 export interface RegisterRequest {
     businessName: string;
-    contactEmail: string;
+    contactPhone: string;
     email: string;
     password: string;
     fullName: string;

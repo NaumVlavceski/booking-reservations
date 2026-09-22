@@ -24,8 +24,6 @@ public class Owner {
     private String businessName;
     @Column(nullable = false)
 
-    private String contactEmail;
-
     private String contactPhone;
 
     @Column(nullable = false)

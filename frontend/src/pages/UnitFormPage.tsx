@@ -11,8 +11,7 @@ export default function UnitFormPage() {
     const [form, setForm] = useState<UnitRequest>({
         name: "",
         capacity: 2,
-        basePrice: 0,
-    });
+        });
     const {data: existing, isLoading: isLoadingExisting} = useQuery({
         queryKey: ["units", "detail", unitId],
         queryFn: () => getUnit(unitId!),
@@ -23,7 +22,6 @@ export default function UnitFormPage() {
             setForm({
                 name: existing.name,
                 capacity: existing.capacity,
-                basePrice: existing.basePrice,
             })
         }
     }, [existing]);
@@ -67,21 +65,6 @@ export default function UnitFormPage() {
                         min={1}
                         value={form.capacity}
                         onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
-                        required
-                        className="w-full border rounded px-3 py-2"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Base price per night (€)
-                    </label>
-                    <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={form.basePrice}
-                        onChange={(e) => setForm({ ...form, basePrice: Number(e.target.value) })}
                         required
                         className="w-full border rounded px-3 py-2"
                     />

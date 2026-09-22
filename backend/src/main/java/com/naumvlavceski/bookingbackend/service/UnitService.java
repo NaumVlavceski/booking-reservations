@@ -45,7 +45,6 @@ public class UnitService {
         unit.setProperty(property);
         unit.setName(request.name());
         unit.setCapacity(request.capacity());
-        unit.setBasePrice(request.basePrice());
 
         return toResponse(unitRepository.save(unit));
     }
@@ -57,7 +56,6 @@ public class UnitService {
 
         unit.setName(request.name());
         unit.setCapacity(request.capacity());
-        unit.setBasePrice(request.basePrice());
 
         return toResponse(unitRepository.save(unit));
     }
@@ -70,6 +68,6 @@ public class UnitService {
     }
 
     private UnitResponse toResponse(Unit u) {
-        return new UnitResponse(u.getId(), u.getProperty().getId(), u.getName(), u.getCapacity(), u.getBasePrice());
+        return new UnitResponse(u.getId(), u.getProperty().getId(), u.getName(), u.getCapacity());
     }
 }

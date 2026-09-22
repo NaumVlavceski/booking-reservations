@@ -1,4 +1,6 @@
 package com.naumvlavceski.bookingbackend.exception;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -51,5 +53,25 @@ public class GlobalExceptionHandler {
         body.put("error", status.getReasonPhrase());
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
+    }
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
+        String constraintName = ex.getConstraintName();
+
+        if ("no_overlap".equals(constraintName)) {
+            return build(HttpStatus.CONFLICT, "These dates are no longer available for this unit.");
+        }
+
+        return build(HttpStatus.CONFLICT, "This request conflicts with existing data.");
+    }
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String message = ex.getMostSpecificCause().getMessage();
+
+        if (message != null && message.contains("no_overlap")) {
+            return build(HttpStatus.CONFLICT, "These dates are no longer available for this unit.");
+        }
+
+        return build(HttpStatus.CONFLICT, "This request conflicts with existing data.");
     }
 }

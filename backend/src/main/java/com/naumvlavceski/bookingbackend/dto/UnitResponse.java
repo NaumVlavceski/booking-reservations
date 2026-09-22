@@ -7,7 +7,6 @@ public record UnitResponse(
         UUID id,
         UUID propertyId,
         String name,
-        Integer capacity,
-        BigDecimal basePrice
+        Integer capacity
 ){
 }

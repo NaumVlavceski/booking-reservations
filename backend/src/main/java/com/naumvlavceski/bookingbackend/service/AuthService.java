@@ -31,10 +31,10 @@ public class AuthService {
         if (appUserRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("Email already registered");
         }
-
         Owner owner = new Owner();
         owner.setBusinessName(request.businessName());
-        owner.setContactEmail(request.contactEmail());
+        owner.setContactPhone(request.contactPhone());
+        owner.setActive(true);
         owner = ownerRepository.save(owner);
 
         AppUser user = new AppUser();

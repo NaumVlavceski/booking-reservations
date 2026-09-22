@@ -8,7 +8,7 @@ export default function RegisterPage(){
     const navigate = useNavigate();
     const [form,setForm] = useState({
         businessName: "",
-        contactEmail: "",
+        contactPhone: "",
         email: "",
         password: "",
         fullName: "",
@@ -45,10 +45,10 @@ export default function RegisterPage(){
                     className="w-full border rounded px-3 py-2"
                 />
                 <input
-                    name="contactEmail"
-                    type="email"
-                    placeholder="Business contact email"
-                    value={form.contactEmail}
+                    name="contactPhone"
+                    type="tel"
+                    placeholder="Business contact phone"
+                    value={form.contactPhone}
                     onChange={handleChange}
                     required
                     className="w-full border rounded px-3 py-2"

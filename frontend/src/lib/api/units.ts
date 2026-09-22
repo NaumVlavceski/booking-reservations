@@ -3,14 +3,13 @@ import {apiClient} from "./client.ts";
 export interface UnitRequest {
     name: string,
     capacity: number,
-    basePrice: number,
+
 }
 export interface UnitResponse {
     id: string,
     propertyId: string,
     name: string,
     capacity: number,
-    basePrice: number,
 }
 
 export async function getUnitsForProperty(propertyId:string): Promise<UnitResponse[]> {
