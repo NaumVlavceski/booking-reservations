@@ -1,4 +1,4 @@
-import {Link, useNavigate, useParams} from "react-router-dom";
+import {Link, useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {getProperties} from "../lib/api/properties.ts";
 import {getUnitsForProperty} from "../lib/api/units.ts";
@@ -16,6 +16,9 @@ export default function ReservationFormPage() {
     const isEditing = Boolean(id);
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
+    const prefillUnitId = searchParams.get("unitId");
+    const prefillCheckIn = searchParams.get("checkIn");
 
     const {data: existing} = useQuery({
         queryKey: ["reservations", "detail", id],
@@ -23,8 +26,8 @@ export default function ReservationFormPage() {
         enabled: isEditing,
     });
     const [form, setForm] = useState<ReservationRequest>({
-        unitId: "",
-        checkIn: "",
+        unitId: prefillUnitId ?? "",
+        checkIn: prefillCheckIn ?? "",
         checkOut: "",
         pricePerGuest: 0,
         nightlyRate: 0,
@@ -61,7 +64,7 @@ export default function ReservationFormPage() {
             isEditing ? updateReservation(id!, data) : createReservation(data),
         onSuccess: () => {
             queryClient.invalidateQueries({queryKey: ["reservations"]});
-            navigate("/dashboard/reservations")
+            navigate("/dashboard/calendar")
         },
         onError: (error: any) => {
             if (error.response?.status === 409) {
@@ -349,7 +352,7 @@ export default function ReservationFormPage() {
                         {mutation.isPending ? "Saving..." : isEditing ? "Save changes" : "Create reservation"}
                     </button>
                     <Link
-                        to="/dashboard/reservations"
+                        to="/dashboard/calendar"
                         className="px-4 py-2 rounded font-medium text-gray-600 hover:bg-gray-100"
                     >
                         Cancel

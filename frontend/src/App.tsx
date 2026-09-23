@@ -9,6 +9,7 @@ import PropertyDetailPage from "./pages/PropertyDetailPage.tsx";
 import UnitFormPage from "./pages/UnitFormPage.tsx";
 import ReservationsPage from "./pages/ReservationsPage.tsx";
 import ReservationFormPage from "./pages/ReservationFormPage.tsx";
+import CalendarPage from "./pages/CalendarPage.tsx";
 
 
 export default function App() {
@@ -20,7 +21,6 @@ export default function App() {
                 <Route element={<DashboardLayout />}>
                     <Route path="/dashboard" element={<div>Overview coming soon</div>} />
                     <Route path="/dashboard/properties" element={<PropertiesPage/>} />
-                    <Route path="/dashboard/calendar" element={<div>Calendar coming soon</div>} />
                     <Route path="/dashboard/properties" element={<PropertiesPage />} />
                     <Route path="/dashboard/properties/new" element={<PropertyFormPage />} />
                     <Route path="/dashboard/properties/:id" element={<PropertyDetailPage />} />
@@ -30,6 +30,7 @@ export default function App() {
                     <Route path="/dashboard/reservations" element={<ReservationsPage />} />
                     <Route path="/dashboard/reservations/new" element={<ReservationFormPage/>}/>
                     <Route path="/dashboard/reservations/:id" element={<ReservationFormPage/>}/>
+                    <Route path="/dashboard/calendar" element={<CalendarPage />} />
                 </Route>
             </Route>
             <Route path="*" element={<Navigate to="/login" replace/>}/>
