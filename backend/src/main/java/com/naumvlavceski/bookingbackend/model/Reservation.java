@@ -45,7 +45,7 @@ public class Reservation {
     @Column(nullable = false)
     private ReservationSource source = ReservationSource.DIRECT;
 
-    @Column(nullable = false)
+
     private String guestName;
 
     private String guestEmail;
@@ -54,14 +54,14 @@ public class Reservation {
     @Column(nullable = false)
     private Integer guestsCount = 1;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(precision = 10, scale = 2)
+    private BigDecimal pricePerGuest;
+
+    @Column(precision = 10, scale = 2)
     private BigDecimal nightlyRate;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal totalAmount;
-
-    @Column(nullable = false, length = 3)
-    private String currency = "EUR";
 
     private String notes;
 

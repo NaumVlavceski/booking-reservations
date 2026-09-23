@@ -18,9 +18,10 @@ public record ReservationResponse(
         String guestEmail,
         String guestPhone,
         Integer guestsCount,
+        BigDecimal pricePerGuest,
         BigDecimal nightlyRate,
         BigDecimal totalAmount,
-        String currency
+        String notes
 ) {
 
 }

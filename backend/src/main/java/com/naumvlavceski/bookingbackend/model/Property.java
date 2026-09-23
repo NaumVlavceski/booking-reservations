@@ -29,8 +29,8 @@ public class Property {
 
     private String address;
 
-    @Column(nullable = false)
-    @ColumnDefault("Europe/Skopje")
+
+    @ColumnDefault("'Europe/Skopje'")
     private String timezone = "Europe/Skopje";
 
     @CreationTimestamp

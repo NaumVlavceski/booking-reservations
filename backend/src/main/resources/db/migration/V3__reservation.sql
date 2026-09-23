@@ -8,16 +8,17 @@ CREATE TABLE reservation
     stay_range   DATERANGE      NOT NULL,
     status       VARCHAR(255)   NOT NULL DEFAULT 'CONFIRMED',
     source       VARCHAR(255)   NOT NULL DEFAULT 'DIRECT',
-    guest_name   VARCHAR(255)   NOT NULL,
+    guest_name   VARCHAR(255),
     guest_email  VARCHAR(255),
     guest_phone  VARCHAR(255),
-    guest_count  INTEGER        NOT NULL DEFAULT 1,
-    nightly_rate DECIMAL(10, 2) NOT NULL,
-    total_amount DECIMAL(10, 2) NOT NULL,
-    currency     VARCHAR(3)     NOT NULL DEFAULT 'EUR',
+    guests_count  INTEGER        NOT NULL DEFAULT 1,
+    price_per_guest DECIMAL(10, 2),
+    nightly_rate DECIMAL(10, 2),
+    total_amount DECIMAL(10, 2),
     notes        VARCHAR(255),
     created_at   TIMESTAMP WITHOUT TIME ZONE,
     updated_at   TIMESTAMP WITHOUT TIME ZONE,
+
     CONSTRAINT pk_reservation PRIMARY KEY (id)
 );
 

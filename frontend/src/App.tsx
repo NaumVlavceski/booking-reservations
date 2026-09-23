@@ -7,6 +7,8 @@ import PropertiesPage from "./pages/PropertiesPage.tsx";
 import PropertyFormPage from "./pages/PropertyFormPage.tsx";
 import PropertyDetailPage from "./pages/PropertyDetailPage.tsx";
 import UnitFormPage from "./pages/UnitFormPage.tsx";
+import ReservationsPage from "./pages/ReservationsPage.tsx";
+import ReservationFormPage from "./pages/ReservationFormPage.tsx";
 
 
 export default function App() {
@@ -25,6 +27,9 @@ export default function App() {
                     <Route path="/dashboard/properties/:id/edit" element={<PropertyFormPage />} />
                     <Route path="/dashboard/properties/:propertyId/units/new" element={<UnitFormPage />} />
                     <Route path="/dashboard/properties/:propertyId/units/:unitId" element={<UnitFormPage />} />
+                    <Route path="/dashboard/reservations" element={<ReservationsPage />} />
+                    <Route path="/dashboard/reservations/new" element={<ReservationFormPage/>}/>
+                    <Route path="/dashboard/reservations/:id" element={<ReservationFormPage/>}/>
                 </Route>
             </Route>
             <Route path="*" element={<Navigate to="/login" replace/>}/>

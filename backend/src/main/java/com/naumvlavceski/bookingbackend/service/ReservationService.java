@@ -4,6 +4,7 @@ import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
 import com.naumvlavceski.bookingbackend.dto.UnitResponse;
 import com.naumvlavceski.bookingbackend.model.Reservation;
+import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.model.Unit;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
@@ -23,10 +24,20 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UnitRepository unitRepository;
 
-    public List<ReservationResponse> findAllForOwner(UUID ownerId){
-        return reservationRepository.findAllByOwnerId(ownerId).stream()
-                .map(this::toResponse).toList();
-    }
+//    public List<ReservationResponse> findAllForOwner(UUID ownerId){
+//        return reservationRepository.findAllByOwnerId(ownerId).stream()
+//                .map(this::toResponse).toList();
+//    }
+public List<ReservationResponse> findAllForOwner(UUID ownerId, UUID unitId, ReservationStatus status) {
+    List<Reservation> reservations = reservationRepository.findAllByOwnerId(ownerId);
+
+    return reservations.stream()
+            .filter(r -> unitId == null || r.getUnit().getId().equals(unitId))
+            .filter(r -> status == null || r.getStatus() == status)
+            .sorted((a, b) -> a.getStayRange().lower().compareTo(b.getStayRange().lower()))
+            .map(this::toResponse)
+            .toList();
+}
     public ReservationResponse findOneForOwner(UUID ownerId,UUID reservationId){
         Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId,ownerId).orElseThrow(()->new NoSuchElementException("Reservation not found"));
         return toResponse(reservation);
@@ -48,6 +59,7 @@ public class ReservationService {
         reservation.setGuestEmail(request.guestEmail());
         reservation.setGuestPhone(request.guestPhone());
         reservation.setGuestsCount(request.guestsCount() != null ? request.guestsCount() : 2);
+        reservation.setPricePerGuest(request.pricePerGuest());
         reservation.setNightlyRate(request.nightlyRate());
         reservation.setTotalAmount(request.totalAmount());
         reservation.setNotes(request.notes());
@@ -72,6 +84,7 @@ public class ReservationService {
         reservation.setGuestEmail(request.guestEmail());
         reservation.setGuestPhone(request.guestPhone());
         reservation.setGuestsCount(request.guestsCount() != null ? request.guestsCount() : 2);
+        reservation.setPricePerGuest(request.pricePerGuest());
         reservation.setNightlyRate(request.nightlyRate());
         reservation.setTotalAmount(request.totalAmount());
         reservation.setNotes(request.notes());
@@ -98,9 +111,10 @@ public class ReservationService {
                 r.getGuestEmail(),
                 r.getGuestPhone(),
                 r.getGuestsCount(),
+                r.getPricePerGuest(),
                 r.getNightlyRate(),
                 r.getTotalAmount(),
-                r.getCurrency()
+                r.getNotes()
         );
     }
 }

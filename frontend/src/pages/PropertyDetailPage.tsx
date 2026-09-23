@@ -78,6 +78,12 @@ export default function PropertyDetailPage() {
                             key={unit.id}
                             className="bg-white border rounded-lg p-4 flex justify-between items-center"
                         >
+                            <div>
+                                <h3 className="font-medium text-gray-900">{unit.name}</h3>
+                                <p className="text-sm text-gray-600">
+                                    Sleeps {unit.capacity}
+                                </p>
+                            </div>
                             <div className="flex gap-3">
                                 <Link
                                     to={`/dashboard/properties/${propertyId}/units/${unit.id}`}

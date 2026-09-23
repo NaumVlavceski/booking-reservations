@@ -8,6 +8,7 @@ public record ReservationRequest(
         UUID unitId,
         LocalDate checkIn,
         LocalDate checkOut,
+        BigDecimal pricePerGuest,
         BigDecimal nightlyRate,
         BigDecimal totalAmount,
         String guestName,

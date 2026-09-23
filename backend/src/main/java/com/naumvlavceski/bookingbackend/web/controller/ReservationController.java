@@ -3,6 +3,7 @@ package com.naumvlavceski.bookingbackend.web.controller;
 import com.naumvlavceski.bookingbackend.config.security.CurrentUserId;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
+import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +20,12 @@ public class ReservationController {
     private final ReservationService reservationService;
 
     @GetMapping
-    public List<ReservationResponse> list(@CurrentUserId UUID ownerId) {
-        return reservationService.findAllForOwner(ownerId);
+    public List<ReservationResponse> list(
+            @CurrentUserId UUID ownerId,
+            @RequestParam(required = false) UUID unitId,
+            @RequestParam(required = false) ReservationStatus status
+    ) {
+        return reservationService.findAllForOwner(ownerId, unitId, status);
     }
 
     @GetMapping("/{id}")
