@@ -2,6 +2,7 @@ package com.naumvlavceski.bookingbackend.service;
 
 import com.naumvlavceski.bookingbackend.dto.AuthResponse;
 import com.naumvlavceski.bookingbackend.dto.LoginRequest;
+import com.naumvlavceski.bookingbackend.dto.MeResponse;
 import com.naumvlavceski.bookingbackend.dto.RegisterRequest;
 import com.naumvlavceski.bookingbackend.model.AppUser;
 import com.naumvlavceski.bookingbackend.model.Owner;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,13 @@ public class AuthService {
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+
+    @Transactional(readOnly = true)
+    public MeResponse me(UUID userId) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found"));
+        return new MeResponse(user.getEmail(), user.getFullName(), user.getOwner().getBusinessName());
+    }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {

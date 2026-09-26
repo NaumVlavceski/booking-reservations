@@ -2,6 +2,7 @@ package com.naumvlavceski.bookingbackend.config;
 
 import com.naumvlavceski.bookingbackend.config.security.JwtAuthFilter;
 import com.naumvlavceski.bookingbackend.config.security.OwnerFilterInterceptor;
+import com.naumvlavceski.bookingbackend.config.security.UnauthorizedEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final OwnerFilterInterceptor ownerFilterInterceptor;
+    private final UnauthorizedEntryPoint unauthorizedEntryPoint;
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -36,6 +38,7 @@ public class SecurityConfig {
                 .cors(cors->cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",

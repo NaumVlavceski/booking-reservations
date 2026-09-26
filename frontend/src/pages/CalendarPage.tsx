@@ -1,29 +1,68 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import type {PointerEvent as ReactPointerEvent} from "react";
-import {Link} from "react-router-dom";
-import {useQuery} from "@tanstack/react-query";
+import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent} from "react";
+import {Link, useNavigate} from "react-router-dom";
+import {useIsFetching, useQuery, useQueryClient} from "@tanstack/react-query";
 import {format, addDays, differenceInCalendarDays} from "date-fns";
 import {DayPicker} from "react-day-picker";
 import "react-day-picker/style.css";
-import {getProperties} from "../lib/api/properties";
-import {getUnitsForProperty} from "../lib/api/units";
-import {getReservations} from "../lib/api/reservations";
+import {propertiesQuery, type PropertyResponse} from "../lib/api/properties";
+import {allUnitsQuery, type UnitResponse} from "../lib/api/units";
+import {allReservationsQuery} from "../lib/api/reservations";
+import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
+import {useFromHere} from "../lib/useReturnTo";
+import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon, PlusIcon, RefreshIcon} from "../components/icons";
+import "./CalendarPage.css";
+
 const MAX_RANGE_DAYS = 5 * 365;
 const CHUNK = 20;
 const BUFFER_CHUNKS = 1;
 
+// Confirmed reservations are colored by where they came from.
 const SOURCE_COLORS: Record<string, { fill: string; border: string; text: string; label: string }> = {
     DIRECT: {fill: "#b3aa7a", border: "#87641d", text: "#92400E", label: "Direct"},
-    MANUAL_BLOCK: {fill: "#E5E7EB", border: "#9CA3AF", text: "#374151", label: "Blocked"},
-    BOOKING_COM: {fill: "#DBEAFE", border: "#60A5FA", text: "#1E40AF", label: "Booking.com"},
+    BOOKING: {fill: "#DBEAFE", border: "#60A5FA", text: "#1E40AF", label: "Booking.com"},
     AIRBNB: {fill: "#FFE1E6", border: "#FB7185", text: "#9F1239", label: "Airbnb"},
 };
+
+// PAID and BLOCK statuses override the source color — they need to stand
+// out regardless of where the reservation came from.
+const STATUS_COLORS: Record<string, { fill: string; border: string; text: string; label: string }> = {
+    PAID: {fill: "#D1FAE5", border: "#34D399", text: "#065F46", label: "Paid"},
+    BLOCK: {fill: "#E5E7EB", border: "#9CA3AF", text: "#374151", label: "Blocked"},
+};
+
+const MOBILE_VISIBLE_DAYS = 7;
+// Movement under this is a tap (open a new reservation), over it is a drag.
+const DRAG_THRESHOLD_PX = 5;
+const COLLAPSED_KEY = "staytrack.calendar.collapsedProperties";
+
+type PropertyGroup = { property: PropertyResponse; units: UnitResponse[] };
+type LayoutRow =
+    | { kind: "group"; group: PropertyGroup; collapsed: boolean; gridRow: number; top: number; height: number }
+    | { kind: "unit"; unit: UnitResponse; gridRow: number; top: number; height: number };
+
+function readCollapsed(): Set<string> {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]") as string[]);
+    } catch {
+        return new Set();
+    }
+}
+
+// Creation order keeps auto-created "Room 1..N" in sequence and doesn't move
+// a row when it's renamed; numeric name compare breaks same-timestamp ties.
+function compareUnits(a: UnitResponse, b: UnitResponse) {
+    return (a.createdAt ?? "").localeCompare(b.createdAt ?? "")
+        || a.name.localeCompare(b.name, undefined, {numeric: true})
+        || a.id.localeCompare(b.id);
+}
 
 function startOfToday() {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
 }
+
 function parseLocalDate(dateStr: string): Date {
     const [y, m, d] = dateStr.split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -39,9 +78,8 @@ export default function CalendarPage() {
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
     const [viewportWidth, setViewportWidth] = useState(() =>
-        Math.max(300, window.innerWidth - (window.innerWidth < 640 ? 112 : 220) - 48)
+        Math.max(260, window.innerWidth - (window.innerWidth < 640 ? 104 : 120 + 48))
     );
-    const [isDragging, setIsDragging] = useState(false);
 
     const [windowState, setWindowState] = useState({start: 0, end: 0});
     const windowRef = useRef(windowState);
@@ -49,13 +87,38 @@ export default function CalendarPage() {
 
     const scrollXRef = useRef(0);
 
-    const dragRef = useRef<{ startX: number; startScroll: number; pointerId: number } | null>(null);
+    const dragRef = useRef<{ startX: number; startScroll: number; pointerId: number; moved: boolean } | null>(null);
+    const suppressClickRef = useRef(false);
+    const navigate = useNavigate();
     const velocityRef = useRef(0);
     const lastMoveRef = useRef<{ t: number; x: number } | null>(null);
     const momentumFrameRef = useRef<number | null>(null);
 
-    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [openMenu, setOpenMenu] = useState<"date" | "more" | null>(null);
     const datePickerRef = useRef<HTMLDivElement | null>(null);
+    const moreMenuRef = useRef<HTMLDivElement | null>(null);
+
+    const queryClient = useQueryClient();
+    const isFetching = useIsFetching() > 0;
+    const activeProperty = useActiveProperty();
+    const fromHere = useFromHere();
+    const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
+
+    function saveCollapsed(next: Set<string>) {
+        setCollapsed(next);
+        try {
+            localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+        } catch {
+            // Preference just won't persist across reloads.
+        }
+    }
+
+    function toggleGroup(propertyId: string) {
+        const next = new Set(collapsed);
+        if (next.has(propertyId)) next.delete(propertyId);
+        else next.add(propertyId);
+        saveCollapsed(next);
+    }
 
     useEffect(() => {
         function onResize() {
@@ -66,10 +129,6 @@ export default function CalendarPage() {
         return () => window.removeEventListener("resize", onResize);
     }, []);
 
-    // Callback ref: fires exactly when the grid's viewport div mounts or
-    // unmounts, regardless of conditional rendering (loading states, etc.)
-    // — unlike a plain ref + useEffect, this can't miss the element
-    // appearing after an async data fetch resolves.
     const setViewportRef = useCallback((node: HTMLDivElement | null) => {
         if (resizeObserverRef.current) {
             resizeObserverRef.current.disconnect();
@@ -93,45 +152,51 @@ export default function CalendarPage() {
     }, []);
 
     useEffect(() => {
-        if (!isDatePickerOpen) return;
+        if (!openMenu) return;
+        const anchor = openMenu === "date" ? datePickerRef.current : moreMenuRef.current;
 
         function onPointerDownOutside(e: PointerEvent) {
-            if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
-                setIsDatePickerOpen(false);
-            }
+            if (anchor && !anchor.contains(e.target as Node)) setOpenMenu(null);
+        }
+
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") setOpenMenu(null);
         }
 
         document.addEventListener("pointerdown", onPointerDownOutside);
-        return () => document.removeEventListener("pointerdown", onPointerDownOutside);
-    }, [isDatePickerOpen]);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("pointerdown", onPointerDownOutside);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [openMenu]);
 
-    // Desktop: size columns so exactly 20 days fill the viewport width,
-    // rather than a fixed px width that fits however many days happen to fit.
-    const DAY_COL_WIDTH = isMobile ? 46 : Math.max(40, Math.floor(viewportWidth / 20));
-    const ROW_HEIGHT = isMobile ? 52 : 64;
-    const BAR_HEIGHT = isMobile ? 48 : 60;
-    const BAR_MARGIN = 5;
-    const LABEL_WIDTH = isMobile ? 112 : 220;
+    function toggleMenu(menu: "date" | "more") {
+        setOpenMenu((current) => (current === menu ? null : menu));
+    }
+
+    function handleRefresh() {
+        queryClient.invalidateQueries({queryKey: ["properties"]});
+        queryClient.invalidateQueries({queryKey: ["units"]});
+        queryClient.invalidateQueries({queryKey: ["reservations"]});
+    }
+
+    // Phones: exactly a week fills the width. Desktop: 20 days.
+    const DAY_COL_WIDTH = isMobile
+        ? Math.max(30, viewportWidth / MOBILE_VISIBLE_DAYS)
+        : Math.max(40, Math.floor(viewportWidth / 20));
+    const ROW_HEIGHT = isMobile ? 56 : 64;
+    const GROUP_HEIGHT = isMobile ? 48 : 52;
+    const BAR_HEIGHT = isMobile ? 44 : 60;
+    const BAR_MARGIN = isMobile ? 3 : 5;
+    const LABEL_WIDTH = isMobile ? 104 : 120;
     const HEADER_H1 = 26;
-    const HEADER_H2 = isMobile ? 38 : 48;
-    // Full cell width — the diagonal runs corner to corner of the
-    // check-in/check-out day's own square, not a small corner nick.
+    const HEADER_H2 = isMobile ? 52 : 48;
     const CUT_PX = DAY_COL_WIDTH;
 
-    const {data: properties} = useQuery({queryKey: ["properties"], queryFn: getProperties});
-    const {data: units} = useQuery({
-        queryKey: ["units", "all"],
-        queryFn: async () => {
-            if (!properties) return [];
-            const perProperty = await Promise.all(properties.map((p) => getUnitsForProperty(p.id)));
-            return perProperty.flat();
-        },
-        enabled: !!properties,
-    });
-    const {data: reservations} = useQuery({
-        queryKey: ["reservations", "calendar"],
-        queryFn: () => getReservations(),
-    });
+    const {data: properties} = useQuery(propertiesQuery);
+    const {data: units} = useQuery(allUnitsQuery);
+    const {data: reservations} = useQuery(allReservationsQuery);
 
     const maxScroll = MAX_RANGE_DAYS * DAY_COL_WIDTH;
 
@@ -147,10 +212,6 @@ export default function CalendarPage() {
         return {start: snappedStart, end: snappedStart + spanChunks * CHUNK};
     }
 
-    // The month label is pinned to the viewport's left edge (outside the
-    // scrolling grid) and always reflects whichever day currently sits
-    // under that edge — so it stays on "January" the whole time you're
-    // browsing January, instead of jumping with a per-day column label.
     function updateMonthLabel(scrollXPx: number) {
         const leftDayIndex = Math.round(scrollXPx / DAY_COL_WIDTH);
         const label = format(addDays(today, leftDayIndex), "MMMM yyyy");
@@ -160,10 +221,6 @@ export default function CalendarPage() {
         }
     }
 
-    // The single function that moves the calendar, called every drag frame
-    // and every momentum frame. Writes the transform directly to the DOM
-    // (smooth, no re-render) and only calls setWindowState when the
-    // rendered day-window actually needs to shift (rare, real re-render).
     function applyScroll(rawScrollX: number) {
         const clamped = clampScroll(rawScrollX);
         scrollXRef.current = clamped;
@@ -184,9 +241,6 @@ export default function CalendarPage() {
         }
     }
 
-    // Initial mount and any time DAY_COL_WIDTH changes (mobile breakpoint
-    // flip): (re)compute the window and snap the transform, preserving
-    // whatever scroll position we're already at.
     useLayoutEffect(() => {
         if (!viewportWidth) return;
         const next = computeWindow(scrollXRef.current);
@@ -205,8 +259,11 @@ export default function CalendarPage() {
             momentumFrameRef.current = null;
         }
         velocityRef.current = 0;
-        setIsDragging(true);
-        dragRef.current = {startX: e.clientX, startScroll: scrollXRef.current, pointerId: e.pointerId};
+        suppressClickRef.current = false;
+        // Cursor via the DOM, not state — a state change here re-rendered the
+        // whole calendar at the start of every drag.
+        viewportRef.current?.classList.add("is-dragging");
+        dragRef.current = {startX: e.clientX, startScroll: scrollXRef.current, pointerId: e.pointerId, moved: false};
         lastMoveRef.current = {t: performance.now(), x: scrollXRef.current};
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
     }
@@ -215,6 +272,7 @@ export default function CalendarPage() {
         const drag = dragRef.current;
         if (!drag) return;
         const delta = e.clientX - drag.startX;
+        if (Math.abs(delta) > DRAG_THRESHOLD_PX) drag.moved = true;
         const target = drag.startScroll - delta;
         applyScroll(target);
 
@@ -231,16 +289,34 @@ export default function CalendarPage() {
     }
 
     function onPointerUp(e: ReactPointerEvent) {
-        if (dragRef.current) {
-            (e.target as HTMLElement).releasePointerCapture(dragRef.current.pointerId);
+        const drag = dragRef.current;
+        if (drag) {
+            (e.target as HTMLElement).releasePointerCapture(drag.pointerId);
         }
         dragRef.current = null;
-        setIsDragging(false);
+        viewportRef.current?.classList.remove("is-dragging");
+
+        if (drag?.moved) {
+            // A drag that started on a reservation bar would otherwise end in a
+            // click on that link and open it.
+            suppressClickRef.current = true;
+        } else if (drag && e.type === "pointerup" && !(e.target as Element).closest(".cal-bar")) {
+            openNewReservationAt(e.clientX, e.clientY);
+        }
 
         const MIN_VELOCITY = 0.03;
         if (Math.abs(velocityRef.current) > MIN_VELOCITY) {
             startMomentum();
         }
+    }
+
+    // A drag ends in a click on whatever it started on (a reservation bar, the
+    // property header toggle, the "+" button) — swallow that one click.
+    function suppressClickAfterDrag(e: ReactMouseEvent) {
+        if (!suppressClickRef.current) return;
+        suppressClickRef.current = false;
+        e.preventDefault();
+        e.stopPropagation();
     }
 
     function startMomentum() {
@@ -277,7 +353,7 @@ export default function CalendarPage() {
         velocityRef.current = 0;
         const dayIndex = differenceInCalendarDays(date, today);
         applyScroll(dayIndex * DAY_COL_WIDTH);
-        setIsDatePickerOpen(false);
+        setOpenMenu(null);
     }
 
     const renderedDays = useMemo(() => {
@@ -299,25 +375,61 @@ export default function CalendarPage() {
     }, [windowState, today]);
 
     const windowColCount = windowState.end - windowState.start;
+    const groups = useMemo<PropertyGroup[]>(() => {
+        if (!properties || !units) return [];
+        const unitsByProperty = new Map<string, UnitResponse[]>();
+        for (const u of units) {
+            const list = unitsByProperty.get(u.propertyId) ?? [];
+            list.push(u);
+            unitsByProperty.set(u.propertyId, list);
+        }
+        return [...properties]
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+            .map((property) => ({
+                property,
+                units: [...(unitsByProperty.get(property.id) ?? [])].sort(compareUnits),
+            }));
+    }, [properties, units]);
 
-    // Sorted by id, not the order the API happens to return — that order can
-    // shift after an edit (e.g. if the backend orders by updated_at), which
-    // would otherwise move a unit's row every time its name/capacity changes.
-    const rows = useMemo(() => {
-        const sorted = [...(units ?? [])].sort((a, b) => a.id.localeCompare(b.id));
-        return sorted.map((u, i) => ({unit: u, gridRow: i + 3}));
-    }, [units]);
+    // Collapsing only makes sense with more than one property.
+    const canCollapse = groups.length > 1;
+    const layout = useMemo<LayoutRow[]>(() => {
+        const rows: LayoutRow[] = [];
+        let top = 0;
+        for (const group of groups) {
+            const isCollapsed = canCollapse && collapsed.has(group.property.id);
+            // Property headers only when there's more than one property to tell
+            // apart — with a single property the rooms start right under the dates.
+            if (canCollapse) {
+                rows.push({
+                    kind: "group",
+                    group,
+                    collapsed: isCollapsed,
+                    gridRow: rows.length + 3,
+                    top,
+                    height: GROUP_HEIGHT
+                });
+                top += GROUP_HEIGHT;
+            }
+            if (isCollapsed) continue;
+            for (const unit of group.units) {
+                rows.push({kind: "unit", unit, gridRow: rows.length + 3, top, height: ROW_HEIGHT});
+                top += ROW_HEIGHT;
+            }
+        }
+        return rows;
+    }, [groups, canCollapse, collapsed, GROUP_HEIGHT, ROW_HEIGHT]);
 
-    // Reservation bars. The visual bar extends ONE day past the real
-    // checkout date — that extra cell is purely a rendering choice, giving
-    // the checkout diagonal a square to live in. The underlying date range
-    // stored in the database, and the exclusion constraint, are untouched.
+    const unitRows = useMemo(
+        () => layout.filter((r): r is Extract<LayoutRow, { kind: "unit" }> => r.kind === "unit"),
+        [layout]
+    );
+
     const bars = useMemo(() => {
         if (!reservations || !units) return [];
-        const rowIndexByUnit = new Map(rows.map((r) => [r.unit.id, r.gridRow]));
+        const rowIndexByUnit = new Map(unitRows.map((r) => [r.unit.id, r.gridRow]));
 
         return reservations
-            .filter((r) => r.status === "CONFIRMED")
             .map((r) => {
                 const gridRow = rowIndexByUnit.get(r.unitId);
                 if (!gridRow) return null;
@@ -334,7 +446,7 @@ export default function CalendarPage() {
                 const trueLeft = startIdx >= windowState.start;
                 const trueRight = visualEndIdx <= windowState.end;
 
-                const colors = SOURCE_COLORS[r.source] ?? SOURCE_COLORS.DIRECT;
+                const colors = STATUS_COLORS[r.status] ?? SOURCE_COLORS[r.source] ?? SOURCE_COLORS.DIRECT;
                 const colStart = clampedStart - windowState.start + 1;
                 const colEnd = clampedEnd - windowState.start + 1;
 
@@ -362,75 +474,140 @@ export default function CalendarPage() {
                 };
             })
             .filter((b): b is NonNullable<typeof b> => b !== null);
-    }, [reservations, units, rows, today, windowState, CUT_PX, DAY_COL_WIDTH, BAR_HEIGHT, BAR_MARGIN]);
+    }, [reservations, units, unitRows, today, windowState, CUT_PX, DAY_COL_WIDTH, BAR_HEIGHT, BAR_MARGIN]);
+
+    const bodyEndRow = layout.length + 3;
+    const headerHeight = HEADER_H1 + HEADER_H2;
+
+    // One handler for the whole grid instead of a <Link> per room per day
+    // (hundreds of them, all re-rendered whenever the day window shifted —
+    // that's what made scrolling stutter). Maps the tap position to a room + day.
+    function openNewReservationAt(clientX: number, clientY: number) {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const rect = viewport.getBoundingClientRect();
+        const y = clientY - rect.top - headerHeight;
+        if (y < 0) return;
+        const row = unitRows.find((r) => y >= r.top && y < r.top + r.height);
+        if (!row) return;
+        const dayIndex = Math.floor((clientX - rect.left + scrollXRef.current) / DAY_COL_WIDTH);
+        const checkIn = format(addDays(today, dayIndex), "yyyy-MM-dd");
+        navigate(`/dashboard/reservations/new?unitId=${row.unit.id}&checkIn=${checkIn}`);
+    }
 
     const todayColIndex = renderedDays.findIndex((d) => d.isToday);
     const isLoading = !properties || !units;
 
+    // The numbers that actually vary at runtime — CSS reads them via
+    // var(...) so the rest of the styling can live as static rules in
+    // CalendarPage.css instead of inline objects.
+    const rootVars = {
+        ["--day-col-width" as string]: `${DAY_COL_WIDTH}px`,
+        ["--row-height" as string]: `${ROW_HEIGHT}px`,
+        ["--bar-height" as string]: `${BAR_HEIGHT}px`,
+        ["--label-width" as string]: `${LABEL_WIDTH}px`,
+        ["--header-h1" as string]: `${HEADER_H1}px`,
+        ["--header-h2" as string]: `${HEADER_H2}px`,
+        ["--group-height" as string]: `${GROUP_HEIGHT}px`,
+    };
+
     return (
-        <div>
-            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16}}>
-                <h1 style={{fontSize: 22, fontWeight: 700, margin: 0}}>Calendar</h1>
-                <div style={{display: "flex", alignItems: "center", gap: 16}}>
-                    {Object.values(SOURCE_COLORS).map((c) => (
-                        <div key={c.label} style={{display: "flex", alignItems: "center", gap: 6}}>
-                            <div style={{width: 10, height: 10, borderRadius: 3, background: c.fill}}/>
-                            <span style={{fontSize: 12, color: "#4B5563", fontWeight: 500}}>{c.label}</span>
-                        </div>
-                    ))}
-                    <div ref={datePickerRef} style={{position: "relative"}}>
+        <div className="cal-root" style={rootVars}>
+            <div className="cal-toolbar">
+                <h1 className="cal-title">Calendar</h1>
+                <button type="button" className="cal-today-btn" onClick={() => handleJumpToDate(today)}>
+                    Today
+                </button>
+
+                <div className="cal-actions">
+                    <div ref={datePickerRef} className="cal-popover-anchor">
                         <button
                             type="button"
-                            onClick={() => setIsDatePickerOpen((v) => !v)}
+                            onClick={() => toggleMenu("date")}
                             title="Jump to date"
                             aria-label="Jump to date"
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                width: 32,
-                                height: 32,
-                                border: "1px solid #E4E7EC",
-                                borderRadius: 8,
-                                background: isDatePickerOpen ? "#F0FDFA" : "#fff",
-                                cursor: "pointer",
-                                color: "#374151",
-                            }}
+                            aria-expanded={openMenu === "date"}
+                            className={`cal-icon-btn${openMenu === "date" ? " is-active" : ""}`}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                                <line x1="16" y1="2" x2="16" y2="6"/>
-                                <line x1="8" y1="2" x2="8" y2="6"/>
-                                <line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
+                            <CalendarIcon size={20}/>
                         </button>
-
-                        {isDatePickerOpen && (
-                            <div
-                                style={{
-                                    position: "absolute",
-                                    top: "calc(100% + 8px)",
-                                    right: 0,
-                                    zIndex: 20,
-                                    background: "#fff",
-                                    border: "1px solid #E4E7EC",
-                                    borderRadius: 12,
-                                    boxShadow: "0 8px 24px rgba(16,19,26,0.12)",
-                                    padding: 8,
-                                    ["--rdp-accent-color" as string]: "#0F766E",
-                                    ["--rdp-accent-background-color" as string]: "#CCFBF1",
-                                    ["--rdp-today-color" as string]: "#0F766E",
-                                }}
-                            >
+                        {openMenu === "date" && (
+                            <div className="cal-popover cal-popover--date rdp-theme">
                                 <DayPicker
                                     mode="single"
                                     selected={undefined}
                                     onSelect={handleJumpToDate}
                                     defaultMonth={today}
-                                    disabled={{before: addDays(today, -MAX_RANGE_DAYS), after: addDays(today, MAX_RANGE_DAYS)}}
+                                    disabled={{
+                                        before: addDays(today, -MAX_RANGE_DAYS),
+                                        after: addDays(today, MAX_RANGE_DAYS)
+                                    }}
                                     autoFocus
                                 />
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleRefresh}
+                        title="Refresh"
+                        aria-label="Refresh"
+                        className="cal-icon-btn"
+                    >
+                        <RefreshIcon size={20} className={isFetching ? "cal-spin" : undefined}/>
+                    </button>
+
+                    <div ref={moreMenuRef} className="cal-popover-anchor">
+                        <button
+                            type="button"
+                            onClick={() => toggleMenu("more")}
+                            title="More"
+                            aria-label="More actions"
+                            aria-expanded={openMenu === "more"}
+                            className={`cal-icon-btn${openMenu === "more" ? " is-active" : ""}`}
+                        >
+                            <MoreVerticalIcon size={20}/>
+                        </button>
+                        {openMenu === "more" && (
+                            <div className="cal-popover cal-menu" role="menu">
+                                <Link to="/dashboard/reservations/new" className="cal-menu-item" role="menuitem">
+                                    New reservation
+                                </Link>
+                                <Link to={addUnitPath(activeProperty)} state={fromHere} className="cal-menu-item"
+                                      role="menuitem">
+                                    Add unit
+                                </Link>
+                                <Link to="/dashboard/properties/new" className="cal-menu-item" role="menuitem">
+                                    Add property
+                                </Link>
+                                {canCollapse && (
+                                    <>
+                                        <div className="cal-menu-divider"/>
+                                        <button
+                                            type="button"
+                                            className="cal-menu-item"
+                                            role="menuitem"
+                                            onClick={() => {
+                                                saveCollapsed(new Set());
+                                                setOpenMenu(null);
+                                            }}
+                                        >
+                                            Expand all properties
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="cal-menu-item"
+                                            role="menuitem"
+                                            onClick={() => {
+                                                saveCollapsed(new Set(groups.map((g) => g.property.id)));
+                                                setOpenMenu(null);
+                                            }}
+                                        >
+                                            Collapse all properties
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -438,86 +615,107 @@ export default function CalendarPage() {
             </div>
 
             {isLoading ? (
-                <div style={{color: "#6B7280"}}>Loading calendar...</div>
+                <div className="cal-loading">Loading calendar...</div>
             ) : units && units.length === 0 ? (
-                <div style={{
-                    textAlign: "center",
-                    padding: "64px 0",
-                    background: "#fff",
-                    border: "1px solid #E4E7EC",
-                    borderRadius: 12
-                }}>
-                    <p style={{color: "#4B5563", marginBottom: 16}}>No units yet — add a property and a unit to see your
-                        calendar.</p>
-                    <Link to="/dashboard/properties/new" style={{color: "#0F766E", fontWeight: 600}}>
-                        Add a property
-                    </Link>
+                <div className="cal-empty">
+                    {properties.length === 0 ? (
+                        <>
+                            <p className="cal-empty-text">Add your first property to start filling your calendar.</p>
+                            <Link to="/dashboard/properties/new" className="cal-empty-link">Add a property</Link>
+                        </>
+                    ) : (
+                        <>
+                            <p className="cal-empty-text">No rooms yet — add one to see it on the calendar.</p>
+                            <Link to={addUnitPath(activeProperty)} state={fromHere} className="cal-empty-link">Add a
+                                unit</Link>
+                        </>
+                    )}
                 </div>
             ) : (
-                <div style={{
-                    display: "flex",
-                    border: "1px solid #E4E7EC",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    background: "#fff"
-                }}>
-                    <div style={{width: LABEL_WIDTH, flexShrink: 0, borderRight: "1px solid #E4E7EC"}}>
-                        <div style={{
-                            height: HEADER_H1 + HEADER_H2,
-                            borderBottom: "1px solid #E4E7EC",
-                            display: "flex",
-                            alignItems: "flex-end",
-                            padding: "0 0 8px 10px",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: "0.04em",
-                            textTransform: "uppercase",
-                            color: "#9AA1AE"
-                        }}>
-                            Units ({units?.length ?? 0})
+                <div className="cal-shell">
+                    <div className="cal-label-col">
+                        <div className="cal-label-header">
+                            <div className="cal-label-title">
+                                Rooms ({units?.length ?? 0})
+                            </div>
                         </div>
-                        {rows.map(({unit}) => (
-                            <Link
-                                key={unit.id}
-                                to={`/dashboard/properties/${unit.propertyId}/units/${unit.id}`}
-                                style={{
-                                    height: ROW_HEIGHT,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "center",
-                                    padding: "0 12px",
-                                    textDecoration: "none",
-                                    color: "inherit",
-                                    borderBottom: "1px solid #EEF0F3",
-                                }}
-                            >
-                                <div style={{
-                                    fontSize: isMobile ? 12 : 14,
-                                    fontWeight: 700,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis"
-                                }}>
-                                    {unit.name}
-                                </div>
-                                <div style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    fontSize: 11,
-                                    color: "#6B7280",
-                                    marginTop: 2
-                                }}>
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M20 21a8 8 0 0 0-16 0"/>
-                                        <circle cx="12" cy="7" r="4"/>
-                                    </svg>
-                                    {unit.capacity}
-                                </div>
-                            </Link>
-                        ))}
+                        {layout.map((row) =>
+                            row.kind === "group" ? (
+                                // Placeholder — the visible header is the full-width overlay below.
+                                <div key={"g-" + row.group.property.id} className="cal-group-spacer"/>
+                            ) : (
+                                <Link
+                                    key={row.unit.id}
+                                    to={`/dashboard/properties/${row.unit.propertyId}/units/${row.unit.id}`}
+                                    state={fromHere}
+                                    className="cal-unit-row"
+                                >
+                                    <div className="cal-unit-name">
+                                        {row.unit.name}
+                                    </div>
+                                    <div className="cal-unit-capacity">
+                                        <BedIcon/>
+                                        <PersonIcon/>
+                                        {row.unit.capacity}
+                                    </div>
+                                </Link>
+                            )
+                        )}
                     </div>
+
+                    {/* Property headers span the label column and the grid, so long
+                        names aren't squeezed into the narrow label column. */}
+                    {layout.map((row) => {
+                        if (row.kind !== "group") return null;
+                        const {property, units: groupUnits} = row.group;
+                        console.log(layout)
+                        const count = `${groupUnits.length} ${groupUnits.length === 1 ? "room" : "rooms"}`;
+                        return (
+                            <div
+                                key={"gh-" + property.id}
+                                className={`cal-group-header${canCollapse ? "" : " is-static"}`}
+                                style={{top: headerHeight + row.top, height: row.height}}
+                                onPointerDown={onPointerDown}
+                                onPointerMove={onPointerMove}
+                                onPointerUp={onPointerUp}
+                                onPointerCancel={onPointerUp}
+                                onClickCapture={suppressClickAfterDrag}
+                            >
+
+                                {/* Toggle covers the whole header; the content sits above it
+                                    with pointer-events off, except the add-unit button — so the
+                                    two controls stay siblings instead of nesting a link in a button. */}
+                                {canCollapse && (
+                                    <button
+                                        type="button"
+                                        className="cal-group-toggle"
+                                        aria-expanded={!row.collapsed}
+                                        aria-label={`${row.collapsed ? "Expand" : "Collapse"} ${property.name}`}
+                                        onClick={() => toggleGroup(property.id)}
+                                    />
+                                )}
+                                {/*{canCollapse && (*/}
+                                {/*    <ChevronDownIcon className={`cal-group-chevron${row.collapsed ? " is-collapsed" : ""}`}/>*/}
+                                {/*)}*/}
+                                <Link
+                                    to={`/dashboard/properties/${property.id}/units/new`}
+                                    state={fromHere}
+                                    className="cal-group-add"
+                                    title={`Add unit to ${property.name}`}
+                                    aria-label={`Add unit to ${property.name}`}
+                                >
+                                    <PlusIcon size={15}/>
+                                </Link>
+                                <span className="cal-group-text">
+                                    <span className="cal-group-name">{property.name}</span>
+                                    <span className="cal-group-meta">
+                                        {count}{property.address ? ` · ${property.address}` : ""}
+                                    </span>
+                                </span>
+
+                            </div>
+                        );
+                    })}
 
                     <div
                         ref={setViewportRef}
@@ -525,79 +723,63 @@ export default function CalendarPage() {
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}
                         onPointerCancel={onPointerUp}
-                        style={{
-                            flex: 1,
-                            overflow: "hidden",
-                            position: "relative",
-                            touchAction: "none",
-                            cursor: isDragging ? "grabbing" : "grab"
-                        }}
+                        onClickCapture={suppressClickAfterDrag}
+                        className="cal-viewport"
                     >
                         {/* Sticky month label — sits outside the scrolling grid so it
                             stays fixed on the current month instead of scrolling with
                             the days; its text is written directly via monthLabelRef. */}
-                        <div
-                            ref={monthLabelRef}
-                            style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                height: HEADER_H1,
-                                zIndex: 2,
-                                display: "flex",
-                                alignItems: "center",
-                                width: "max-content",
-                                padding: "0 10px 0 6px",
-                                background: "#fff",
-                                fontSize: 11,
-                                fontWeight: 700,
-                                letterSpacing: "0.05em",
-                                textTransform: "uppercase",
-                                color: "#9AA1AE",
-                                pointerEvents: "none",
-                            }}
-                        >
+                        <div ref={monthLabelRef} className="cal-month-label">
                             {format(today, "MMMM yyyy")}
                         </div>
 
                         <div
                             ref={innerRef}
+                            className="cal-grid"
                             style={{
                                 width: windowColCount * DAY_COL_WIDTH,
                                 display: "grid",
                                 gridTemplateColumns: `repeat(${windowColCount}, ${DAY_COL_WIDTH}px)`,
-                                gridTemplateRows: `${HEADER_H1}px ${HEADER_H2}px repeat(${units?.length ?? 0}, ${ROW_HEIGHT}px)`,
-                                willChange: "transform",
+                                gridTemplateRows: [HEADER_H1, HEADER_H2, ...layout.map((r) => r.height)]
+                                    .map((h) => `${h}px`).join(" "),
                             }}
                         >
-                            <div style={{
-                                gridColumn: `1 / ${windowColCount + 1}`,
-                                gridRow: "1 / 3",
-                                background: "#fff",
-                                borderBottom: "1px solid #E4E7EC"
-                            }}/>
+                            <div
+                                className="cal-grid-header-bg"
+                                style={{gridColumn: `1 / ${windowColCount + 1}`, gridRow: "1 / 3"}}
+                            />
 
                             {renderedDays.map((d, i) => (
                                 <div
                                     key={"bg-" + d.index}
+                                    className={`cal-day-bg${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}
                                     style={{
                                         gridColumn: `${i + 1} / ${i + 2}`,
-                                        gridRow: `3 / ${(units?.length ?? 0) + 3}`,
-                                        borderRight: "1px solid #E4E7EC",
-                                        background: d.isToday ? "#CCFBF1" : d.isWeekend ? "#EEF1F5" : "transparent",
-                                        backgroundImage: `repeating-linear-gradient(to bottom, transparent 0px, transparent ${ROW_HEIGHT - 1}px, #E9EBEF ${ROW_HEIGHT - 1}px, #E9EBEF ${ROW_HEIGHT}px)`,
+                                        gridRow: `3 / ${bodyEndRow}`,
                                     }}
                                 />
                             ))}
 
+                            {/* Row separators, and an opaque band behind each property header. */}
+                            {layout.map((row) => (
+
+                                    <div
+                                        key={row.kind === "group" ? "band-" + row.group.property.id : "line-" + row.unit.id}
+                                        className={row.kind === "group" ? "cal-group-band" : "cal-row-line"}
+                                        style={{
+                                            gridColumn: `1 / ${windowColCount + 1}`,
+                                            gridRow: `${row.gridRow} / ${row.gridRow + 1}`
+                                        }}
+                                    />
+                                )
+                            )}
+
                             {todayColIndex >= 0 && (
                                 <div
+                                    className="cal-today-marker"
                                     style={{
                                         gridColumn: `${todayColIndex + 1} / ${todayColIndex + 2}`,
-                                        gridRow: "1 / 3",
-                                        background: "#0F766E",
-                                        borderRadius: 6,
-                                        margin: "28px 2px 2px 2px",
+                                        gridRow: "1 / 3"
                                     }}
                                 />
                             )}
@@ -605,74 +787,34 @@ export default function CalendarPage() {
                             {renderedDays.map((d, i) => (
                                 <div
                                     key={"h-" + d.index}
-                                    style={{
-                                        gridColumn: `${i + 1} / ${i + 2}`,
-                                        gridRow: "2 / 3",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        borderRight: "1px solid #E4E7EC",
-                                        borderTop: "1px solid #E4E7EC",
-                                    }}
+                                    className={`cal-day-header${d.isWeekend && !d.isToday ? " is-weekend" : ""}`}
+                                    style={{gridColumn: `${i + 1} / ${i + 2}`, gridRow: "2 / 3"}}
                                 >
-                                    <div style={{
-                                        fontSize: isMobile ? 12 : 14,
-                                        fontWeight: d.isToday ? 700 : 600,
-                                        color: d.isToday ? "#fff" : "#1A1D23"
-                                    }}>
+                                    <div
+                                        className={`cal-day-num${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}>
                                         {d.dayNum}
                                     </div>
-                                    <div style={{
-                                        fontSize: isMobile ? 9 : 11,
-                                        fontWeight: 500,
-                                        color: d.isToday ? "#CCFBF1" : "#9AA1AE"
-                                    }}>
+                                    <div
+                                        className={`cal-day-weekday${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}>
                                         {d.weekdayLabel}
                                     </div>
                                 </div>
                             ))}
 
-                            {rows.map(({unit, gridRow}) =>
-                                renderedDays.map((d, i) => (
-                                    <Link
-                                        key={unit.id + "-" + d.index}
-                                        to={`/dashboard/reservations/new?unitId=${unit.id}&checkIn=${d.dateStr}`}
-                                        style={{
-                                            gridColumn: `${i + 1} / ${i + 2}`,
-                                            gridRow: `${gridRow} / ${gridRow + 1}`
-                                        }}
-                                        aria-label={`New reservation, ${unit.name}, ${d.dateStr}`}
-                                    />
-                                ))
-                            )}
-
                             {bars.map((b) => (
                                 <Link
                                     key={b.id}
                                     to={`/dashboard/reservations/${b.id}`}
+                                    className="cal-bar"
                                     style={{
                                         gridColumn: b.gridColumn,
                                         gridRow: b.gridRow,
                                         alignSelf: "center",
-                                        position: "relative",
-                                        display: "block",
                                         width: b.W,
                                         height: b.H,
-                                        textDecoration: "none",
-                                        overflow: "hidden",
                                     }}
                                 >
-                                    <svg
-                                        width={b.W}
-                                        height={b.H}
-                                        style={{
-                                            position: "absolute",
-                                            top: 0,
-                                            left: 0,
-                                            filter: "drop-shadow(0 1px 2px rgba(16,19,26,0.06))",
-                                        }}
-                                    >
+                                    <svg width={b.W} height={b.H} className="cal-bar-svg">
                                         <polygon
                                             points={b.points}
                                             fill={b.fill}
@@ -681,25 +823,14 @@ export default function CalendarPage() {
                                             strokeLinejoin="round"
                                         />
                                     </svg>
-                                    <span
-                                        style={{
-                                            position: "absolute",
-                                            inset: 0,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            padding: "0 12px",
-                                            fontSize: 13,
-                                            fontWeight: 600,
-                                            color: b.textColor,
-                                            whiteSpace: "nowrap",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            textAlign: "center",
-                                            pointerEvents: "none",
-                                        }}
-                                    >
-                                        {b.guestName}
+                                    <span className="cal-bar-label-wrap">
+                                        {/* Nested block element — text-overflow:ellipsis doesn't
+                                            reliably truncate a direct text child of a flex
+                                            container, so the truncating span needs its own
+                                            block formatting context. */}
+                                        <span className="cal-bar-label" style={{color: b.textColor}}>
+                                            {b.guestName}
+                                        </span>
                                     </span>
                                 </Link>
                             ))}
@@ -708,8 +839,8 @@ export default function CalendarPage() {
                 </div>
             )}
 
-            <div style={{display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12}}>
-                <span style={{fontSize: 12, color: "#9AA1AE"}}>← Drag to browse dates →</span>
+            <div className="cal-footer">
+                <span className="cal-footer-hint">← Drag to browse dates →</span>
             </div>
         </div>
     );

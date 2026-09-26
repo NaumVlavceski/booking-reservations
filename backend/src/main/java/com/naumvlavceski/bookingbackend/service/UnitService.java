@@ -68,6 +68,6 @@ public class UnitService {
     }
 
     private UnitResponse toResponse(Unit u) {
-        return new UnitResponse(u.getId(), u.getProperty().getId(), u.getName(), u.getCapacity());
+        return new UnitResponse(u.getId(), u.getProperty().getId(), u.getName(), u.getCapacity(), u.getCreatedAt());
     }
 }

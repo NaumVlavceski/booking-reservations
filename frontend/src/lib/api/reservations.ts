@@ -1,3 +1,4 @@
+import {queryOptions} from "@tanstack/react-query";
 import {apiClient} from "./client.ts";
 
 export interface ReservationResponse {
@@ -5,8 +6,8 @@ export interface ReservationResponse {
     unitId: string;
     checkIn: string;
     checkOut: string;
-    status: "CONFIRMED" | "CANCELLED";
-    source: "DIRECT" | "BOOKING" | "AIRBNB" | "MANUAL_BLOCK";
+    status: "CONFIRMED" | "CANCELLED" | "PAID" | "BLOCK";
+    source: "DIRECT" | "BOOKING" | "AIRBNB";
     guestName: string;
     guestEmail: string | null;
     guestPhone: string | null;
@@ -21,9 +22,10 @@ export interface ReservationRequest{
     unitId: string;
     checkIn: string;
     checkOut: string;
-    pricePerGuest: number;
-    nightlyRate: number;
-    totalAmount: number;
+    status: "CONFIRMED" | "CANCELLED" | "PAID" | "BLOCK";
+    pricePerGuest: number | null;
+    nightlyRate: number | null;
+    totalAmount: number | null;
     guestName: string;
     guestEmail: string;
     guestPhone: string;
@@ -41,6 +43,11 @@ export async function getReservations(filters?: ReservationFilters): Promise<Res
     });
     return res.data;
 }
+export const allReservationsQuery = queryOptions({
+    queryKey: ["reservations", "calendar"],
+    queryFn: () => getReservations(),
+});
+
 export async function deleteReservation(id: string): Promise<void> {
     await apiClient.delete(`/api/reservations/${id}`);
 }
@@ -54,7 +61,8 @@ export async function createReservation(data: ReservationRequest): Promise<Reser
     return res.data;
 }
 
-export async function updateReservation(id: string, data: ReservationRequest): Promise<ReservationResponse> {
+export async function updateReservation(id: string, data: ReservationRequest): Promise<ReservationResponse | null> {
     const res = await apiClient.put<ReservationResponse>(`/api/reservations/${id}`, data);
-    return res.data;
+    console.log(res)
+    return res.status === 204 ? null : res.data;
 }
