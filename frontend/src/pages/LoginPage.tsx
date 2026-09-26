@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { login } from "../lib/api/auth";
 import { tokenStorage } from "../lib/auth/tokenStorage";
+import AppLogo from "../components/AppLogo";
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -12,7 +13,7 @@ export default function LoginPage() {
         mutationFn: login,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
-            navigate("/dashboard");
+            navigate("/dashboard/calendar", { replace: true });
         },
     });
     function handleSubmit(e: React.FormEvent) {
@@ -20,45 +21,61 @@ export default function LoginPage() {
         mutation.mutate(form);
     }
 
+    if (tokenStorage.get()) {
+        return <Navigate to="/dashboard/calendar" replace />;
+    }
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex min-h-screen items-center justify-center px-5 py-10">
             <form
                 onSubmit={handleSubmit}
-                className="bg-white p-8 rounded-lg shadow-md w-full max-w-md space-y-4"
+                className="w-full max-w-md space-y-5 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm"
             >
-                <h1 className="text-2xl font-semibold text-gray-900">Log in</h1>
+                <div className="mb-8 flex flex-col items-center gap-3 text-center">
+                    <AppLogo />
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staytrack</h1>
+                        <p className="mt-1 text-sm text-slate-500">Manage every booking in one place</p>
+                    </div>
+                </div>
 
-                <input
-                    type="email"
-                    placeholder="Email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
+                <h2 className="hidden text-center text-xl font-bold text-slate-900 sm:block">Log in</h2>
+
+                <div>
+                    <label className="field-label" htmlFor="email">Email</label>
+                    <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        value={form.email}
+                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        required
+                        className="field-input"
+                    />
+                </div>
+                <div>
+                    <label className="field-label" htmlFor="password">Password</label>
+                    <input
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        required
+                        className="field-input"
+                    />
+                </div>
 
                 {mutation.isError && (
-                    <p className="text-red-600 text-sm">Invalid email or password.</p>
+                    <p className="alert-error">Invalid email or password.</p>
                 )}
 
-                <button
-                    type="submit"
-                    disabled={mutation.isPending}
-                    className="w-full bg-blue-600 text-white rounded py-2 font-medium disabled:opacity-50"
-                >
+                <button type="submit" disabled={mutation.isPending} className="btn btn-primary w-full py-3">
                     {mutation.isPending ? "Logging in..." : "Log in"}
                 </button>
 
-                <p className="text-sm text-gray-600 text-center">
-                    Don't have an account? <Link to="/register" className="text-blue-600">Register</Link>
+                <p className="text-center text-sm text-slate-500">
+                    Don't have an account? <Link to="/register" className="font-semibold text-teal-700">Register</Link>
                 </p>
             </form>
         </div>

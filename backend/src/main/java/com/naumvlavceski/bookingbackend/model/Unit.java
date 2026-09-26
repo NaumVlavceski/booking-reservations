@@ -31,8 +31,6 @@ public class Unit {
     @Column(nullable = false)
     private Integer capacity;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal basePrice;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

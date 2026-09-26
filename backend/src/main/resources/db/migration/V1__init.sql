@@ -20,9 +20,8 @@ CREATE TABLE owner
 (
     id            UUID                                 NOT NULL,
     business_name VARCHAR(255)                         NOT NULL,
-    contact_email VARCHAR(255)                         NOT NULL,
     contact_phone VARCHAR(255),
-    timezone      VARCHAR(255) DEFAULT 'Europe/Skopje' NOT NULL,
+    timezone      VARCHAR(255) DEFAULT 'Europe/Skopje',
     active        BOOLEAN      DEFAULT TRUE            NOT NULL,
     created_at    TIMESTAMP WITHOUT TIME ZONE,
     updated_at    TIMESTAMP WITHOUT TIME ZONE,

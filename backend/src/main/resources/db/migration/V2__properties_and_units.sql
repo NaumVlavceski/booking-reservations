@@ -4,7 +4,7 @@ CREATE TABLE property
     owner_id   UUID                                 NOT NULL,
     name       VARCHAR(255)                         NOT NULL,
     address    VARCHAR(255),
-    timezone   VARCHAR(255) DEFAULT 'Europe/Skopje' NOT NULL,
+    timezone   VARCHAR(255) DEFAULT 'Europe/Skopje',
     created_at TIMESTAMP WITHOUT TIME ZONE,
     updated_at TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_property PRIMARY KEY (id)
@@ -16,7 +16,6 @@ CREATE TABLE unit
     owner_id    UUID           NOT NULL,
     name        VARCHAR(255)   NOT NULL,
     capacity    INTEGER        NOT NULL,
-    base_price  DECIMAL(10, 2) NOT NULL,
     created_at  TIMESTAMP WITHOUT TIME ZONE,
     updated_at  TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_unit PRIMARY KEY (id)

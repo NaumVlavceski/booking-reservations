@@ -2,7 +2,7 @@ package com.naumvlavceski.bookingbackend.dto;
 
 public record RegisterRequest(
         String businessName,
-        String contactEmail,
+        String contactPhone,
         String email,
         String password,
         String fullName

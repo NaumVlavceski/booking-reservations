@@ -7,8 +7,7 @@ import java.math.BigInteger;
 
 public record UnitRequest(
         String name,
-        Integer capacity,
-        BigDecimal basePrice
+        Integer capacity
 
 ) {
 }

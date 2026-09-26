@@ -1,6 +1,6 @@
 package com.naumvlavceski.bookingbackend.dto;
 
-import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record UnitResponse(
@@ -8,6 +8,6 @@ public record UnitResponse(
         UUID propertyId,
         String name,
         Integer capacity,
-        BigDecimal basePrice
+        LocalDateTime createdAt
 ){
 }

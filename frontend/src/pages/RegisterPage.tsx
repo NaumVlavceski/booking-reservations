@@ -3,12 +3,13 @@ import {useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {register} from "../lib/api/auth.ts";
 import {tokenStorage} from "../lib/auth/tokenStorage.ts";
+import AppLogo from "../components/AppLogo";
 
 export default function RegisterPage(){
     const navigate = useNavigate();
     const [form,setForm] = useState({
         businessName: "",
-        contactEmail: "",
+        contactPhone: "",
         email: "",
         password: "",
         fullName: "",
@@ -18,7 +19,8 @@ export default function RegisterPage(){
         mutationFn: register,
         onSuccess:(data)=>{
             tokenStorage.set(data.token);
-            navigate("/dashboard");
+            // A brand-new account has nothing to show yet — set up the first property first.
+            navigate("/dashboard/properties/new?welcome=1", {replace: true});
         },
     });
     function handleSubmit(e: React.FormEvent) {
@@ -28,74 +30,62 @@ export default function RegisterPage(){
     function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
         setForm({...form,[e.target.name]: e.target.value});
     }
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex min-h-screen items-center justify-center px-5 py-10">
             <form
                 onSubmit={handleSubmit}
-                className="bg-white p-8 rounded-lg shadow-md w-full max-w-md space-y-4"
+                className="w-full max-w-md space-y-5 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm"
             >
-                <h1 className="text-2xl font-semibold text-gray-900">Create your account</h1>
+                <div className="mb-8 flex flex-col items-center gap-3 text-center">
+                    <AppLogo />
+                    <div>
+                        <h1 className="text-xl font-bold tracking-tight text-slate-900">Create your account</h1>
+                        <p className="mt-1 text-sm text-slate-500">Start managing your rentals in minutes</p>
+                    </div>
+                </div>
 
-                <input
-                    name="businessName"
-                    placeholder="Business name"
-                    value={form.businessName}
-                    onChange={handleChange}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
-                <input
-                    name="contactEmail"
-                    type="email"
-                    placeholder="Business contact email"
-                    value={form.contactEmail}
-                    onChange={handleChange}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
-                <input
-                    name="fullName"
-                    placeholder="Your full name"
-                    value={form.fullName}
-                    onChange={handleChange}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
-                <input
-                    name="email"
-                    type="email"
-                    placeholder="Login email"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
-                <input
-                    name="password"
-                    type="password"
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={handleChange}
-                    required
-                    className="w-full border rounded px-3 py-2"
-                />
+                <div>
+                    <label className="field-label" htmlFor="businessName">Business name</label>
+                    <input id="businessName" name="businessName" value={form.businessName}
+                           onChange={handleChange} required autoComplete="organization" className="field-input"/>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
+                    <div>
+                        <label className="field-label" htmlFor="fullName">Full name</label>
+                        <input id="fullName" name="fullName" value={form.fullName}
+                               onChange={handleChange} required autoComplete="name" className="field-input"/>
+                    </div>
+                    <div>
+                        <label className="field-label" htmlFor="contactPhone">Contact phone</label>
+                        <input id="contactPhone" name="contactPhone" type="tel" value={form.contactPhone}
+                               onChange={handleChange} required autoComplete="tel" className="field-input"/>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="field-label" htmlFor="email">Email</label>
+                    <input id="email" name="email" type="email" value={form.email}
+                           onChange={handleChange} required autoComplete="email" className="field-input"/>
+                </div>
+
+                <div>
+                    <label className="field-label" htmlFor="password">Password</label>
+                    <input id="password" name="password" type="password" value={form.password}
+                           onChange={handleChange} required autoComplete="new-password" className="field-input"/>
+                </div>
 
                 {mutation.isError && (
-                    <p className="text-red-600 text-sm">
-                        Registration failed. Check your details and try again.
-                    </p>
+                    <p className="alert-error">Registration failed. Check your details and try again.</p>
                 )}
 
-                <button
-                    type="submit"
-                    disabled={mutation.isPending}
-                    className="w-full bg-blue-600 text-white rounded py-2 font-medium disabled:opacity-50"
-                >
+                <button type="submit" disabled={mutation.isPending} className="btn btn-primary w-full py-3">
                     {mutation.isPending ? "Creating account..." : "Create account"}
                 </button>
 
-                <p className="text-sm text-gray-600 text-center">
-                    Already have an account? <Link to="/login" className="text-blue-600">Log in</Link>
+                <p className="text-center text-sm text-slate-500">
+                    Already have an account? <Link to="/login" className="font-semibold text-teal-700">Log in</Link>
                 </p>
             </form>
         </div>

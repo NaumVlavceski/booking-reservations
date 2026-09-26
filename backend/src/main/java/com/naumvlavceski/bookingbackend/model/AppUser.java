@@ -15,7 +15,7 @@ import java.util.UUID;
 public class AppUser {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID Id;
+    private UUID id;
 
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
@@ -32,8 +32,7 @@ public class AppUser {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @ColumnDefault("'OWNER'")
-
-    private Role role;
+    private Role role = Role.OWNER;
     @ColumnDefault("true")
     @Column(nullable = false)
     private boolean active = true;
