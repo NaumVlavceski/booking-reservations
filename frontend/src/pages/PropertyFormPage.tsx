@@ -98,13 +98,18 @@ export default function PropertyFormPage() {
         return <div className="text-slate-500">Loading property...</div>;
     }
 
-    const title = isEditing ? "Edit property" : isWelcome ? "Set up your first property" : "Add a property";
+    const title = isEditing ? `Edit ${existing?.name ?? "property"}` : isWelcome ? "Set up your first property" : "Add a property";
+    const isDirty = isEditing
+        ? existing != null && (form.name !== existing.name || form.address !== existing.address || form.timezone !== existing.timezone)
+        : Boolean(form.name || form.address || unitCount !== "1" || form.timezone !== "Europe/Skopje");
 
     return (
         <div className="mx-auto max-w-xl">
             <FormTopBar
                 formId="property-form"
                 saving={mutation.isPending}
+                title={title}
+                isDirty={isDirty}
                 back={isWelcome ? undefined : {
                     to: isEditing ? `/dashboard/properties/${id}` : "/dashboard/properties",
                     label: isEditing ? (existing?.name ?? "Property") : "Properties",
@@ -115,14 +120,11 @@ export default function PropertyFormPage() {
                 } : undefined}
                 deleteLabel="Delete property"
             />
-            <div className="mb-6 mt-2">
-                <h1 className="page-title">{title}</h1>
-                {isWelcome && (
-                    <p className="page-subtitle">
-                        Tell us about your place and how many rooms it has — we'll create them for you.
-                    </p>
-                )}
-            </div>
+            {isWelcome && (
+                <p className="page-subtitle mb-6 mt-2">
+                    Tell us about your place and how many rooms it has — we'll create them for you.
+                </p>
+            )}
 
             <form id="property-form" onSubmit={handleSubmit} className="surface space-y-5">
                 <div>
@@ -143,7 +145,6 @@ export default function PropertyFormPage() {
                         id="address"
                         value={form.address}
                         onChange={(e) => setForm({ ...form, address: e.target.value })}
-                        required
                         placeholder="Peštani, Lake Ohrid, North Macedonia"
                         className="field-input"
                     />
