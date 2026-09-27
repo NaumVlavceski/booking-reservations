@@ -183,9 +183,9 @@ export default function CalendarPage() {
 
     // Phones: exactly a week fills the width. Desktop: 20 days.
     const DAY_COL_WIDTH = isMobile
-        ? Math.max(30, viewportWidth / MOBILE_VISIBLE_DAYS)
-        : Math.max(40, Math.floor(viewportWidth / 20));
-    const ROW_HEIGHT = isMobile ? 56 : 64;
+        ? Math.max(45, viewportWidth / MOBILE_VISIBLE_DAYS)
+        : Math.max(60, Math.floor(viewportWidth / 20));
+    const ROW_HEIGHT = isMobile ? 50 : 64;
     const GROUP_HEIGHT = isMobile ? 48 : 52;
     const BAR_HEIGHT = isMobile ? 44 : 60;
     const BAR_MARGIN = isMobile ? 3 : 5;
@@ -197,6 +197,7 @@ export default function CalendarPage() {
     const {data: properties} = useQuery(propertiesQuery);
     const {data: units} = useQuery(allUnitsQuery);
     const {data: reservations} = useQuery(allReservationsQuery);
+    const isLoading = !properties || !units;
 
     const maxScroll = MAX_RANGE_DAYS * DAY_COL_WIDTH;
 
@@ -250,8 +251,16 @@ export default function CalendarPage() {
             innerRef.current.style.transform = `translateX(${next.start * DAY_COL_WIDTH - scrollXRef.current}px)`;
         }
         updateMonthLabel(scrollXRef.current);
+        // Re-run once the grid itself mounts, too: while properties/units are still
+        // loading the grid (and innerRef) doesn't exist yet, so the transform above
+        // is a no-op. It ran once already with the same viewportWidth/DAY_COL_WIDTH,
+        // so without `isLoading` here this effect wouldn't fire again when the grid
+        // finally appears — leaving it untransformed at day `windowState.start`
+        // (weeks in the past) until the first drag set it. That's exactly the
+        // "shows the wrong date until I scroll" bug on mobile, where the initial
+        // load is slow enough for this gap to be visible.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [viewportWidth, DAY_COL_WIDTH]);
+    }, [viewportWidth, DAY_COL_WIDTH, isLoading]);
 
     function onPointerDown(e: ReactPointerEvent) {
         if (momentumFrameRef.current) {
@@ -452,13 +461,20 @@ export default function CalendarPage() {
 
                 const W = (colEnd - colStart) * DAY_COL_WIDTH - 2 * BAR_MARGIN;
                 const H = BAR_HEIGHT;
-                const points = trueLeft && trueRight
-                    ? `${CUT_PX},0 ${W},0 ${W - CUT_PX},${H} 0,${H}`
+                // Same diagonal cut as the SVG polygon, expressed as [x, y] pairs so it
+                // can also drive a CSS clip-path on the bar's hit area (see below) —
+                // without that, the empty triangle on the checkout day's cell would
+                // still register taps on this bar instead of falling through to the
+                // grid's "start a new reservation" handler.
+                const pointsArr: [number, number][] = trueLeft && trueRight
+                    ? [[CUT_PX, 0], [W, 0], [W - CUT_PX, H], [0, H]]
                     : trueLeft
-                        ? `${CUT_PX},0 ${W},0 ${W},${H} 0,${H}`
+                        ? [[CUT_PX, 0], [W, 0], [W, H], [0, H]]
                         : trueRight
-                            ? `0,0 ${W},0 ${W - CUT_PX},${H} 0,${H}`
-                            : `0,0 ${W},0 ${W},${H} 0,${H}`;
+                            ? [[0, 0], [W, 0], [W - CUT_PX, H], [0, H]]
+                            : [[0, 0], [W, 0], [W, H], [0, H]];
+                const points = pointsArr.map(([x, y]) => `${x},${y}`).join(" ");
+                const clipPath = `polygon(${pointsArr.map(([x, y]) => `${x}px ${y}px`).join(", ")})`;
 
                 return {
                     id: r.id,
@@ -468,6 +484,7 @@ export default function CalendarPage() {
                     borderColor: colors.border,
                     textColor: colors.text,
                     points,
+                    clipPath,
                     W,
                     H,
                     guestName: r.guestName || "Reservation",
@@ -496,7 +513,6 @@ export default function CalendarPage() {
     }
 
     const todayColIndex = renderedDays.findIndex((d) => d.isToday);
-    const isLoading = !properties || !units;
 
     // The numbers that actually vary at runtime — CSS reads them via
     // var(...) so the rest of the styling can live as static rules in
@@ -812,6 +828,7 @@ export default function CalendarPage() {
                                         alignSelf: "center",
                                         width: b.W,
                                         height: b.H,
+                                        clipPath: b.clipPath,
                                     }}
                                 >
                                     <svg width={b.W} height={b.H} className="cal-bar-svg">

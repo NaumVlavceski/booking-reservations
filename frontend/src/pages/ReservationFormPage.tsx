@@ -5,10 +5,12 @@ import {
     type ReservationRequest,
     updateReservation
 } from "../lib/api/reservations.ts";
+import {getUnit} from "../lib/api/units.ts";
 import {useEffect, useRef, useState} from "react";
 
 import FormTopBar from "../components/FormTopBar";
 import StayDatesPicker from "../components/StayDatesPicker";
+import {MinusIcon, PlusIcon} from "../components/icons";
 
 type PricingField = "nightlyRate" | "totalAmount" | "pricePerGuest" | null;
 
@@ -36,7 +38,7 @@ export default function ReservationFormPage() {
         queryFn: () => getReservation(id!),
         enabled: isEditing,
     });
-    const [form, setForm] = useState<ReservationRequest>({
+    const initialForm: ReservationRequest = {
         unitId: prefillUnitId ?? "",
         checkIn: prefillCheckIn ?? "",
         checkOut: "",
@@ -49,10 +51,14 @@ export default function ReservationFormPage() {
         guestPhone: "",
         guestsCount: 2,
         notes: ""
-    });
+    };
+    const [form, setForm] = useState<ReservationRequest>(initialForm);
+    // Snapshot to compare against for the unsaved-changes warning: the
+    // prefilled/blank form on create, or the loaded reservation once it arrives.
+    const [initialSnapshot, setInitialSnapshot] = useState<ReservationRequest | null>(isEditing ? null : initialForm);
     useEffect(() => {
         if (existing) {
-            setForm({
+            const next: ReservationRequest = {
                 unitId: existing.unitId,
                 checkIn: existing.checkIn,
                 checkOut: existing.checkOut,
@@ -65,9 +71,16 @@ export default function ReservationFormPage() {
                 guestPhone: existing.guestPhone!,
                 guestsCount: existing.guestsCount,
                 notes: existing.notes
-            })
+            };
+            setForm(next);
+            setInitialSnapshot(next);
         }
     }, [existing]);
+    const {data: unitForTitle} = useQuery({
+        queryKey: ["units", "detail", form.unitId],
+        queryFn: () => getUnit(form.unitId),
+        enabled: Boolean(form.unitId),
+    });
     const [conflictMessage, setConflictMessage] = useState<string | null>(null);
     const [lastEdited, setLastEdited] = useState<PricingField>(null);
     const [priceRecalculatedNotice, setPriceRecalculatedNotice] = useState(false);
@@ -151,12 +164,27 @@ export default function ReservationFormPage() {
 
     const inputClass = "field-input";
     const labelClass = "field-label";
+    const title = isEditing
+        ? `Edit${unitForTitle ? ` ${unitForTitle.name}` : " reservation"}`
+        : unitForTitle ? `Reservation ${unitForTitle.name}` : "New reservation";
+    const isDirty = initialSnapshot !== null && JSON.stringify(form) !== JSON.stringify(initialSnapshot);
+
+    function updateGuests(delta: number) {
+        setForm((f) => {
+            const guestsCount = Math.max(1, f.guestsCount + delta);
+            return {...f, guestsCount};
+        });
+        setLastEdited("pricePerGuest");
+        showRecalculatedNotice(form.checkIn, form.checkOut);
+    }
 
     return (
         <div className="mx-auto max-w-xl">
             <FormTopBar
                 formId="reservation-form"
                 saving={mutation.isPending}
+                title={title}
+                isDirty={isDirty}
                 back={{to: "/dashboard/calendar", label: "Calendar"}}
             />
 
@@ -200,19 +228,28 @@ export default function ReservationFormPage() {
                 </div>
                 <div>
                     <label className={labelClass}>Guests</label>
-                    <input
-                        type="number"
-                        min={1}
-                        name="guestsCount"
-                        value={form.guestsCount}
-                        onChange={(e) => {
-                            onChange(e);
-                            setLastEdited("pricePerGuest");
-                            showRecalculatedNotice(form.checkIn, form.checkOut);
-                        }}
-                        required
-                        className={`${inputClass} max-w-[8rem]`}
-                    />
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => updateGuests(-1)}
+                            disabled={form.guestsCount <= 1}
+                            aria-label="Decrease guests"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            <MinusIcon size={16}/>
+                        </button>
+                        <span className="w-8 text-center text-base font-semibold text-slate-900">
+                            {form.guestsCount}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => updateGuests(1)}
+                            aria-label="Increase guests"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 text-slate-700 transition-colors hover:bg-slate-50"
+                        >
+                            <PlusIcon size={16}/>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label className={`${labelClass} mb-2`}>Status</label>
@@ -244,10 +281,11 @@ export default function ReservationFormPage() {
                     <div>
                         <label className={labelClass}>
                             <span className="sm:hidden">Per guest</span>
-                            <span className="hidden sm:inline">Price/guest</span>
+                            <span className="hidden sm:inline">Price guest</span>
                         </label>
                         <input
                             type="number"
+                            inputMode={"numeric"}
                             name="pricePerGuest"
                             value={form.pricePerGuest ?? ""}
                             onChange={(e) => {
@@ -261,11 +299,12 @@ export default function ReservationFormPage() {
                     </div>
                     <div>
                         <label className={labelClass}>
-                            <span className="sm:hidden">Nightly</span>
-                            <span className="hidden sm:inline">Nightly rate</span>
+                            <span className="sm:hidden">Per day</span>
+                            <span className="hidden sm:inline">Per Day</span>
                         </label>
                         <input
                             type="number"
+                            inputMode={"numeric"}
                             name="nightlyRate"
                             value={form.nightlyRate ?? ""}
                             onChange={(e) => {
@@ -283,6 +322,7 @@ export default function ReservationFormPage() {
                         </label>
                         <input
                             type="number"
+                            inputMode={"numeric"}
                             name="totalAmount"
                             value={form.totalAmount ?? ""}
                             onChange={(e) => {
@@ -311,21 +351,21 @@ export default function ReservationFormPage() {
 
                 <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
                     <div>
-                        <label className={labelClass}>Email</label>
-                        <input
-                            type="email"
-                            name="guestEmail"
-                            value={form.guestEmail}
-                            onChange={onChange}
-                            className={inputClass}
-                        />
-                    </div>
-                    <div>
                         <label className={labelClass}>Phone</label>
                         <input
                             type="tel"
                             name="guestPhone"
                             value={form.guestPhone}
+                            onChange={onChange}
+                            className={inputClass}
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Email</label>
+                        <input
+                            type="email"
+                            name="guestEmail"
+                            value={form.guestEmail}
                             onChange={onChange}
                             className={inputClass}
                         />

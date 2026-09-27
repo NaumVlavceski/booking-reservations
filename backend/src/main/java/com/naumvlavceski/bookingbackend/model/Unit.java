@@ -37,4 +37,7 @@ public class Unit {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Column(name="ical_token",nullable = false, unique = true)
+    private String icalToken;
 }

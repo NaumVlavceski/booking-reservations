@@ -79,12 +79,18 @@ export default function UnitFormPage() {
     }
 
     const backLabel = backTo.startsWith("/dashboard/calendar") ? "Calendar" : (property?.name ?? "Property");
+    const title = isEditing ? `Edit ${existing?.name ?? "unit"}` : "Add a unit";
+    const isDirty = isEditing
+        ? existing != null && (form.name !== existing.name || form.capacity !== existing.capacity)
+        : Boolean(form.name || form.capacity !== 2);
 
     return (
         <div className="mx-auto max-w-xl">
             <FormTopBar
                 formId="unit-form"
                 saving={mutation.isPending}
+                title={title}
+                isDirty={isDirty}
                 back={{to: backTo, label: backLabel, onClick: handleBack}}
                 onDelete={isEditing ? () => {
                     deleteMutation.reset();
@@ -92,10 +98,7 @@ export default function UnitFormPage() {
                 } : undefined}
                 deleteLabel="Delete unit"
             />
-            <h1 className="page-title mt-2">
-                {isEditing ? "Edit unit" : "Add a unit"}
-            </h1>
-            {property && <p className="page-subtitle">{property.name}</p>}
+            {property && <p className="page-subtitle mt-2">{property.name}</p>}
 
             <form id="unit-form" onSubmit={handleSubmit} className="surface mt-6 space-y-5">
                 <div>

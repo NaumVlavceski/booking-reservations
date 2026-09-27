@@ -1,0 +1,1 @@
+ALTER TABLE unit ADD COLUMN ical_token VARCHAR(64) NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex');

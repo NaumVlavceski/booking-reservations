@@ -14,4 +14,6 @@ public interface UnitRepository extends JpaRepository<Unit, UUID> {
     Optional<Unit> findByIdAndOwnerId(UUID id, UUID ownerId);
 
     UnitResponse findByOwnerId(UUID ownerId);
+
+    Optional<Unit> findByIcalToken(String token);
 }

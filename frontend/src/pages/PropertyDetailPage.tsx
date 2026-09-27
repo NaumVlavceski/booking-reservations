@@ -53,7 +53,7 @@ export default function PropertyDetailPage() {
     return (
         <div className="pt-6">
             <Link to="/dashboard/properties" className="back-link">
-                <ChevronLeftIcon/> Properties
+                <ChevronLeftIcon/>
             </Link>
 
             <div className="mb-8 flex items-start justify-between gap-4">

@@ -1,6 +1,6 @@
 import {useEffect, useId, useRef, type ReactNode} from "react";
 import {createPortal} from "react-dom";
-import {TrashIcon} from "./icons";
+import {TrashIcon, WarningIcon} from "./icons";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -12,9 +12,11 @@ interface ConfirmDialogProps {
     error?: string | null;
     onConfirm: () => void;
     onCancel: () => void;
+    /** "danger" (default) is for destructive actions like delete; "neutral" is for e.g. discarding unsaved changes. */
+    variant?: "danger" | "neutral";
 }
 
-/** Destructive-action confirmation: centered card on desktop, bottom sheet on phones. */
+/** Confirmation dialog: centered card on desktop, bottom sheet on phones. */
 export default function ConfirmDialog({
     open,
     title,
@@ -25,6 +27,7 @@ export default function ConfirmDialog({
     error,
     onConfirm,
     onCancel,
+    variant = "danger",
 }: ConfirmDialogProps) {
     const titleId = useId();
     const cancelRef = useRef<HTMLButtonElement>(null);
@@ -56,8 +59,10 @@ export default function ConfirmDialog({
                 className="dialog-panel w-full rounded-t-3xl bg-white p-6 pb-[calc(env(safe-area-inset-bottom)_+_1.5rem)] shadow-2xl sm:max-w-sm sm:rounded-2xl sm:pb-6"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-600">
-                    <TrashIcon size={20}/>
+                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-full ${
+                    variant === "danger" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+                }`}>
+                    {variant === "danger" ? <TrashIcon size={20}/> : <WarningIcon size={20}/>}
                 </div>
                 <h2 id={titleId} className="text-lg font-bold text-slate-900">{title}</h2>
                 <div className="mt-1.5 text-sm text-slate-500">{message}</div>
@@ -69,8 +74,8 @@ export default function ConfirmDialog({
                             onClick={onCancel} disabled={pending}>
                         Cancel
                     </button>
-                    <button type="button" className="btn btn-danger w-full sm:w-auto" onClick={onConfirm}
-                            disabled={pending}>
+                    <button type="button" className={`btn w-full sm:w-auto ${variant === "danger" ? "btn-danger" : "btn-primary"}`}
+                            onClick={onConfirm} disabled={pending}>
                         {pending ? pendingLabel : confirmLabel}
                     </button>
                 </div>
