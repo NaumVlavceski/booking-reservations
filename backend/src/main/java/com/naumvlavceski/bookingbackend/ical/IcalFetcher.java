@@ -15,6 +15,8 @@ public class IcalFetcher {
             .connectTimeout(TIMEOUT)
             .build();
     public static String fetch(String url) throws IcalFetchException{
+        System.out.println("IcalFetcher TESTIRAJ GO");
+
         Exception lastError = null;
         for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             try {
