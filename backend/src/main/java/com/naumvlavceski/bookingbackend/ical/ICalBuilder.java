@@ -20,7 +20,6 @@ public class ICalBuilder {
         sb.append("X-WR-CALNAME:").append(escape(unit.getName())).append("\r\n");
         for (Reservation r : reservations) {
             if (r.getStatus() == ReservationStatus.CANCELLED) continue;
-            System.out.println("reservation: " + r);
             sb.append("BEGIN:VEVENT\r\n");
             sb.append("UID:").append(r.getId()).append("@staytrack\r\n");
             sb.append("DTSTART;VALUE=DATE:").append(r.getStayRange().lower().format(DATE_FMT)).append("\r\n");

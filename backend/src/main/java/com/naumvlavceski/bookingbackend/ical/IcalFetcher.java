@@ -15,8 +15,6 @@ public class IcalFetcher {
             .connectTimeout(TIMEOUT)
             .build();
     public static String fetch(String url) throws IcalFetchException{
-        System.out.println("IcalFetcher TESTIRAJ GO");
-
         Exception lastError = null;
         for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -26,12 +24,14 @@ public class IcalFetcher {
                         .GET()
                         .build();
                 HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-
                 if (response.statusCode() != 200) {
                     throw new IcalFetchException("Feed returned HTTP " + response.statusCode());
                 }
                 if (response.body().length() > MAX_BYTES) {
                     throw new IcalFetchException("Feed exceeded size cap (" + MAX_BYTES + " bytes)");
+                }
+                if (!response.body().contains("BEGIN:VCALENDAR")) {
+                    throw new IcalFetchException("Response is not an iCal feed");
                 }
                 return response.body();
 

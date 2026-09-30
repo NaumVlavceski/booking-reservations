@@ -9,6 +9,7 @@ import PropertyDetailPage from "./pages/PropertyDetailPage.tsx";
 import UnitFormPage from "./pages/UnitFormPage.tsx";
 import ReservationFormPage from "./pages/ReservationFormPage.tsx";
 import CalendarPage from "./pages/CalendarPage.tsx";
+import ConflictsPage from "./pages/ConflictsPage.tsx";
 
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage/>}/>
             <Route path="/register" element={<RegisterPage/>}/>
             <Route element={<ProtectedRoute/>}>
+                <Route path="/conflicts" element={<ConflictsPage />} />
                 <Route element={<DashboardLayout />}>
                     <Route path="/dashboard" element={<Navigate to="/dashboard/calendar" replace/>} />
                     <Route path="/dashboard/properties" element={<PropertiesPage />} />

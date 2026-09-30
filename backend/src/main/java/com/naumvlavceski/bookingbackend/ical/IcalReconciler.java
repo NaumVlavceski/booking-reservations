@@ -60,7 +60,6 @@ public class IcalReconciler {
         String newHash = IcalParser.hash(incoming.rawBlock());
         Optional<ExternalEvent> existingOpt = externalEventRepository
                 .findByExternalCalendarIdAndUid(calendar.getId(), incoming.uid());
-
         if (existingOpt.isEmpty()) {
             List<Reservation> overlaps = reservationRepository.findOverlapping(
                     unit.getId(), incoming.startDate(), incoming.endDate(), NO_EXCLUSION);
@@ -75,12 +74,29 @@ public class IcalReconciler {
 
         ExternalEvent existing = existingOpt.get();
         existing.setLastSeenAt(LocalDateTime.now());
-
         if (existing.getRawHash().equals(newHash)) {
+            reviveIfCancelled(calendar, unit, incoming, existing);
             externalEventRepository.save(existing);
             return;
         }
         updateExisting(calendar, unit, incoming, existing, newHash);
+    }
+
+    private void reviveIfCancelled(ExternalCalendar calendar, Unit unit,
+                                   ParsedIcalEvent incoming, ExternalEvent existing) {
+        if (existing.getReservationId() == null) return;
+        reservationRepository.findById(existing.getReservationId())
+                .filter(r -> r.getStatus() == ReservationStatus.CANCELLED)
+                .ifPresent(r -> {
+                    List<Reservation> overlaps = reservationRepository.findOverlapping(
+                            unit.getId(), incoming.startDate(), incoming.endDate(), r.getId());
+                    if (!overlaps.isEmpty()) {
+                        recordConflict(calendar, unit, incoming, overlaps.get(0), ConflictKind.CHANGE_OVERLAP);
+                    } else {
+                        r.setStatus(ReservationStatus.CONFIRMED);
+                        reservationRepository.save(r);
+                    }
+                });
     }
 
     private void createNew(ExternalCalendar calendar, Unit unit, ParsedIcalEvent incoming, String hash) {

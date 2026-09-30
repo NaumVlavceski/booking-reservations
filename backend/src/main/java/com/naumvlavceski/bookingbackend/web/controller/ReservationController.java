@@ -48,7 +48,6 @@ public class ReservationController {
     ){
         if (request.status() == ReservationStatus.CANCELLED) {
             reservationService.delete(ownerId, id);
-            System.out.println("DA");
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.ok(reservationService.update(ownerId, id, request));

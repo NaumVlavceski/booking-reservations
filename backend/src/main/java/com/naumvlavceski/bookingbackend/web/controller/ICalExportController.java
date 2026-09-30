@@ -26,7 +26,6 @@ public class ICalExportController {
 
     @GetMapping(value = "/{token}.ics", produces = "text/calendar")
     public ResponseEntity<String> exportFeed(@PathVariable String token) {
-        System.out.println("token: " + token);
         Unit unit = unitRepository.findByIcalToken(token).orElseThrow(() -> new NoSuchElementException("Feed not found"));
         List<Reservation> reservations = reservationRepository
                 .findAllByUnitIdAndStatusNot(unit.getId(), ReservationStatus.CANCELLED);
