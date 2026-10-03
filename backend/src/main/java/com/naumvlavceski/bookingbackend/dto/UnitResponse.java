@@ -8,6 +8,7 @@ public record UnitResponse(
         UUID propertyId,
         String name,
         Integer capacity,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String token
 ){
 }

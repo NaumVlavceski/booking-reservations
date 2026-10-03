@@ -5,7 +5,9 @@ import lombok.Data;
 import org.hibernate.annotations.*;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.UUID;
 
 @Entity
@@ -38,6 +40,14 @@ public class Unit {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @Column(name="ical_token",nullable = false, unique = true)
-    private String icalToken;
+    @Column(name="ical_token",nullable = false, unique = true,updatable =false)
+    private String icalToken = generateToken();
+
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+    private static String generateToken() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return HexFormat.of().formatHex(bytes); // 64 hex chars, same shape as the DB default
+    }
 }

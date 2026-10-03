@@ -12,6 +12,7 @@ export interface UnitResponse {
     name: string,
     capacity: number,
     createdAt: string,
+    token: string,
 }
 
 export async function getAllUnits(): Promise<UnitResponse[]> {

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -68,6 +69,6 @@ public class UnitService {
     }
 
     private UnitResponse toResponse(Unit u) {
-        return new UnitResponse(u.getId(), u.getProperty().getId(), u.getName(), u.getCapacity(), u.getCreatedAt());
+        return new UnitResponse(u.getId(), u.getProperty().getId(), u.getName(), u.getCapacity(), u.getCreatedAt(),u.getIcalToken());
     }
 }

@@ -6,7 +6,9 @@ import {tokenStorage} from "../lib/auth/tokenStorage";
 import {getMe} from "../lib/api/me";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
-import {CalendarIcon, CloseIcon, HouseIcon, LogoutIcon, MenuIcon, PlusIcon} from "./icons";
+import {AlertIcon, CalendarIcon, CloseIcon, HouseIcon, LogoutIcon, MenuIcon, PlusIcon, SyncIcon} from "./icons";
+import ConflictsBanner from "./ConflictsBanner.tsx";
+import SyncHealthBanner from "./SyncHealthBanner.tsx";
 
 const navItems = [
     {to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon},
@@ -129,6 +131,20 @@ export default function DashboardLayout() {
                         </span>
                     </NavLink>
                 </div>
+                <div className="px-3 py-4">
+                    <p className="px-3 pb-2 text-xs font-semibold tracking-wider text-slate-500">Sync</p>
+                    <NavLink to="/dashboard/conflicts" end onClick={closeDrawer}
+                             className={`${drawerLinkBase} ${drawerLinkIdle}`}>
+                        <AlertIcon size={16}/>
+                        Conflicts
+                    </NavLink>
+                    <NavLink to="/dashboard/sync-health" onClick={closeDrawer}
+                             className={`${drawerLinkBase} ${drawerLinkIdle}`}>
+                        <SyncIcon size={16}/>
+                        Sync health
+                    </NavLink>
+                </div>
+
 
                 <div className="mt-auto border-t border-white/10 px-3 pt-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
                     <button onClick={handleLogout} className={`w-full ${drawerLinkBase} ${drawerLinkIdle}`}>
@@ -145,6 +161,8 @@ export default function DashboardLayout() {
                         : "mx-auto max-w-3xl px-4 pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:px-6 sm:pt-20 sm:pb-12"
             }
             >
+                <ConflictsBanner />
+                <SyncHealthBanner />
                 <Outlet/>
             </main>
 
