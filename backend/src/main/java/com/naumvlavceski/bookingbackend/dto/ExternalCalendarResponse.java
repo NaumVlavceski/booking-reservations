@@ -3,24 +3,30 @@ package com.naumvlavceski.bookingbackend.dto;
 import com.naumvlavceski.bookingbackend.model.ExternalCalendar;
 import com.naumvlavceski.bookingbackend.model.ReservationSource;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record ExternalCalendarResponse(
         UUID id,
         UUID unitId,
+        String unitName,
         ReservationSource platform,
-        LocalDateTime lastSyncedAt,
-        LocalDateTime lastSuccessAt,
-        String lastError
+        Instant lastSyncedAt,
+        Instant lastSuccessAt,
+        String lastError,
+        int consecutiveFailures
 ) {
-    public static ExternalCalendarResponse from(ExternalCalendar c) {
-        return new ExternalCalendarResponse(c.getId(),
+    public static ExternalCalendarResponse from(ExternalCalendar c, String unitName) {
+        return new ExternalCalendarResponse(
+                c.getId(),
                 c.getUnitId(),
+                unitName,
                 c.getPlatform(),
                 c.getLastSyncedAt(),
                 c.getLastSuccessAt(),
-                c.getLastError()
+                c.getLastError(),
+                c.getConsecutiveFailures()
         );
     }
 }

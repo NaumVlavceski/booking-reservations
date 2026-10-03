@@ -9,6 +9,8 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import FormTopBar from "../components/FormTopBar";
 import {allReservationsQuery} from "../lib/api/reservations.ts";
 import {unitDeleteMessage} from "../lib/plural";
+import CalendarSyncLink from "../components/CalendarSyncLink.tsx";
+import ExternalCalendars from "../components/ExternalCalendar.tsx";
 
 export default function UnitFormPage() {
     const {propertyId, unitId} = useParams();
@@ -36,6 +38,7 @@ export default function UnitFormPage() {
             })
         }
     }, [existing]);
+    console.log(existing);
     const mutation = useMutation({
         mutationFn: (data: UnitRequest) =>
             isEditing ? updateUnit(unitId!, data) : createUnit(propertyId!, data),
@@ -129,6 +132,12 @@ export default function UnitFormPage() {
 
                 {mutation.isError && (
                     <p className="alert-error">Something went wrong. Try again.</p>
+                )}
+                {isEditing && existing?.token && (
+                    <>
+                        <CalendarSyncLink token={existing.token} />
+                        <ExternalCalendars unitId={existing.id} />
+                    </>
                 )}
             </form>
 

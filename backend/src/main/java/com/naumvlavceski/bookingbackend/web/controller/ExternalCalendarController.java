@@ -7,6 +7,7 @@ import com.naumvlavceski.bookingbackend.dto.ExternalCalendarResponse;
 import com.naumvlavceski.bookingbackend.ical.IcalFetchException;
 import com.naumvlavceski.bookingbackend.model.ExternalCalendar;
 import com.naumvlavceski.bookingbackend.model.ReservationSource;
+import com.naumvlavceski.bookingbackend.model.Unit;
 import com.naumvlavceski.bookingbackend.repository.ExternalCalendarRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import com.naumvlavceski.bookingbackend.service.IcalSyncService;
@@ -16,11 +17,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
@@ -36,13 +39,15 @@ public class ExternalCalendarController {
     @GetMapping("/units/{unitId}/calendars")
     public List<ExternalCalendarResponse> list(@CurrentUserId UUID ownerId, @PathVariable UUID unitId) {
         requireOwnedUnit(ownerId, unitId);
+        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Unit not found"));
         return calendarRepository.findAllByUnitId(unitId).stream()
-                .map(ExternalCalendarResponse::from).toList();
+                .map(c->ExternalCalendarResponse.from(c,unit.getName())).toList();
     }
 
     @PostMapping("/units/{unitId}/calendars")
     public ResponseEntity<?> create(@CurrentUserId UUID ownerId, @PathVariable UUID unitId,
                                     @Valid @RequestBody ExternalCalendarRequest request) {
+        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Unit not found"));
         requireOwnedUnit(ownerId, unitId);
         if (request.platform() == ReservationSource.DIRECT) {
             return ResponseEntity.badRequest().body(Map.of("message", "Choose Booking or Airbnb."));
@@ -63,7 +68,7 @@ public class ExternalCalendarController {
         calendar.setUnitId(unitId);
         calendar.setPlatform(request.platform());
         calendar.setIcsUrl(request.icsUrl().trim());
-        return ResponseEntity.ok(ExternalCalendarResponse.from(calendarRepository.save(calendar)));
+        return ResponseEntity.ok(ExternalCalendarResponse.from(calendarRepository.save(calendar),unit.getName()));
     }
 
     @DeleteMapping("/calendars/{id}")
@@ -75,9 +80,9 @@ public class ExternalCalendarController {
     @PostMapping("/calendars/{id}/sync")
     public ResponseEntity<?> syncNow(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
         ExternalCalendar calendar = requireOwnedCalendar(ownerId, id);
-
-        LocalDateTime last = calendar.getLastSyncedAt();
-        if (last != null && last.isAfter(LocalDateTime.now().minus(SYNC_COOLDOWN))) {
+        Unit unit = unitRepository.findById(calendar.getUnitId()).orElseThrow(()->new NoSuchElementException("Unit not found"));
+        Instant last = calendar.getLastSyncedAt();
+        if (last != null && last.isAfter(Instant.now().minus(SYNC_COOLDOWN))) {
             long wait = Math.max(1, SYNC_COOLDOWN.minus(Duration.between(last, LocalDateTime.now())).toSeconds());
             return ResponseEntity.status(429)
                     .header("Retry-After", String.valueOf(wait))
@@ -85,7 +90,18 @@ public class ExternalCalendarController {
         }
         syncService.sync(id);
         return ResponseEntity.ok(ExternalCalendarResponse.from(
-                calendarRepository.findById(id).orElseThrow()));
+                calendarRepository.findById(id).orElseThrow(),unit.getName()));
+    }
+
+    @GetMapping("/calendars/health")
+    public List<ExternalCalendarResponse> health(@CurrentUserId UUID ownerId) {
+        List<ExternalCalendar> failing = calendarRepository.findFailingByOwner(ownerId);
+        Map<UUID, String> unitNames = unitRepository
+                .findAllById(failing.stream().map(ExternalCalendar::getUnitId).distinct().toList())
+                .stream().collect(Collectors.toMap(Unit::getId, Unit::getName));
+        return failing.stream()
+                .map(c -> ExternalCalendarResponse.from(c, unitNames.get(c.getUnitId())))
+                .toList();
     }
 
     private void requireOwnedUnit(UUID ownerId, UUID unitId) {

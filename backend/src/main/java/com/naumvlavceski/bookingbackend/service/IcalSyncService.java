@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -32,7 +33,7 @@ public class IcalSyncService {
         try {
             ExternalCalendar calendar = calendarRepository.findById(calendarId).orElseThrow(()->new NoSuchElementException("Calendar not found"));
 
-            LocalDateTime startedAt = LocalDateTime.now();
+            Instant startedAt = Instant.now();
             try {
                 String ics = IcalFetcher.fetch(calendar.getIcsUrl());
                 List<ParsedIcalEvent> events = IcalParser.parse(ics);
@@ -42,8 +43,9 @@ public class IcalSyncService {
                 calendar.setLastError(null);
             } catch (Exception e) {
                 log.warn("Sync failed for calendar {}: {}", calendarId, e.getMessage());
-                calendar.setLastSyncedAt(startedAt); // a broken feed retries in 30 min, not every minute
+                calendar.setLastSyncedAt(startedAt);
                 calendar.setLastError(truncate(e.getMessage()));
+                calendar.setConsecutiveFailures(calendar.getConsecutiveFailures() + 1);
             }
             calendarRepository.save(calendar);
         } finally {

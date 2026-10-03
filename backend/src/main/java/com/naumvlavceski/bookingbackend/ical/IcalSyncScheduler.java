@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Component
@@ -24,7 +25,7 @@ public class IcalSyncScheduler {
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 30_000) // fixedDelay: ticks never overlap themselves
     public void tick() {
-        LocalDateTime cutoff = LocalDateTime.now().minus(SYNC_INTERVAL);
+        Instant cutoff = Instant.now().minus(SYNC_INTERVAL);
         for (ExternalCalendar c : calendarRepository.findDue(cutoff, PageRequest.of(0, BATCH_SIZE))) {
             try {
                 syncService.sync(c.getId());

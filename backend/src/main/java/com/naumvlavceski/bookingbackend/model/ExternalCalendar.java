@@ -3,6 +3,7 @@ package com.naumvlavceski.bookingbackend.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -21,14 +22,17 @@ public class ExternalCalendar {
     @Column(length = 1000, nullable = false)
     private String icsUrl;
 
-    private LocalDateTime lastSyncedAt;
+    private Instant lastSyncedAt;
 
-    private LocalDateTime lastSuccessAt;
+    private Instant lastSuccessAt;
 
     @Column(length = 1000)
     private String lastError;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Column(nullable = false)
+    private int consecutiveFailures = 0;
 
     @PrePersist
     void onCreate() {
