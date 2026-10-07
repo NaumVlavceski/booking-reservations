@@ -38,7 +38,6 @@ export default function UnitFormPage() {
             })
         }
     }, [existing]);
-    console.log(existing);
     const mutation = useMutation({
         mutationFn: (data: UnitRequest) =>
             isEditing ? updateUnit(unitId!, data) : createUnit(propertyId!, data),
@@ -102,8 +101,8 @@ export default function UnitFormPage() {
                 deleteLabel="Delete unit"
             />
             {property && <p className="page-subtitle mt-2">{property.name}</p>}
-
-            <form id="unit-form" onSubmit={handleSubmit} className="surface mt-6 space-y-5">
+            <div className="surface mt-6 space-y-5">
+            <form id="unit-form" onSubmit={handleSubmit} >
                 <div>
                     <label className="field-label" htmlFor="name">Name</label>
                     <input
@@ -133,14 +132,17 @@ export default function UnitFormPage() {
                 {mutation.isError && (
                     <p className="alert-error">Something went wrong. Try again.</p>
                 )}
-                {isEditing && existing?.token && (
-                    <>
-                        <CalendarSyncLink token={existing.token} />
-                        <ExternalCalendars unitId={existing.id} />
-                    </>
-                )}
-            </form>
 
+            </form>
+            <div>
+            {isEditing && existing?.token && (
+                <>
+                    <CalendarSyncLink token={existing.token} />
+                    <br/>
+                    <ExternalCalendars unitId={existing.id} />
+                </>
+            )}
+            </div>
             <ConfirmDialog
                 open={confirmDelete}
                 title={`Delete ${existing?.name ?? "this unit"}?`}
@@ -153,6 +155,7 @@ export default function UnitFormPage() {
                 onConfirm={() => deleteMutation.mutate()}
                 onCancel={closeConfirm}
             />
+        </div>
         </div>
     );
 }

@@ -63,6 +63,5 @@ export async function createReservation(data: ReservationRequest): Promise<Reser
 
 export async function updateReservation(id: string, data: ReservationRequest): Promise<ReservationResponse | null> {
     const res = await apiClient.put<ReservationResponse>(`/api/reservations/${id}`, data);
-    console.log(res)
     return res.status === 204 ? null : res.data;
 }

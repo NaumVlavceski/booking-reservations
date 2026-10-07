@@ -12,6 +12,7 @@ import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
 import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon, PlusIcon, RefreshIcon} from "../components/icons";
 import "./CalendarPage.css";
+import SyncAllButton from "../components/SyncAllButton.tsx";
 
 const MAX_RANGE_DAYS = 5 * 365;
 const CHUNK = 20;
@@ -48,6 +49,7 @@ function readCollapsed(): Set<string> {
         return new Set();
     }
 }
+
 
 // Creation order keeps auto-created "Room 1..N" in sequence and doesn't move
 // a row when it's renamed; numeric name compare breaks same-timestamp ties.
@@ -536,6 +538,8 @@ export default function CalendarPage() {
                 </button>
 
                 <div className="cal-actions">
+
+                    <SyncAllButton/>
                     <div ref={datePickerRef} className="cal-popover-anchor">
                         <button
                             type="button"
@@ -684,7 +688,6 @@ export default function CalendarPage() {
                     {layout.map((row) => {
                         if (row.kind !== "group") return null;
                         const {property, units: groupUnits} = row.group;
-                        console.log(layout)
                         const count = `${groupUnits.length} ${groupUnits.length === 1 ? "room" : "rooms"}`;
                         return (
                             <div

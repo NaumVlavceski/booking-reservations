@@ -21,5 +21,6 @@ public interface ExternalCalendarRepository extends JpaRepository<ExternalCalend
     @Query("SELECT c FROM ExternalCalendar c JOIN Unit u ON u.id = c.unitId " +
             "WHERE u.ownerId = :ownerId AND c.lastError IS NOT NULL")
     List<ExternalCalendar> findFailingByOwner(@Param("ownerId") UUID ownerId);
-
+    @Query("SELECT c FROM ExternalCalendar c JOIN Unit u on c.unitId=u.id WHERE u.ownerId=:ownerId")
+    List<ExternalCalendar> findAllByOwnerId(UUID ownerId);
 }
