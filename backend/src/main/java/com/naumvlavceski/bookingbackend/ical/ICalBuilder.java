@@ -1,6 +1,7 @@
 package com.naumvlavceski.bookingbackend.ical;
 
 import com.naumvlavceski.bookingbackend.model.Reservation;
+import com.naumvlavceski.bookingbackend.model.ReservationSource;
 import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.model.Unit;
 
@@ -20,6 +21,7 @@ public class ICalBuilder {
         sb.append("X-WR-CALNAME:").append(escape(unit.getName())).append("\r\n");
         for (Reservation r : reservations) {
             if (r.getStatus() == ReservationStatus.CANCELLED) continue;
+            if (r.getSource() != ReservationSource.DIRECT) continue;
             sb.append("BEGIN:VEVENT\r\n");
             sb.append("UID:").append(r.getId()).append("@staytrack\r\n");
             sb.append("DTSTART;VALUE=DATE:").append(r.getStayRange().lower().format(DATE_FMT)).append("\r\n");

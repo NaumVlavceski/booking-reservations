@@ -33,7 +33,7 @@ public class ReservationService {
 
         return reservations.stream()
                 .filter(r -> unitId == null || r.getUnit().getId().equals(unitId))
-                .filter(r -> status == null || r.getStatus() == status)
+                .filter(r -> status != null ? r.getStatus() == status : r.getStatus() != ReservationStatus.CANCELLED)
                 .sorted((a, b) -> a.getStayRange().lower().compareTo(b.getStayRange().lower()))
                 .map(this::toResponse)
                 .toList();
@@ -99,7 +99,8 @@ public class ReservationService {
 
     public void delete(UUID ownerId, UUID reservationId) {
         Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId).orElseThrow(() -> new NoSuchElementException("Reservation not found"));
-        reservationRepository.delete(reservation);
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(reservation);
     }
 
     public List<ReservationResponse> listByUnit(UUID ownerId, UUID unitId) {

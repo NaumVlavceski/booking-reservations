@@ -40,3 +40,8 @@ export async function syncCalendarNow(id: string): Promise<ExternalCalendar> {
     const res = await apiClient.post<ExternalCalendar>(`/api/calendars/${id}/sync`);
     return res.data;
 }
+
+export async function syncAllCalendars(): Promise<{ triggered: number; skipped: number; total: number }> {
+    const res = await apiClient.post("/api/calendars/sync-all");
+    return res.data;
+}

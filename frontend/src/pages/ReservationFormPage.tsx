@@ -2,6 +2,7 @@ import {useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     createReservation, getReservation,
+    getReservations,
     type ReservationRequest,
     updateReservation
 } from "../lib/api/reservations.ts";
@@ -81,6 +82,16 @@ export default function ReservationFormPage() {
         queryFn: () => getUnit(form.unitId),
         enabled: Boolean(form.unitId),
     });
+    const {data: unitReservations} = useQuery({
+        queryKey: ["reservations", "unit", form.unitId],
+        queryFn: () => getReservations({unitId: form.unitId}),
+        enabled: Boolean(form.unitId),
+    });
+    // Nights already taken by another stay on this unit. Checkout day itself
+    // isn't blocked — it's a valid check-in day for the next booking.
+    const bookedRanges = (unitReservations ?? [])
+        .filter((r) => r.id !== id && r.status !== "CANCELLED")
+        .map((r) => ({checkIn: r.checkIn, checkOut: r.checkOut}));
     const [conflictMessage, setConflictMessage] = useState<string | null>(null);
     const [lastEdited, setLastEdited] = useState<PricingField>(null);
     const [priceRecalculatedNotice, setPriceRecalculatedNotice] = useState(false);
@@ -214,6 +225,7 @@ export default function ReservationFormPage() {
                     <StayDatesPicker
                         checkIn={form.checkIn}
                         checkOut={form.checkOut}
+                        bookedRanges={bookedRanges}
                         invalid={datesMissing}
                         onChange={(checkIn, checkOut) => {
                             setForm((f) => ({...f, checkIn, checkOut}));

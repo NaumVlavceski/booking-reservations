@@ -81,13 +81,14 @@ public class ExternalCalendarController {
     public ResponseEntity<?> syncNow(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
         ExternalCalendar calendar = requireOwnedCalendar(ownerId, id);
         Unit unit = unitRepository.findById(calendar.getUnitId()).orElseThrow(()->new NoSuchElementException("Unit not found"));
-        Instant last = calendar.getLastSyncedAt();
-        if (last != null && last.isAfter(Instant.now().minus(SYNC_COOLDOWN))) {
-            long wait = Math.max(1, SYNC_COOLDOWN.minus(Duration.between(last, LocalDateTime.now())).toSeconds());
-            return ResponseEntity.status(429)
-                    .header("Retry-After", String.valueOf(wait))
-                    .body(Map.of("message", "Synced a moment ago. Try again in " + wait + "s."));
-        }
+        //Ova vrati go
+        //        Instant last = calendar.getLastSyncedAt();
+//        if (last != null && last.isAfter(Instant.now().minus(SYNC_COOLDOWN))) {
+//            long wait = Math.max(1, SYNC_COOLDOWN.minus(Duration.between(last, LocalDateTime.now())).toSeconds());
+//            return ResponseEntity.status(429)
+//                    .header("Retry-After", String.valueOf(wait))
+//                    .body(Map.of("message", "Synced a moment ago. Try again in " + wait + "s."));
+//        }
         syncService.sync(id);
         return ResponseEntity.ok(ExternalCalendarResponse.from(
                 calendarRepository.findById(id).orElseThrow(),unit.getName()));
@@ -102,6 +103,32 @@ public class ExternalCalendarController {
         return failing.stream()
                 .map(c -> ExternalCalendarResponse.from(c, unitNames.get(c.getUnitId())))
                 .toList();
+    }
+
+    @PostMapping("/calendars/sync-all")
+    public ResponseEntity<?> syncAll(@CurrentUserId UUID ownerId) {
+        List<ExternalCalendar> calendars = calendarRepository.findAllByOwnerId(ownerId);
+
+        int triggered = 0;
+        int skipped = 0;
+        Instant now = Instant.now();
+
+        for (ExternalCalendar c : calendars) {
+            boolean onCooldown = c.getLastSyncedAt() != null
+                    && c.getLastSyncedAt().isAfter(now.minus(SYNC_COOLDOWN));
+            if (onCooldown) {
+                skipped++;
+                continue;
+            }
+            syncService.sync(c.getId());
+            triggered++;
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "triggered", triggered,
+                "skipped", skipped,
+                "total", calendars.size()
+        ));
     }
 
     private void requireOwnedUnit(UUID ownerId, UUID unitId) {
