@@ -1,4 +1,5 @@
-import { useState } from "react";
+import {apiErrorMessage} from "../lib/api/client";
+import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { login } from "../lib/api/auth";
@@ -8,12 +9,18 @@ import AppLogo from "../components/AppLogo";
 export default function LoginPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: "", password: "" });
+    const passwordRef = useRef<HTMLInputElement>(null);
 
     const mutation = useMutation({
         mutationFn: login,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
             navigate("/dashboard/calendar", { replace: true });
+        },
+        onError: () => {
+            // Start the next attempt with an empty password, cursor already in it.
+            setForm((f) => ({ ...f, password: "" }));
+            passwordRef.current?.focus();
         },
     });
     function handleSubmit(e: React.FormEvent) {
@@ -46,6 +53,7 @@ export default function LoginPage() {
                     <input
                         id="email"
                         type="email"
+                        autoFocus
                         autoComplete="email"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -58,6 +66,7 @@ export default function LoginPage() {
                     <input
                         id="password"
                         type="password"
+                        ref={passwordRef}
                         autoComplete="current-password"
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -67,7 +76,7 @@ export default function LoginPage() {
                 </div>
 
                 {mutation.isError && (
-                    <p className="alert-error">Invalid email or password.</p>
+                    <p className="alert-error">{apiErrorMessage(mutation.error, "Invalid email or password.")}</p>
                 )}
 
                 <button type="submit" disabled={mutation.isPending} className="btn btn-primary w-full py-3">

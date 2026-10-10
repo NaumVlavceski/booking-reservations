@@ -11,6 +11,7 @@ import ReservationFormPage from "./pages/ReservationFormPage.tsx";
 import CalendarPage from "./pages/CalendarPage.tsx";
 import ConflictsPage from "./pages/ConflictsPage.tsx";
 import SyncHealthPage from "./pages/SyncHealthPage.tsx";
+import CancelledReservationsPage from "./pages/CancelledReservationsPage.tsx";
 
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
                     <Route path="/dashboard/calendar" element={<CalendarPage />} />
                     <Route path="/dashboard/conflicts" element={<ConflictsPage />} />
                     <Route path="/dashboard/sync-health" element={<SyncHealthPage/>}/>
+                    <Route path="/dashboard/cancelled" element={<CancelledReservationsPage/>}/>
                 </Route>
             </Route>
             {/* Everything else lands on the calendar; ProtectedRoute bounces to /login if signed out. */}

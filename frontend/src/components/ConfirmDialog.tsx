@@ -7,6 +7,8 @@ interface ConfirmDialogProps {
     title: string;
     message: ReactNode;
     confirmLabel?: string;
+    /** Label of the button that closes without acting, e.g. "Keep booking" when confirming a cancellation. */
+    cancelLabel?: string;
     pendingLabel?: string;
     pending?: boolean;
     error?: string | null;
@@ -22,6 +24,7 @@ export default function ConfirmDialog({
     title,
     message,
     confirmLabel = "Delete",
+    cancelLabel = "Cancel",
     pendingLabel = "Deleting...",
     pending = false,
     error,
@@ -72,7 +75,7 @@ export default function ConfirmDialog({
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <button ref={cancelRef} type="button" className="btn btn-secondary w-full sm:w-auto"
                             onClick={onCancel} disabled={pending}>
-                        Cancel
+                        {cancelLabel}
                     </button>
                     <button type="button" className={`btn w-full sm:w-auto ${variant === "danger" ? "btn-danger" : "btn-primary"}`}
                             onClick={onConfirm} disabled={pending}>

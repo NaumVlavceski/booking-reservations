@@ -143,7 +143,7 @@ public class IcalReconciler {
         }
 
         reservation.setStayRange(Range.closedOpen(incoming.startDate(), incoming.endDate()));
-        reservation.setGuestName(incoming.summary());
+//        reservation.setGuestName(incoming.summary());
         reservationRepository.save(reservation);
 
         existing.setRawHash(newHash);

@@ -70,9 +70,6 @@ public class IcalParser {
                 int colonIndex = line.indexOf(':');
                 if (colonIndex == -1) continue;
                 String value = line.substring(colonIndex + 1).trim();
-                // Handles both VALUE=DATE (yyyyMMdd) and datetime forms
-                // (yyyyMMdd'T'HHmmss[Z]) — we only ever care about the
-                // calendar day, never the time of day, for blocking purposes
                 String datePart = value.length() >= 8 ? value.substring(0, 8) : null;
                 if (datePart == null) return null;
                 try {

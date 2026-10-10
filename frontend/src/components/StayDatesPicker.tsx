@@ -76,6 +76,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
     }
 
     const checkInDisabled = (day: Date) => blockedDates.has(toIso(day));
+    const hasBookedNights = blockedDates.size > 0;
     const checkOutDisabled = (day: Date) => (from ? differenceInCalendarDays(day, from) <= 0 : false) || spansBookedNight(day);
 
     const fieldClass = (active: boolean) =>
@@ -139,8 +140,17 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
                             disabled={step === "checkOut" ? checkOutDisabled : checkInDisabled}
                             weekStartsOn={1}
                             showOutsideDays
+                            modifiers={{booked: (day: Date) => blockedDates.has(toIso(day))}}
+                            modifiersClassNames={{booked: "rdp-booked"}}
                         />
                     </div>
+                    {hasBookedNights && (
+                        <p className="flex items-center gap-2 px-1 pb-2 text-xs text-slate-600">
+                            <span className="inline-block h-3 w-3 rounded-sm border border-red-300 bg-red-50"/>
+                            Already booked
+                            {step === "checkOut" && " · the stay can't run into another booking"}
+                        </p>
+                    )}
                     <div className="flex items-center justify-between border-t border-slate-100 px-1 pt-2">
                         <button type="button" className="text-sm font-semibold text-slate-500 hover:text-slate-800"
                                 onClick={() => {

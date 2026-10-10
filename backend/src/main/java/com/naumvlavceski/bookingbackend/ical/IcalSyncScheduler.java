@@ -17,13 +17,13 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Slf4j
 public class IcalSyncScheduler {
-    private static final Duration SYNC_INTERVAL = Duration.ofMinutes(15);
+    private static final Duration SYNC_INTERVAL = Duration.ofMinutes(10);
     private static final int BATCH_SIZE = 5;
 
     private final ExternalCalendarRepository calendarRepository;
     private final IcalSyncService syncService;
 
-    @Scheduled(fixedDelay = 60_000, initialDelay = 30_000) // fixedDelay: ticks never overlap themselves
+    @Scheduled(fixedDelay = 60_000, initialDelay = 30_000)
     public void tick() {
         Instant cutoff = Instant.now().minus(SYNC_INTERVAL);
         for (ExternalCalendar c : calendarRepository.findDue(cutoff, PageRequest.of(0, BATCH_SIZE))) {

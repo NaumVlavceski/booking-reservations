@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent} from "react";
 import {Link, useNavigate} from "react-router-dom";
-import {useIsFetching, useQuery, useQueryClient} from "@tanstack/react-query";
+import {useQuery} from "@tanstack/react-query";
 import {format, addDays, differenceInCalendarDays} from "date-fns";
 import {DayPicker} from "react-day-picker";
 import "react-day-picker/style.css";
@@ -10,9 +10,11 @@ import {allUnitsQuery, type UnitResponse} from "../lib/api/units";
 import {allReservationsQuery} from "../lib/api/reservations";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
-import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon, PlusIcon, RefreshIcon} from "../components/icons";
+import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon, PlusIcon} from "../components/icons";
 import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
+import {amountDue, layoutBarLabel} from "../lib/barLabel";
+import {formatStay} from "../lib/dates";
 
 const MAX_RANGE_DAYS = 5 * 365;
 const CHUNK = 20;
@@ -20,7 +22,7 @@ const BUFFER_CHUNKS = 1;
 
 // Confirmed reservations are colored by where they came from.
 const SOURCE_COLORS: Record<string, { fill: string; border: string; text: string; label: string }> = {
-    DIRECT: {fill: "#b3aa7a", border: "#87641d", text: "#92400E", label: "Direct"},
+    DIRECT: {fill: "#FDECC8", border: "#D97706", text: "#78350F", label: "Direct"},
     BOOKING: {fill: "#DBEAFE", border: "#60A5FA", text: "#1E40AF", label: "Booking.com"},
     AIRBNB: {fill: "#FFE1E6", border: "#FB7185", text: "#9F1239", label: "Airbnb"},
 };
@@ -59,6 +61,18 @@ function compareUnits(a: UnitResponse, b: UnitResponse) {
         || a.id.localeCompare(b.id);
 }
 
+let labelCanvas: CanvasRenderingContext2D | null | undefined;
+
+/** Width of a bar label in the bar's own font (600 weight). */
+function measureLabel(text: string, size: number): number {
+    if (labelCanvas === undefined) labelCanvas = document.createElement("canvas").getContext("2d");
+    // No canvas (very old browser / tests): rough per-character estimate. CSS
+    // ellipsis still guarantees nothing spills out of the bar.
+    if (!labelCanvas) return text.length * size * 0.6;
+    labelCanvas.font = `600 ${size}px ${getComputedStyle(document.body).fontFamily}`;
+    return labelCanvas.measureText(text).width;
+}
+
 function startOfToday() {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -85,7 +99,9 @@ export default function CalendarPage() {
 
     const [windowState, setWindowState] = useState({start: 0, end: 0});
     const windowRef = useRef(windowState);
-    windowRef.current = windowState;
+    useLayoutEffect(() => {
+        windowRef.current = windowState;
+    }, [windowState]);
 
     const scrollXRef = useRef(0);
 
@@ -100,8 +116,6 @@ export default function CalendarPage() {
     const datePickerRef = useRef<HTMLDivElement | null>(null);
     const moreMenuRef = useRef<HTMLDivElement | null>(null);
 
-    const queryClient = useQueryClient();
-    const isFetching = useIsFetching() > 0;
     const activeProperty = useActiveProperty();
     const fromHere = useFromHere();
     const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
@@ -177,12 +191,6 @@ export default function CalendarPage() {
         setOpenMenu((current) => (current === menu ? null : menu));
     }
 
-    function handleRefresh() {
-        queryClient.invalidateQueries({queryKey: ["properties"]});
-        queryClient.invalidateQueries({queryKey: ["units"]});
-        queryClient.invalidateQueries({queryKey: ["reservations"]});
-    }
-
     // Phones: exactly a week fills the width. Desktop: 20 days.
     const DAY_COL_WIDTH = isMobile
         ? Math.max(45, viewportWidth / MOBILE_VISIBLE_DAYS)
@@ -195,6 +203,12 @@ export default function CalendarPage() {
     const HEADER_H1 = 26;
     const HEADER_H2 = isMobile ? 52 : 48;
     const CUT_PX = DAY_COL_WIDTH;
+    // Bar text: keep in sync with .cal-bar-line in CalendarPage.css.
+    // Name font sizes, largest first; the smaller one is only used when a name's
+    // first word wouldn't otherwise fit (one-night stays).
+    const LABEL_FONT_SIZES = useMemo(() => (isMobile ? [12, 11] : [13, 12]), [isMobile]);
+    const LABEL_LINE_HEIGHT = isMobile ? 13 : 16;
+    const LABEL_PADDING = isMobile ? 1 : 3;
 
     const {data: properties} = useQuery(propertiesQuery);
     const {data: units} = useQuery(allUnitsQuery);
@@ -462,6 +476,8 @@ export default function CalendarPage() {
                 const colEnd = clampedEnd - windowState.start + 1;
 
                 const W = (colEnd - colStart) * DAY_COL_WIDTH - 2 * BAR_MARGIN;
+                // Can happen for a frame while the visible day window is being recalculated.
+                if (W <= 0) return null;
                 const H = BAR_HEIGHT;
                 // Same diagonal cut as the SVG polygon, expressed as [x, y] pairs so it
                 // can also drive a CSS clip-path on the bar's hit area (see below) —
@@ -478,6 +494,29 @@ export default function CalendarPage() {
                 const points = pointsArr.map(([x, y]) => `${x},${y}`).join(" ");
                 const clipPath = `polygon(${pointsArr.map(([x, y]) => `${x}px ${y}px`).join(", ")})`;
 
+                const guestName = r.guestName?.trim() || "Reservation";
+                const due = amountDue(r.status, r.totalAmount);
+                const label = layoutBarLabel({
+                    name: guestName,
+                    amount: due ? due.text : null,
+                    width: W,
+                    height: H,
+                    cut: CUT_PX,
+                    cutLeft: trueLeft,
+                    cutRight: trueRight,
+                    lineHeight: LABEL_LINE_HEIGHT,
+                    fontSizes: LABEL_FONT_SIZES,
+                    amountFontSize: isMobile ? 10.5 : 11.5,
+                    glyphRatio: 0.45,
+                    padding: LABEL_PADDING,
+                    measure: measureLabel,
+                });
+                const summary = [
+                    guestName,
+                    formatStay(r.checkIn, r.checkOut),
+                    due ? (due.missing ? "No amount recorded" : `Due ${due.text}`) : r.status === "PAID" ? "Paid" : null,
+                ].filter(Boolean).join(" · ");
+
                 return {
                     id: r.id,
                     gridColumn: `${colStart} / ${colEnd}`,
@@ -489,11 +528,16 @@ export default function CalendarPage() {
                     clipPath,
                     W,
                     H,
-                    guestName: r.guestName || "Reservation",
+                    lines: label.lines,
+                    nameFontSize: label.fontSize,
+                    labelAlign: label.align,
+                    amountMissing: due?.missing ?? false,
+                    summary,
                 };
             })
             .filter((b): b is NonNullable<typeof b> => b !== null);
-    }, [reservations, units, unitRows, today, windowState, CUT_PX, DAY_COL_WIDTH, BAR_HEIGHT, BAR_MARGIN]);
+    }, [reservations, units, unitRows, today, windowState, CUT_PX, DAY_COL_WIDTH, BAR_HEIGHT, BAR_MARGIN,
+        LABEL_FONT_SIZES, LABEL_LINE_HEIGHT, LABEL_PADDING, isMobile]);
 
     const bodyEndRow = layout.length + 3;
     const headerHeight = HEADER_H1 + HEADER_H2;
@@ -568,16 +612,6 @@ export default function CalendarPage() {
                         )}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={handleRefresh}
-                        title="Refresh"
-                        aria-label="Refresh"
-                        className="cal-icon-btn"
-                    >
-                        <RefreshIcon size={20} className={isFetching ? "cal-spin" : undefined}/>
-                    </button>
-
                     <div ref={moreMenuRef} className="cal-popover-anchor">
                         <button
                             type="button"
@@ -591,15 +625,16 @@ export default function CalendarPage() {
                         </button>
                         {openMenu === "more" && (
                             <div className="cal-popover cal-menu" role="menu">
-                                <Link to="/dashboard/reservations/new" className="cal-menu-item" role="menuitem">
-                                    New reservation
-                                </Link>
                                 <Link to={addUnitPath(activeProperty)} state={fromHere} className="cal-menu-item"
                                       role="menuitem">
-                                    Add unit
+                                    Add room
                                 </Link>
                                 <Link to="/dashboard/properties/new" className="cal-menu-item" role="menuitem">
                                     Add property
+                                </Link>
+                                <div className="cal-menu-divider"/>
+                                <Link to="/dashboard/cancelled" className="cal-menu-item" role="menuitem">
+                                    Cancelled bookings
                                 </Link>
                                 {canCollapse && (
                                     <>
@@ -647,7 +682,7 @@ export default function CalendarPage() {
                         <>
                             <p className="cal-empty-text">No rooms yet — add one to see it on the calendar.</p>
                             <Link to={addUnitPath(activeProperty)} state={fromHere} className="cal-empty-link">Add a
-                                unit</Link>
+                                room</Link>
                         </>
                     )}
                 </div>
@@ -720,8 +755,8 @@ export default function CalendarPage() {
                                     to={`/dashboard/properties/${property.id}/units/new`}
                                     state={fromHere}
                                     className="cal-group-add"
-                                    title={`Add unit to ${property.name}`}
-                                    aria-label={`Add unit to ${property.name}`}
+                                    title={`Add a room to ${property.name}`}
+                                    aria-label={`Add a room to ${property.name}`}
                                 >
                                     <PlusIcon size={15}/>
                                 </Link>
@@ -824,6 +859,8 @@ export default function CalendarPage() {
                                 <Link
                                     key={b.id}
                                     to={`/dashboard/reservations/${b.id}`}
+                                    title={b.summary}
+                                    aria-label={b.summary}
                                     className="cal-bar"
                                     style={{
                                         gridColumn: b.gridColumn,
@@ -843,15 +880,29 @@ export default function CalendarPage() {
                                             strokeLinejoin="round"
                                         />
                                     </svg>
-                                    <span className="cal-bar-label-wrap">
-                                        {/* Nested block element — text-overflow:ellipsis doesn't
-                                            reliably truncate a direct text child of a flex
-                                            container, so the truncating span needs its own
-                                            block formatting context. */}
-                                        <span className="cal-bar-label" style={{color: b.textColor}}>
-                                            {b.guestName}
+                                    {/* Each line is placed along the bar's slanted edges
+                                        (see lib/barLabel.ts); CSS ellipsises what's left. */}
+                                    {b.lines.map((line, i) => (
+                                        <span
+                                            key={i}
+                                            aria-hidden="true"
+                                            className={`cal-bar-line cal-bar-line--${line.kind}`}
+                                            style={{
+                                                left: line.left,
+                                                top: line.top,
+                                                width: line.width,
+                                                height: LABEL_LINE_HEIGHT,
+                                                lineHeight: `${LABEL_LINE_HEIGHT}px`,
+                                                fontSize: line.kind === "name" ? b.nameFontSize : undefined,
+                                                textAlign: b.labelAlign,
+                                                color: b.textColor,
+                                            }}
+                                        >
+                                            {line.kind === "amount" && b.amountMissing
+                                                ? <span className="cal-bar-amount-missing">{line.text}</span>
+                                                : line.text}
                                         </span>
-                                    </span>
+                                    ))}
                                 </Link>
                             ))}
                         </div>

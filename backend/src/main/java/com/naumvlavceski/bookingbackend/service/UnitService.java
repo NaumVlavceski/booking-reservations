@@ -33,7 +33,7 @@ public class UnitService {
                 .stream().map(this::toResponse).toList();
     }
     public UnitResponse findOne(UUID ownerId, UUID unitId){
-        Unit unit = unitRepository.findByIdAndOwnerId(unitId,ownerId).orElseThrow(()->new NoSuchElementException("Unit not found"));
+        Unit unit = unitRepository.findByIdAndOwnerId(unitId,ownerId).orElseThrow(()->new NoSuchElementException("Room not found"));
         return toResponse(unit);
     }
     @Transactional
@@ -53,7 +53,7 @@ public class UnitService {
     @Transactional
     public UnitResponse update(UUID ownerId, UUID unitId, UnitRequest request) {
         Unit unit = unitRepository.findByIdAndOwnerId(unitId, ownerId)
-                .orElseThrow(() -> new NoSuchElementException("Unit not found"));
+                .orElseThrow(() -> new NoSuchElementException("Room not found"));
 
         unit.setName(request.name());
         unit.setCapacity(request.capacity());
@@ -64,7 +64,7 @@ public class UnitService {
     @Transactional
     public void delete(UUID ownerId, UUID unitId) {
         Unit unit = unitRepository.findByIdAndOwnerId(unitId, ownerId)
-                .orElseThrow(() -> new NoSuchElementException("Unit not found"));
+                .orElseThrow(() -> new NoSuchElementException("Room not found"));
         unitRepository.delete(unit);
     }
 
