@@ -8,7 +8,6 @@ public record PropertyResponse(
         UUID id,
         String name,
         String address,
-        String timezone,
         LocalDateTime createdAt
 ) {
 

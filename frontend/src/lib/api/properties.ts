@@ -4,7 +4,6 @@ import {apiClient} from "./client.ts";
 export interface PropertyRequest {
     name: string;
     address: string;
-    timezone?: string;
     // Create only: backend generates "Room 1".."Room N" with capacity 2.
     unitCount?: number;
 }
@@ -12,7 +11,6 @@ export interface PropertyResponse {
     id: string;
     name: string;
     address: string;
-    timezone: string;
     createdAt: string;
 }
 

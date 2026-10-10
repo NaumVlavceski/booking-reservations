@@ -49,7 +49,6 @@ public class PropertyService {
         property.setOwner(owner);
         property.setName(propertyRequest.name());
         property.setAddress(propertyRequest.address());
-        property.setTimezone(propertyRequest.timezone() != null ? propertyRequest.timezone() : "Europe/Skopje");
         Property saved = propertyRepository.save(property);
 
         List<Unit> units = new ArrayList<>(unitCount);
@@ -72,9 +71,6 @@ public class PropertyService {
 
         property.setName(request.name());
         property.setAddress(request.address());
-        if (request.timezone() != null) {
-            property.setTimezone(request.timezone());
-        }
 
         return toResponse(propertyRepository.save(property));
     }
@@ -82,10 +78,9 @@ public class PropertyService {
     public void delete(UUID ownerId, UUID propertyId) {
         Property property = propertyRepository.findByIdAndOwnerId(propertyId, ownerId)
                 .orElseThrow(() -> new NoSuchElementException("Property not found"));
-        // ON DELETE CASCADE (V4 migration) removes its units and their reservations.
         propertyRepository.delete(property);
     }
     private PropertyResponse toResponse(Property p) {
-        return new PropertyResponse(p.getId(), p.getName(), p.getAddress(), p.getTimezone(), p.getCreatedAt());
+        return new PropertyResponse(p.getId(), p.getName(), p.getAddress(), p.getCreatedAt());
     }
 }
