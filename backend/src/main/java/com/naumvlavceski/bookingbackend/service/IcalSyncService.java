@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -27,7 +26,6 @@ public class IcalSyncService {
     private final IcalReconciler reconciler;
     private final Set<UUID> inProgress = ConcurrentHashMap.newKeySet();
 
-    // Deliberately NOT @Transactional (see design notes above)
     public void sync(UUID calendarId) {
         if (!inProgress.add(calendarId)) return; // scheduler and manual sync must not overlap
         try {
@@ -41,6 +39,7 @@ public class IcalSyncService {
                 calendar.setLastSyncedAt(startedAt);
                 calendar.setLastSuccessAt(startedAt);
                 calendar.setLastError(null);
+                calendar.setConsecutiveFailures(0);
             } catch (Exception e) {
                 log.warn("Sync failed for calendar {}: {}", calendarId, e.getMessage());
                 calendar.setLastSyncedAt(startedAt);

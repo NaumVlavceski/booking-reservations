@@ -39,7 +39,7 @@ public class ExternalCalendarController {
     @GetMapping("/units/{unitId}/calendars")
     public List<ExternalCalendarResponse> list(@CurrentUserId UUID ownerId, @PathVariable UUID unitId) {
         requireOwnedUnit(ownerId, unitId);
-        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Unit not found"));
+        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Room not found"));
         return calendarRepository.findAllByUnitId(unitId).stream()
                 .map(c->ExternalCalendarResponse.from(c,unit.getName())).toList();
     }
@@ -47,7 +47,7 @@ public class ExternalCalendarController {
     @PostMapping("/units/{unitId}/calendars")
     public ResponseEntity<?> create(@CurrentUserId UUID ownerId, @PathVariable UUID unitId,
                                     @Valid @RequestBody ExternalCalendarRequest request) {
-        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Unit not found"));
+        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Room not found"));
         requireOwnedUnit(ownerId, unitId);
         if (request.platform() == ReservationSource.DIRECT) {
             return ResponseEntity.badRequest().body(Map.of("message", "Choose Booking or Airbnb."));
@@ -80,15 +80,14 @@ public class ExternalCalendarController {
     @PostMapping("/calendars/{id}/sync")
     public ResponseEntity<?> syncNow(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
         ExternalCalendar calendar = requireOwnedCalendar(ownerId, id);
-        Unit unit = unitRepository.findById(calendar.getUnitId()).orElseThrow(()->new NoSuchElementException("Unit not found"));
-        //Ova vrati go
-        //        Instant last = calendar.getLastSyncedAt();
-//        if (last != null && last.isAfter(Instant.now().minus(SYNC_COOLDOWN))) {
-//            long wait = Math.max(1, SYNC_COOLDOWN.minus(Duration.between(last, LocalDateTime.now())).toSeconds());
-//            return ResponseEntity.status(429)
-//                    .header("Retry-After", String.valueOf(wait))
-//                    .body(Map.of("message", "Synced a moment ago. Try again in " + wait + "s."));
-//        }
+        Unit unit = unitRepository.findById(calendar.getUnitId()).orElseThrow(()->new NoSuchElementException("Room not found"));
+        Instant last = calendar.getLastSyncedAt();
+        if (last != null && last.isAfter(Instant.now().minus(SYNC_COOLDOWN))) {
+            long wait = Math.max(1, SYNC_COOLDOWN.minus(Duration.between(last, Instant.now())).toSeconds());
+            return ResponseEntity.status(429)
+                    .header("Retry-After", String.valueOf(wait))
+                    .body(Map.of("message", "Synced a moment ago. Try again in " + wait + "s."));
+        }
         syncService.sync(id);
         return ResponseEntity.ok(ExternalCalendarResponse.from(
                 calendarRepository.findById(id).orElseThrow(),unit.getName()));
@@ -133,7 +132,7 @@ public class ExternalCalendarController {
 
     private void requireOwnedUnit(UUID ownerId, UUID unitId) {
         unitRepository.findByIdAndOwnerId(unitId, ownerId)
-                .orElseThrow(() -> new NoSuchElementException("Unit not found"));
+                .orElseThrow(() -> new NoSuchElementException("Room not found"));
     }
 
     private ExternalCalendar requireOwnedCalendar(UUID ownerId, UUID id) {
