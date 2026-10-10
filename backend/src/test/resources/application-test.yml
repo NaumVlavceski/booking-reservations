@@ -1,0 +1,12 @@
+# Integration tests run against their OWN database so they never touch dev data.
+# Create it once:  CREATE DATABASE booking_test OWNER booking;
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/booking_test}
+    username: ${TEST_DB_USER:booking}
+    password: ${TEST_DB_PASSWORD:booking}
+  flyway:
+    locations: classpath:db/migration,classpath:db/testfix
+app:
+  jwt:
+    secret: test-only-secret-test-only-secret-test-only-1234
