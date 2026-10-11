@@ -1,39 +1,45 @@
-import { useState } from "react";
+import {useState} from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "https://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-export default function CalendarSyncLink({ token }: { token: string }) {
-    const [copied, setCopied] = useState(false);
+export default function CalendarSyncLink({token}: { token: string }) {
+    const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
     const feedUrl = `${API_BASE}/api/ical/${token}.ics`;
 
     async function handleCopy() {
-        await navigator.clipboard.writeText(feedUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        try {
+            // navigator.clipboard only exists on HTTPS/localhost.
+            await navigator.clipboard.writeText(feedUrl);
+            setCopyState("copied");
+        } catch {
+            setCopyState("failed");
+        }
+        setTimeout(() => setCopyState("idle"), 2500);
     }
 
     return (
-        <div className="bg-slate-50 border rounded-lg p-4">
-            <p className="text-sm font-semibold text-gray-900 mb-1">Calendar sync link</p>
-            <p className="text-xs text-gray-600 mb-3">
-                Paste this link into Airbnb or Booking.com's calendar sync settings to
-                automatically block these dates on those platforms.
+        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h2 className="text-sm font-semibold text-slate-900">Send your bookings to other channels</h2>
+            <p className="mt-0.5 mb-3 text-sm text-slate-600">
+                Paste this link into Booking.com's or Airbnb's calendar sync settings. Dates you book here then get
+                blocked there automatically.
             </p>
             <div className="flex gap-2">
+                <label className="sr-only" htmlFor={`feed-${token}`}>Calendar link</label>
                 <input
+                    id={`feed-${token}`}
                     readOnly
                     value={feedUrl}
-                    onClick={(e) => e.currentTarget.select()}
-                    className="flex-1 min-w-0 text-xs font-mono bg-white border rounded px-3 py-2 text-gray-700"
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="field-input min-w-0 flex-1 font-mono sm:text-xs"
                 />
-                <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="shrink-0 bg-teal-600 text-white text-sm font-medium px-4 py-2 rounded hover:bg-teal-700"
-                >
-                    {copied ? "Copied!" : "Copy"}
+                <button type="button" onClick={handleCopy} className="btn btn-primary min-h-11 shrink-0">
+                    {copyState === "copied" ? "Copied!" : "Copy"}
                 </button>
             </div>
-        </div>
+            {copyState === "failed" && (
+                <p className="mt-2 text-xs text-red-700">Couldn't copy automatically — select the link and copy it.</p>
+            )}
+        </section>
     );
 }

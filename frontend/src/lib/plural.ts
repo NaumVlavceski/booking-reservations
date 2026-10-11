@@ -1,7 +1,7 @@
 import type {ReservationResponse} from "./api/reservations";
 import type {UnitResponse} from "./api/units";
 
-/** "1 unit", "3 units". */
+/** "1 room", "3 rooms". */
 export function plural(count: number, word: string): string {
     return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
@@ -15,7 +15,7 @@ export function propertyDeleteMessage(
     const unitIds = new Set((units ?? []).filter((u) => u.propertyId === propertyId).map((u) => u.id));
     const reservationCount = (reservations ?? []).filter((r) => unitIds.has(r.unitId)).length;
     const parts = [];
-    if (unitIds.size > 0) parts.push(plural(unitIds.size, "unit"));
+    if (unitIds.size > 0) parts.push(plural(unitIds.size, "room"));
     if (reservationCount > 0) parts.push(plural(reservationCount, "reservation"));
     return parts.length > 0
         ? `This also deletes its ${parts.join(" and ")}. This can't be undone.`

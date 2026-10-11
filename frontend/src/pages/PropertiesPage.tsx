@@ -91,8 +91,7 @@ export default function PropertiesPage() {
                                     <h3 className="truncate font-bold text-slate-900">{property.name}</h3>
                                     <p className="mt-0.5 truncate text-sm text-slate-500">{property.address}</p>
                                     <p className="mt-1 text-xs text-slate-400">
-                                        {property.timezone}
-                                        {unitCount !== undefined && ` · ${unitCount} ${unitCount === 1 ? "unit" : "units"}`}
+                                        {unitCount !== undefined && `${unitCount} ${unitCount === 1 ? "room" : "rooms"}`}
                                     </p>
                                 </div>
                                 <ChevronRightIcon className="shrink-0 text-slate-400"/>

@@ -1,3 +1,4 @@
+import {apiErrorMessage} from "../lib/api/client";
 import {Link, useNavigate} from "react-router-dom";
 import {useState} from "react";
 import {useMutation} from "@tanstack/react-query";
@@ -58,9 +59,11 @@ export default function RegisterPage(){
                                onChange={handleChange} required autoComplete="name" className="field-input"/>
                     </div>
                     <div>
-                        <label className="field-label" htmlFor="contactPhone">Contact phone</label>
+                        <label className="field-label" htmlFor="contactPhone">
+                            Contact phone <span className="font-normal text-slate-500">(optional)</span>
+                        </label>
                         <input id="contactPhone" name="contactPhone" type="tel" value={form.contactPhone}
-                               onChange={handleChange} required autoComplete="tel" className="field-input"/>
+                               onChange={handleChange} autoComplete="tel" className="field-input"/>
                     </div>
                 </div>
 
@@ -73,11 +76,13 @@ export default function RegisterPage(){
                 <div>
                     <label className="field-label" htmlFor="password">Password</label>
                     <input id="password" name="password" type="password" value={form.password}
-                           onChange={handleChange} required autoComplete="new-password" className="field-input"/>
+                           onChange={handleChange} required minLength={8} maxLength={72}
+                           aria-describedby="password-hint" autoComplete="new-password" className="field-input"/>
+                    <p id="password-hint" className="field-hint">At least 8 characters.</p>
                 </div>
 
                 {mutation.isError && (
-                    <p className="alert-error">Registration failed. Check your details and try again.</p>
+                    <p className="alert-error">{apiErrorMessage(mutation.error, "Registration failed. Check your details and try again.")}</p>
                 )}
 
                 <button type="submit" disabled={mutation.isPending} className="btn btn-primary w-full py-3">

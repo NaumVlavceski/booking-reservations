@@ -14,5 +14,10 @@ spring:
         enabled: true
 app:
   jwt:
-    secret: "8f3a7b2c9d4e1f6a5b8c7d2e9f0a3b6c4d8e2f9a0b5c8d7e1f4a9b2c5d8e3f7a"
+    secret: ${APP_JWT_SECRET:}
     expiration-ms: 86400000
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

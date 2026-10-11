@@ -43,19 +43,22 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
     }
 
     return (
-        <div className="sticky top-0 z-20 -mx-4 flex items-center justify-between gap-3 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:bg-slate-100/95 sm:px-0 relative">
+        <div className="sticky top-0 z-20 -mx-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:gap-3 sm:bg-slate-100/95 sm:px-0">
             {back ? (
-                <Link to={back.to} onClick={handleBackClick} className="back-link mb-0 min-w-0">
+                <Link to={back.to} onClick={handleBackClick} aria-label={`Back to ${back.label}`}
+                      className="back-link mb-0 flex h-10 w-10 items-center justify-center rounded-xl hover:bg-slate-200/60">
                     <ChevronLeftIcon className="shrink-0"/>
                     {/*<span className="truncate">{back.label}</span>*/}
                 </Link>
             ) : (
                 <span/>
             )}
-            {title && (
-                <span className="pointer-events-none absolute left-1/2 top-1/2 max-w-[45%] -translate-x-1/2 -translate-y-1/2 truncate text-sm font-semibold text-slate-900 sm:max-w-[60%]">
+            {title ? (
+                <span className="truncate text-center text-sm font-semibold text-slate-900">
                     {title}
                 </span>
+            ) : (
+                <span/>
             )}
             <div className="flex shrink-0 items-center gap-2">
                 {onDelete && (

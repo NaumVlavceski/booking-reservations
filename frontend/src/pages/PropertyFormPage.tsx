@@ -1,6 +1,6 @@
 import {useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import {
     createProperty,
     deleteProperty,
@@ -29,7 +29,6 @@ export default function PropertyFormPage() {
     const [form, setForm] = useState<PropertyRequest>({
         name: "",
         address: "",
-        timezone: "Europe/Skopje",
     })
     const [unitCount, setUnitCount] = useState("1");
     const {data: existing, isLoading: isLoadingExisting} = useQuery({
@@ -37,15 +36,16 @@ export default function PropertyFormPage() {
         queryFn: () => getProperty(id!),
         enabled: isEditing,
     });
-    useEffect(() => {
-        if (existing) {
-            setForm({
-                name: existing.name,
-                address: existing.address,
-                timezone: existing.timezone,
-            });
-        }
-    }, [existing]);
+    // Copy the loaded property into the form once per fetch result. Done during
+    // render (React's "adjust state on prop change" pattern) rather than in an effect.
+    const [syncedExisting, setSyncedExisting] = useState<typeof existing>();
+    if (existing && existing !== syncedExisting) {
+        setSyncedExisting(existing);
+        setForm({
+            name: existing.name,
+            address: existing.address,
+        });
+    }
     const mutation = useMutation({
         mutationFn: (data: PropertyRequest) =>
             isEditing ? updateProperty(id!, data) : createProperty(data),
@@ -100,8 +100,8 @@ export default function PropertyFormPage() {
 
     const title = isEditing ? `Edit ${existing?.name ?? "property"}` : isWelcome ? "Set up your first property" : "Add a property";
     const isDirty = isEditing
-        ? existing != null && (form.name !== existing.name || form.address !== existing.address || form.timezone !== existing.timezone)
-        : Boolean(form.name || form.address || unitCount !== "1" || form.timezone !== "Europe/Skopje");
+        ? existing != null && (form.name !== existing.name || form.address !== existing.address)
+        : Boolean(form.name || form.address || unitCount !== "1");
 
     return (
         <div className="mx-auto max-w-xl">
@@ -170,19 +170,10 @@ export default function PropertyFormPage() {
                     </div>
                 )}
 
-                <div>
-                    <label className="field-label" htmlFor="timezone">Timezone</label>
-                    <input
-                        id="timezone"
-                        value={form.timezone}
-                        onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-                        className="field-input"
-                    />
-                </div>
 
                 {mutation.isError && (
                     <p className="alert-error">
-                        Something went wrong. Check your details and try again.
+                        {apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}
                     </p>
                 )}
             </form>

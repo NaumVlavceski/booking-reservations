@@ -1,6 +1,6 @@
 import {useParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import {createUnit, deleteUnit, getUnit, type UnitRequest, updateUnit} from "../lib/api/units.ts";
 import {getProperty} from "../lib/api/properties.ts";
 import {apiErrorMessage} from "../lib/api/client.ts";
@@ -30,14 +30,15 @@ export default function UnitFormPage() {
         queryFn: () => getUnit(unitId!),
         enabled: isEditing,
     })
-    useEffect(() => {
-        if (existing) {
-            setForm({
-                name: existing.name,
-                capacity: existing.capacity,
-            })
-        }
-    }, [existing]);
+    // Copy the loaded unit into the form once per fetch result (render-time sync, not an effect).
+    const [syncedExisting, setSyncedExisting] = useState<typeof existing>();
+    if (existing && existing !== syncedExisting) {
+        setSyncedExisting(existing);
+        setForm({
+            name: existing.name,
+            capacity: existing.capacity,
+        });
+    }
     const mutation = useMutation({
         mutationFn: (data: UnitRequest) =>
             isEditing ? updateUnit(unitId!, data) : createUnit(propertyId!, data),
@@ -81,7 +82,7 @@ export default function UnitFormPage() {
     }
 
     const backLabel = backTo.startsWith("/dashboard/calendar") ? "Calendar" : (property?.name ?? "Property");
-    const title = isEditing ? `Edit ${existing?.name ?? "unit"}` : "Add a unit";
+    const title = isEditing ? `Edit ${existing?.name ?? "room"}` : "Add a room";
     const isDirty = isEditing
         ? existing != null && (form.name !== existing.name || form.capacity !== existing.capacity)
         : Boolean(form.name || form.capacity !== 2);
@@ -98,7 +99,7 @@ export default function UnitFormPage() {
                     deleteMutation.reset();
                     setConfirmDelete(true);
                 } : undefined}
-                deleteLabel="Delete unit"
+                deleteLabel="Delete room"
             />
             {property && <p className="page-subtitle mt-2">{property.name}</p>}
             <div className="surface mt-6 space-y-5">
@@ -130,7 +131,7 @@ export default function UnitFormPage() {
                 </div>
 
                 {mutation.isError && (
-                    <p className="alert-error">Something went wrong. Try again.</p>
+                    <p className="alert-error">{apiErrorMessage(mutation.error, "Something went wrong. Try again.")}</p>
                 )}
 
             </form>
@@ -145,12 +146,12 @@ export default function UnitFormPage() {
             </div>
             <ConfirmDialog
                 open={confirmDelete}
-                title={`Delete ${existing?.name ?? "this unit"}?`}
+                title={`Delete ${existing?.name ?? "this room"}?`}
                 message={unitDeleteMessage(reservations, unitId)}
-                confirmLabel="Delete unit"
+                confirmLabel="Delete room"
                 pending={deleteMutation.isPending}
                 error={deleteMutation.isError
-                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this unit. Try again.")
+                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this room. Try again.")
                     : null}
                 onConfirm={() => deleteMutation.mutate()}
                 onCancel={closeConfirm}

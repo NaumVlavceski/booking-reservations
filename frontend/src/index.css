@@ -28,6 +28,19 @@
     --rdp-disabled-opacity: 0.3;
 }
 
+/* Nights another booking already holds: clearly "taken", not just greyed out
+   like dates that are merely before check-in. */
+.rdp-theme .rdp-day.rdp-booked {
+    opacity: 1;
+}
+
+.rdp-theme .rdp-day.rdp-booked .rdp-day_button {
+    background: var(--color-red-50);
+    color: var(--color-red-700);
+    text-decoration: line-through;
+    border-radius: 6px;
+}
+
 @layer base {
     html {
         -webkit-tap-highlight-color: transparent;
@@ -72,7 +85,7 @@
     }
 
     .field-hint {
-        @apply mt-1.5 text-xs text-slate-400;
+        @apply mt-1.5 text-xs text-slate-500;
     }
 
     /* text-base on phones keeps iOS from zooming into focused inputs. */

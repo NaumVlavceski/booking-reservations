@@ -77,24 +77,24 @@ export default function PropertyDetailPage() {
 
             <div className="mb-4 flex items-center justify-between gap-4">
                 <h2 className="text-lg font-bold text-slate-900">
-                    Units {units && <span className="font-medium text-slate-400">({units.length})</span>}
+                    Rooms {units && <span className="font-medium text-slate-400">({units.length})</span>}
                 </h2>
                 <Link to={`/dashboard/properties/${propertyId}/units/new`} state={fromHere} className="btn btn-primary px-3 py-2 sm:px-4 sm:py-2.5">
-                    <PlusIcon size={16}/> Add unit
+                    <PlusIcon size={16}/> Add room
                 </Link>
             </div>
 
             {isLoadingUnits ? (
-                <div className="text-slate-500">Loading units...</div>
+                <div className="text-slate-500">Loading rooms...</div>
             ) : !units || units.length === 0 ? (
                 <div className="surface py-12 text-center">
-                    <p className="mb-4 text-slate-500">No units yet for this property.</p>
+                    <p className="mb-4 text-slate-500">No rooms yet for this property.</p>
                     <Link
                         to={`/dashboard/properties/${propertyId}/units/new`}
                         state={fromHere}
                         className="font-semibold text-teal-700"
                     >
-                        Add your first unit
+                        Add your first room
                     </Link>
                 </div>
             ) : (
@@ -130,12 +130,12 @@ export default function PropertyDetailPage() {
 
             <ConfirmDialog
                 open={unitToDelete !== null}
-                title={`Delete ${unitToDelete?.name ?? "this unit"}?`}
+                title={`Delete ${unitToDelete?.name ?? "this room"}?`}
                 message={unitDeleteMessage(reservations, unitToDelete?.id)}
-                confirmLabel="Delete unit"
+                confirmLabel="Delete room"
                 pending={deleteMutation.isPending}
                 error={deleteMutation.isError
-                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this unit. Try again.")
+                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this room. Try again.")
                     : null}
                 onConfirm={() => unitToDelete && deleteMutation.mutate(unitToDelete.id)}
                 onCancel={closeConfirm}

@@ -38,7 +38,8 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (appUserRepository.existsByEmail(request.email())) {
+        String email = request.email().trim().toLowerCase();
+        if (appUserRepository.existsByEmailIgnoreCase(email)) {
             throw new IllegalArgumentException("Email already registered");
         }
         Owner owner = new Owner();
@@ -49,7 +50,7 @@ public class AuthService {
 
         AppUser user = new AppUser();
         user.setOwner(owner);
-        user.setEmail(request.email());
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setFullName(request.fullName());
         user.setRole(Role.OWNER);
@@ -60,7 +61,7 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        AppUser user = appUserRepository.findByEmail(request.email())
+        AppUser user = appUserRepository.findFirstByEmailIgnoreCase(request.email().trim())
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

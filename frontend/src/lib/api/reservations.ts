@@ -61,6 +61,24 @@ export async function createReservation(data: ReservationRequest): Promise<Reser
     return res.data;
 }
 
+/** Puts a cancelled booking back on the calendar. Fails with 409 if its dates were taken meanwhile. */
+export async function restoreReservation(r: ReservationResponse, status: ReservationRequest["status"] = "CONFIRMED") {
+    return updateReservation(r.id, {
+        unitId: r.unitId,
+        checkIn: r.checkIn,
+        checkOut: r.checkOut,
+        status,
+        pricePerGuest: r.pricePerGuest ?? null,
+        nightlyRate: r.nightlyRate ?? null,
+        totalAmount: r.totalAmount ?? null,
+        guestName: r.guestName ?? "",
+        guestEmail: r.guestEmail ?? "",
+        guestPhone: r.guestPhone ?? "",
+        guestsCount: r.guestsCount,
+        notes: r.notes ?? "",
+    });
+}
+
 export async function updateReservation(id: string, data: ReservationRequest): Promise<ReservationResponse | null> {
     const res = await apiClient.put<ReservationResponse>(`/api/reservations/${id}`, data);
     return res.status === 204 ? null : res.data;

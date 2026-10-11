@@ -18,6 +18,13 @@ public class JwtService {
     @Value("${app.jwt.expiration-ms}")
     private long expirationMs;
 
+    @jakarta.annotation.PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.getBytes().length < 32) {
+            throw new IllegalStateException("app.jwt.secret (APP_JWT_SECRET) must be set to at least 32 characters");
+        }
+    }
+
     private SecretKey key() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }

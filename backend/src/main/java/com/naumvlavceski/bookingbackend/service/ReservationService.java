@@ -45,7 +45,7 @@ public class ReservationService {
     }
 
     public ReservationResponse create(UUID ownerId, ReservationRequest request) {
-        Unit unit = unitRepository.findByIdAndOwnerId(request.unitId(), ownerId).orElseThrow(() -> new NoSuchElementException("Unit not found"));
+        Unit unit = unitRepository.findByIdAndOwnerId(request.unitId(), ownerId).orElseThrow(() -> new NoSuchElementException("Room not found"));
         if (request.checkIn() == null || request.checkOut() == null) {
             throw new IllegalArgumentException("Check-in and check-out dates are required");
         }
@@ -72,7 +72,7 @@ public class ReservationService {
 
     public ReservationResponse update(UUID ownerId, UUID reservationId, ReservationRequest request) {
         Unit unit = unitRepository.findByIdAndOwnerId(request.unitId(), ownerId)
-                .orElseThrow(() -> new NoSuchElementException("Unit not found"));
+                .orElseThrow(() -> new NoSuchElementException("Room not found"));
         if (request.checkIn() == null || request.checkOut() == null) {
             throw new IllegalArgumentException("Check-in and check-out dates are required");
         }
@@ -84,7 +84,7 @@ public class ReservationService {
                 .orElseThrow(() -> new NoSuchElementException("Reservation not found"));
         reservation.setUnit(unit);
         reservation.setStayRange(Range.closedOpen(request.checkIn(), request.checkOut()));
-        reservation.setStatus(request.status() != null ? request.status() : ReservationStatus.CONFIRMED);
+        reservation.setStatus(request.status() != null ? request.status() : reservation.getStatus());
         reservation.setGuestName(request.guestName());
         reservation.setGuestEmail(request.guestEmail());
         reservation.setGuestPhone(request.guestPhone());

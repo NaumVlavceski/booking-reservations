@@ -9,9 +9,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-// Without this, Spring Security's default is Http403ForbiddenEntryPoint —
-// a missing/expired/invalid JWT would 403 instead of 401, and the
-// frontend only treats 401 as "log the user out and send them to /login".
 @Component
 public class UnauthorizedEntryPoint implements AuthenticationEntryPoint {
     @Override

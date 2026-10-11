@@ -30,8 +30,6 @@ public class Property {
     private String address;
 
 
-    @ColumnDefault("'Europe/Skopje'")
-    private String timezone = "Europe/Skopje";
 
     @CreationTimestamp
     private LocalDateTime createdAt;
