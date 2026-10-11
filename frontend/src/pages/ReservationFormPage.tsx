@@ -21,7 +21,7 @@ import {MinusIcon, PlusIcon} from "../components/icons";
 
 
 const STATUS_OPTIONS = [
-    {value: "CONFIRMED", label: "Confirmed"},
+    {value: "CONFIRMED", label: "Confirm"},
     {value: "PAID", label: "Paid"},
     {value: "BLOCK", label: "Blocked"},
 ] as const;

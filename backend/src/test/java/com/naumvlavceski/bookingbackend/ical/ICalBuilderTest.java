@@ -45,12 +45,19 @@ class ICalBuilderTest {
     }
 
     @Test
-    void neverLeaksGuestDetails() {
+    void showsGuestNameButNeverContactDetails() {
         String ics = ICalBuilder.build(unit(), List.of(reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT)));
-        assertTrue(ics.contains("SUMMARY:Reserved"));
-        assertFalse(ics.contains("Alice"));
+        assertTrue(ics.contains("SUMMARY:Alice Secret"));
         assertFalse(ics.contains("secret@example.test"));
         assertFalse(ics.contains("555-0100"));
+    }
+
+    @Test
+    void fallsBackToReservedWithoutAGuestName() {
+        Reservation noName = reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT);
+        noName.setGuestName("  ");
+        String ics = ICalBuilder.build(unit(), List.of(noName));
+        assertTrue(ics.contains("SUMMARY:Reserved"));
     }
 
     @Test

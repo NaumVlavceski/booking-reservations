@@ -29,7 +29,7 @@ class ApiIntegrationTest {
 
     @Autowired MockMvc mvc;
 
-    private static final String PASSWORD = "Passw0rd!";
+    private static final String PASSWORD = "Pw-" + UUID.randomUUID();
 
     // ---------- helpers ----------
 
@@ -279,21 +279,22 @@ class ApiIntegrationTest {
     // ---------- iCal export ----------
 
     @Test
-    void publicFeedShowsBusyNightsWithoutGuestDetails() throws Exception {
+    void publicFeedShowsBusyNightsAndGuestNameButNoContactDetails() throws Exception {
         String token = registerAndGetToken();
         String property = createProperty(token, 1);
         String body = send(get("/api/properties/" + property + "/units"), token, null).andReturn().getResponse().getContentAsString();
         String unit = JsonPath.read(body, "$[0].id");
         String feedToken = JsonPath.read(body, "$[0].token");
         send(post("/api/reservations"), token,
-                reservationJson(unit, "2036-03-01", "2036-03-04", "\"guestEmail\":\"private@example.test\",\"guestPhone\":\"555\""))
+                reservationJson(unit, "2036-03-01", "2036-03-04", "\"guestEmail\":\"private@example.test\",\"guestPhone\":\"+389 70 123 456\""))
                 .andExpect(status().isOk());
 
         String ics = mvc.perform(get("/api/ical/" + feedToken + ".ics"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertTrue(ics.contains("DTSTART;VALUE=DATE:20360301"));
-        assertFalse(ics.contains("Guest"));
+        assertTrue(ics.contains("SUMMARY:Guest"));
         assertFalse(ics.contains("private@example.test"));
+        assertFalse(ics.contains("+389"));
 
         mvc.perform(get("/api/ical/unknown-token.ics")).andExpect(status().isNotFound());
     }
