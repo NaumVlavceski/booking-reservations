@@ -19,7 +19,7 @@ import java.util.*;
 public class IcalReconciler {
 
     private static final UUID NO_EXCLUSION = new UUID(0L, 0L);
-    private static final String OWN_UID_SUFFIX = "@staytrack";
+    private static final String OWN_UID_SUFFIX = "@roomtrack"; // feeds exported before the rename
 
     private final ExternalEventRepository externalEventRepository;
     private final ReservationRepository reservationRepository;

@@ -16,14 +16,14 @@ public class ICalBuilder {
         StringBuilder sb = new StringBuilder();
         sb.append("BEGIN:VCALENDAR\r\n");
         sb.append("VERSION:2.0\r\n");
-        sb.append("PRODID:-//Staytrack//Booking Calendar//EN\r\n");
+        sb.append("PRODID:-//RoomTrack//Booking Calendar//EN\r\n");
         sb.append("CALSCALE:GREGORIAN\r\n");
         sb.append("X-WR-CALNAME:").append(escape(unit.getName())).append("\r\n");
         for (Reservation r : reservations) {
             if (r.getStatus() == ReservationStatus.CANCELLED) continue;
             if (r.getSource() != ReservationSource.DIRECT) continue;
             sb.append("BEGIN:VEVENT\r\n");
-            sb.append("UID:").append(r.getId()).append("@staytrack\r\n");
+            sb.append("UID:").append(r.getId()).append("@roomtrack\r\n");
             sb.append("DTSTART;VALUE=DATE:").append(r.getStayRange().lower().format(DATE_FMT)).append("\r\n");
             sb.append("DTEND;VALUE=DATE:").append(r.getStayRange().upper().format(DATE_FMT)).append("\r\n");
             String summary = (r.getGuestName() != null && !r.getGuestName().isBlank())

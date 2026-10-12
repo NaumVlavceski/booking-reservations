@@ -3,7 +3,7 @@ import {useMatch} from "react-router-dom";
 import {useQuery} from "@tanstack/react-query";
 import {propertiesQuery, type PropertyResponse} from "./api/properties";
 
-const LAST_PROPERTY_KEY = "staytrack.lastPropertyId";
+const LAST_PROPERTY_KEY = "roomtrack.lastPropertyId";
 
 function readLastPropertyId(): string | null {
     try {

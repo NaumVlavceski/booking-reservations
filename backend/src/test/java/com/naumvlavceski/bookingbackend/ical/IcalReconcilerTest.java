@@ -188,7 +188,7 @@ class IcalReconcilerTest {
 
     @Test
     void ourOwnExportedEventsEchoedBackAreIgnored() {
-        reconciler.reconcile(calendar, List.of(event(UUID.randomUUID() + "@staytrack", "20300610", "20300615")));
+        reconciler.reconcile(calendar, List.of(event(UUID.randomUUID() + "@roomtrack", "20300610", "20300615")));
         assertTrue(externalEventRepository.findAllByExternalCalendarId(calendar.getId()).isEmpty());
         assertTrue(reservationRepository.findAllByUnitIdAndStatusNot(unit.getId(), ReservationStatus.CANCELLED).isEmpty());
     }

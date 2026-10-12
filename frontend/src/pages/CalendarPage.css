@@ -220,13 +220,19 @@
     border-bottom: 1px solid var(--row-border-color);
 }
 
+/* Up to two lines, then "…". A single long word breaks rather than spilling
+   out. Line height is tight so two lines + capacity fit the 50px phone row. */
 .cal-unit-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
     font-size: 13px;
     font-weight: 500;
     color: #1F2937;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .cal-unit-capacity {
@@ -236,7 +242,7 @@
     font-size: 12px;
     font-weight: 600;
     color: #374151;
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 /* Scrolling viewport */

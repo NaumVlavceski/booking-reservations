@@ -114,7 +114,7 @@ export default function DashboardLayout() {
                 }`}
             >
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 px-5 pt-[calc(env(safe-area-inset-top)_+_1.25rem)] pb-5">
-                    <p className="min-w-0 truncate text-lg font-bold">{me?.businessName ?? "Staytrack"}</p>
+                    <p className="min-w-0 truncate text-lg font-bold">{me?.businessName ?? "RoomTrack"}</p>
                     <button
                         ref={closeButtonRef}
                         type="button"
