@@ -19,7 +19,8 @@ import java.util.*;
 public class IcalReconciler {
 
     private static final UUID NO_EXCLUSION = new UUID(0L, 0L);
-    private static final String OWN_UID_SUFFIX = "@roomtrack"; // feeds exported before the rename
+    private static final String OWN_UID_SUFFIX = "@roomtrack";
+    private static final String LEGACY_UID_SUFFIX = "@staytrack"; // feeds exported before the rename
 
     private final ExternalEventRepository externalEventRepository;
     private final ReservationRepository reservationRepository;
@@ -36,7 +37,7 @@ public class IcalReconciler {
 
         Set<String> incomingUids = new HashSet<>();
         for (ParsedIcalEvent incoming : incomingEvents) {
-            if (incoming.uid().endsWith(OWN_UID_SUFFIX)) continue; // our own export echoed back
+            if (incoming.uid().endsWith(OWN_UID_SUFFIX) || incoming.uid().endsWith(LEGACY_UID_SUFFIX)) continue; // our own export echoed back
             incomingUids.add(incoming.uid());
             reconcileOne(calendar, unit, incoming);
         }
