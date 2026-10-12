@@ -37,7 +37,7 @@ const STATUS_COLORS: Record<string, { fill: string; border: string; text: string
 const MOBILE_VISIBLE_DAYS = 7;
 // Movement under this is a tap (open a new reservation), over it is a drag.
 const DRAG_THRESHOLD_PX = 5;
-const COLLAPSED_KEY = "staytrack.calendar.collapsedProperties";
+const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
 
 type PropertyGroup = { property: PropertyResponse; units: UnitResponse[] };
 type LayoutRow =
@@ -705,7 +705,7 @@ export default function CalendarPage() {
                                     state={fromHere}
                                     className="cal-unit-row"
                                 >
-                                    <div className="cal-unit-name">
+                                    <div className="cal-unit-name" title={row.unit.name}>
                                         {row.unit.name}
                                     </div>
                                     <div className="cal-unit-capacity">

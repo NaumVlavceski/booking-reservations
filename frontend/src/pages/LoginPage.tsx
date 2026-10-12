@@ -41,7 +41,7 @@ export default function LoginPage() {
                 <div className="mb-8 flex flex-col items-center gap-3 text-center">
                     <AppLogo />
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staytrack</h1>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">RoomTrack</h1>
                         <p className="mt-1 text-sm text-slate-500">Manage every booking in one place</p>
                     </div>
                 </div>
