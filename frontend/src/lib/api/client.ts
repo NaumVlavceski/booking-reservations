@@ -9,6 +9,12 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
     return fallback;
 }
 
+/** The backend's stable machine-readable `code` (e.g. EMAIL_NOT_VERIFIED), if it sent one. */
+export function apiErrorCode(error: unknown): string | undefined {
+    if (axios.isAxiosError<{ code?: string }>(error)) return error.response?.data?.code;
+    return undefined;
+}
+
 export const apiClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8080",
 });

@@ -39,6 +39,9 @@ public class AppUser {
 
     private LocalDateTime lastLoginAt;
 
+    /** Null until the user proves they own the address with the emailed code. */
+    private java.time.OffsetDateTime emailVerifiedAt;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

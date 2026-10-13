@@ -4,6 +4,9 @@ import com.naumvlavceski.bookingbackend.dto.AuthResponse;
 import com.naumvlavceski.bookingbackend.dto.LoginRequest;
 import com.naumvlavceski.bookingbackend.dto.MeResponse;
 import com.naumvlavceski.bookingbackend.dto.RegisterRequest;
+import com.naumvlavceski.bookingbackend.dto.RegistrationResponse;
+import com.naumvlavceski.bookingbackend.dto.VerifyEmailRequest;
+import com.naumvlavceski.bookingbackend.exception.EmailNotVerifiedException;
 import com.naumvlavceski.bookingbackend.model.AppUser;
 import com.naumvlavceski.bookingbackend.model.Owner;
 import com.naumvlavceski.bookingbackend.model.Role;
@@ -28,6 +31,7 @@ public class AuthService {
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailVerificationService verificationService;
 
     @Transactional(readOnly = true)
     public MeResponse me(UUID userId) {
@@ -37,7 +41,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public RegistrationResponse register(RegisterRequest request) {
         String email = request.email().trim().toLowerCase();
         if (appUserRepository.existsByEmailIgnoreCase(email)) {
             throw new IllegalArgumentException("Email already registered");
@@ -56,8 +60,14 @@ public class AuthService {
         user.setRole(Role.OWNER);
         user = appUserRepository.save(user);
 
-        String token = jwtService.generateToken(user);
-        return new AuthResponse(token, user.getEmail(), user.getFullName());
+        // No token yet: the address must be verified with the emailed code first
+        verificationService.issueAndSend(user);
+        return new RegistrationResponse(user.getEmail(), true);
+    }
+
+    public AuthResponse verifyEmail(VerifyEmailRequest request) {
+        AppUser user = verificationService.verify(request.email(), request.code());
+        return signIn(user);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -72,6 +82,14 @@ public class AuthService {
             throw new BadCredentialsException("Account is disabled");
         }
 
+        if (user.getEmailVerifiedAt() == null) {
+            throw new EmailNotVerifiedException(user.getEmail());
+        }
+
+        return signIn(user);
+    }
+
+    private AuthResponse signIn(AppUser user) {
         String token = jwtService.generateToken(user);
         user.setLastLoginAt(LocalDateTime.now());
         appUserRepository.save(user);

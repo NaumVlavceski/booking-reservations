@@ -20,6 +20,7 @@ import {
     SyncIcon
 } from "./icons";
 import SyncAlerts from "./SyncAlerts.tsx";
+import NotificationToggle from "./NotificationToggle";
 
 const navItems = [
     {to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon},
@@ -175,6 +176,7 @@ export default function DashboardLayout() {
                 </div>
 
                 <div className="mt-auto border-t border-white/10 px-3 pt-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
+                    <NotificationToggle/>
                     <button onClick={handleLogout} className={`w-full ${navLinkBase} ${navLinkIdle}`}>
                         <LogoutIcon size={16}/>
                         Log out

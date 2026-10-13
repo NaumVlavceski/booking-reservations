@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/actuator/health",
                                 "/api/health",
-                                "/api/ical/**"
+                                "/api/ical/**",
+                                "/api/notifications/unsubscribe"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

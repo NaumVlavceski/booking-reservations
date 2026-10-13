@@ -10,7 +10,7 @@ import {
     updateReservation
 } from "../lib/api/reservations.ts";
 import {getUnit} from "../lib/api/units.ts";
-import {useEffect, useRef, useState} from "react";
+import {useState} from "react";
 
 import FormTopBar from "../components/FormTopBar";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -101,8 +101,6 @@ export default function ReservationFormPage() {
         .map((r) => ({checkIn: r.checkIn, checkOut: r.checkOut}));
     const [conflictMessage, setConflictMessage] = useState<string | null>(null);
     const [lastEdited, setLastEdited] = useState<PricingField>(null);
-    const [priceRecalculatedNotice, setPriceRecalculatedNotice] = useState(false);
-    const noticeTimerRef = useRef<number | undefined>(undefined);
     const mutation = useMutation({
         mutationFn: (data: ReservationRequest) =>
             isEditing ? updateReservation(id!, data) : createReservation(data),
@@ -171,12 +169,8 @@ export default function ReservationFormPage() {
         const hasPrice = Boolean(form.nightlyRate || form.totalAmount || form.pricePerGuest);
         // Prices are only recalculated once both dates are set.
         if (!hasPrice || !checkIn || !checkOut) return;
-        setPriceRecalculatedNotice(true);
-        window.clearTimeout(noticeTimerRef.current);
-        noticeTimerRef.current = window.setTimeout(() => setPriceRecalculatedNotice(false), 3000);
+        toast.show("Total price was recalculated based on your changes.", {tone: "info"});
     }
-
-    useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
 
     const inputClass = "field-input";
     const labelClass = "field-label";
@@ -222,18 +216,6 @@ export default function ReservationFormPage() {
                 </div>
             )}
 
-            {priceRecalculatedNotice && (
-                <div className="alert-info mb-4">
-                    <span>Total price was recalculated based on your changes.</span>
-                    <button
-                        type="button"
-                        onClick={() => setPriceRecalculatedNotice(false)}
-                        className="text-blue-500 hover:text-blue-700 font-bold ml-3"
-                    >
-                        ×
-                    </button>
-                </div>
-            )}
             <form id="reservation-form" onSubmit={handleSubmit} className="surface space-y-5">
                 <div>
                     <StayDatesPicker

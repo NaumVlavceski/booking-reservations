@@ -3,7 +3,6 @@ import {Link, useNavigate} from "react-router-dom";
 import {useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {register} from "../lib/api/auth.ts";
-import {tokenStorage} from "../lib/auth/tokenStorage.ts";
 import AppLogo from "../components/AppLogo";
 
 export default function RegisterPage(){
@@ -19,9 +18,8 @@ export default function RegisterPage(){
     const mutation = useMutation({
         mutationFn: register,
         onSuccess:(data)=>{
-            tokenStorage.set(data.token);
-            // A brand-new account has nothing to show yet — set up the first property first.
-            navigate("/dashboard/properties/new?welcome=1", {replace: true});
+            // No token until the emailed code is entered; a brand-new account then sets up its first property.
+            navigate("/verify-email", {replace: true, state: {email: data.email, welcome: true}});
         },
     });
     function handleSubmit(e: React.FormEvent) {

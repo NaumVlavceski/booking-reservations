@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,10 +30,16 @@ public class ResendEmailSender implements EmailSender {
 
     @Override
     public String send(EmailMessage m) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("from", from);
+        body.put("to", List.of(m.to()));
+        body.put("subject", m.subject());
+        body.put("html", m.html());
+        body.put("text", m.text());
+        if (m.headers() != null && !m.headers().isEmpty()) body.put("headers", m.headers());
         Map<?, ?> res = client.post().uri("/emails")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("from", from, "to", List.of(m.to()),
-                        "subject", m.subject(),"html", m.html(),"text", m.text()))
+                .body(body)
                 .retrieve().body(Map.class);
         return res == null ? null : (String) res.get("id");
     }

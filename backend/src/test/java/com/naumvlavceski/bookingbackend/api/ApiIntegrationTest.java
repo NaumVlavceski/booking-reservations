@@ -11,6 +11,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import com.naumvlavceski.bookingbackend.model.AppUser;
+import com.naumvlavceski.bookingbackend.repository.AppUserRepository;
+
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
@@ -48,8 +52,21 @@ class ApiIntegrationTest {
                 + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}";
     }
 
+    @Autowired AppUserRepository appUsers;
+
+    /** Stands in for typing the emailed code (the code itself is never exposed). */
+    private void markVerified(String email) {
+        AppUser user = appUsers.findFirstByEmailIgnoreCase(email).orElseThrow();
+        user.setEmailVerifiedAt(OffsetDateTime.now());
+        appUsers.save(user);
+    }
+
     private String registerAndGetToken() throws Exception {
-        String body = send(post("/api/auth/register"), null, registerJson(uniqueEmail()))
+        String email = uniqueEmail();
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
+        markVerified(email);
+        String body = send(post("/api/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}")
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return JsonPath.read(body, "$.token");
     }
@@ -81,7 +98,14 @@ class ApiIntegrationTest {
     @Test
     void registerThenLoginThenMe() throws Exception {
         String email = uniqueEmail();
-        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isOk());
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.email").value(email)).andExpect(jsonPath("$.verificationRequired").value(true))
+                .andExpect(jsonPath("$.token").doesNotExist());
+
+        // Correct password but email not verified yet: refused with a stable code the frontend can act on
+        send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}")
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"));
+        markVerified(email);
 
         String body = send(post("/api/auth/login"), null,
                 "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}")
@@ -94,8 +118,9 @@ class ApiIntegrationTest {
     @Test
     void emailIsCaseInsensitive() throws Exception {
         String email = uniqueEmail();
-        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isOk());
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
         send(post("/api/auth/register"), null, registerJson(email.toUpperCase())).andExpect(status().isBadRequest());
+        markVerified(email);
         send(post("/api/auth/login"), null, "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"" + PASSWORD + "\"}")
                 .andExpect(status().isOk());
     }
@@ -113,11 +138,43 @@ class ApiIntegrationTest {
     @Test
     void wrongPasswordAndUnknownUserAreUnauthorized() throws Exception {
         String email = uniqueEmail();
-        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isOk());
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
         send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"wrong-password\"}")
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.message").value("Invalid email or password"));
         send(post("/api/auth/login"), null, "{\"email\":\"ghost@example.test\",\"password\":\"x\"}")
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void wrongPasswordIsCheckedBeforeVerificationStatusIsRevealed() throws Exception {
+        String email = uniqueEmail();
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
+        // Unverified account + wrong password must look like any other wrong password, not "not verified"
+        send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"wrong-password\"}")
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").doesNotExist());
+    }
+
+    @Test
+    void verificationEndpointsArePublicAndDoNotRevealWhichEmailsExist() throws Exception {
+        String known = uniqueEmail();
+        send(post("/api/auth/register"), null, registerJson(known)).andExpect(status().isAccepted());
+
+        // resend-code: identical answer for a registered and an unknown address
+        String a = send(post("/api/auth/resend-code"), null, "{\"email\":\"" + known + "\"}")
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String b = send(post("/api/auth/resend-code"), null, "{\"email\":\"ghost-" + known + "\"}")
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertEquals(a, b);
+
+        // verify-email: unknown address and a wrong code for a real one both say INVALID_CODE (400, never 401/403)
+        send(post("/api/auth/verify-email"), null, "{\"email\":\"ghost-" + known + "\",\"code\":\"123456\"}")
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_CODE"));
+        send(post("/api/auth/verify-email"), null, "{\"email\":\"" + known + "\",\"code\":\"000000\"}")
+                .andExpect(status().isBadRequest());
+
+        // Still no way in: an unverified account cannot use any protected endpoint
+        send(post("/api/auth/login"), null, "{\"email\":\"" + known + "\",\"password\":\"" + PASSWORD + "\"}")
+                .andExpect(status().isForbidden());
     }
 
     @Test

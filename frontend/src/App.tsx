@@ -12,6 +12,7 @@ import CalendarPage from "./pages/CalendarPage.tsx";
 import ConflictsPage from "./pages/ConflictsPage.tsx";
 import SyncHealthPage from "./pages/SyncHealthPage.tsx";
 import CancelledReservationsPage from "./pages/CancelledReservationsPage.tsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage.tsx";
 
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Routes>
             <Route path="/login" element={<LoginPage/>}/>
             <Route path="/register" element={<RegisterPage/>}/>
+            <Route path="/verify-email" element={<VerifyEmailPage/>}/>
             <Route element={<ProtectedRoute/>}>
                 <Route element={<DashboardLayout />}>
                     <Route path="/dashboard" element={<Navigate to="/dashboard/calendar" replace/>} />

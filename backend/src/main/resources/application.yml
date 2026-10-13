@@ -1,3 +1,5 @@
+server:
+  forward-headers-strategy: framework
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/booking
@@ -13,6 +15,14 @@ spring:
       db:
         enabled: true
 app:
+  public-api-url: ${PUBLIC_API_URL:http://localhost:8080}
+  auth:
+    code-secret: ${EMAIL_CODE_SECRET:}
+    code-ttl-minutes: 15
+    code-max-attempts: 5
+    resend-cooldown-seconds: 60
+    codes-per-hour: 5
+    ip-limit-per-hour: ${AUTH_IP_LIMIT_PER_HOUR:30}
   jwt:
     secret: ${APP_JWT_SECRET:}
     expiration-ms: 86400000

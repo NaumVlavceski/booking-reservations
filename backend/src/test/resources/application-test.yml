@@ -8,5 +8,8 @@ spring:
   flyway:
     locations: classpath:db/migration,classpath:db/testfix
 app:
+  auth:
+    code-secret: test-only-code-secret-test-only-code-secret-1234
+    ip-limit-per-hour: 100000
   jwt:
     secret: test-only-secret-test-only-secret-test-only-1234
