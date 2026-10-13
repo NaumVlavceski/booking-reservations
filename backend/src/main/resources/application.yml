@@ -16,8 +16,12 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:}
     expiration-ms: 86400000
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    resend-api-key: ${RESEND_API_KEY:}
+    from: ${MAIL_FROM:RoomTrack <onboarding@resend.dev>}
 springdoc:
   api-docs:
-    enabled: false
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: false
+    enabled: ${SWAGGER_ENABLED:false}
