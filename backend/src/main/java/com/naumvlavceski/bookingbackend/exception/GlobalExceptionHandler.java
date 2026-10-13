@@ -1,4 +1,7 @@
 package com.naumvlavceski.bookingbackend.exception;
+import com.naumvlavceski.bookingbackend.exception.EmailNotVerifiedException;
+import com.naumvlavceski.bookingbackend.exception.TooManyRequestsException;
+import com.naumvlavceski.bookingbackend.exception.VerificationException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -34,6 +37,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailNotVerified(EmailNotVerifiedException ex) {
+        Map<String, Object> body = body(HttpStatus.FORBIDDEN, ex.getMessage());
+        body.put("code", "EMAIL_NOT_VERIFIED");
+        body.put("email", ex.getEmail());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
+    // 400 on purpose, never 401/403: the frontend signs people out on those
+    @ExceptionHandler(VerificationException.class)
+    public ResponseEntity<Map<String, Object>> handleVerification(VerificationException ex) {
+        Map<String, Object> body = body(HttpStatus.BAD_REQUEST, ex.getMessage());
+        body.put("code", ex.getCode());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<Map<String, Object>> handleTooManyRequests(TooManyRequestsException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -76,12 +100,16 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(body(status, message));
+    }
+
+    private Map<String, Object> body(HttpStatus status, String message) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", Instant.now().toString());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
         body.put("message", message);
-        return ResponseEntity.status(status).body(body);
+        return body;
     }
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {

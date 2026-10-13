@@ -1,8 +1,8 @@
-import {apiErrorMessage} from "../lib/api/client";
+import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
 import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, Link, Navigate } from "react-router-dom";
-import { login } from "../lib/api/auth";
+import { login, resendCode } from "../lib/api/auth";
 import { tokenStorage } from "../lib/auth/tokenStorage";
 import AppLogo from "../components/AppLogo";
 
@@ -17,7 +17,14 @@ export default function LoginPage() {
             tokenStorage.set(data.token);
             navigate("/dashboard/calendar", { replace: true });
         },
-        onError: () => {
+        onError: (error) => {
+            if (apiErrorCode(error) === "EMAIL_NOT_VERIFIED") {
+                // Right password, unverified address: send a fresh code (the server enforces its cooldown) and ask for it
+                const email = form.email.trim();
+                resendCode(email).catch(() => {});
+                navigate("/verify-email", {state: {email}});
+                return;
+            }
             // Start the next attempt with an empty password, cursor already in it.
             setForm((f) => ({ ...f, password: "" }));
             passwordRef.current?.focus();

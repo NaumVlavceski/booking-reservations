@@ -51,7 +51,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             Optional<AppUser> userOpt = appUserRepository.findByEmail(email);
 
-            if (userOpt.isPresent() && userOpt.get().isActive()) {
+            if (userOpt.isPresent() && userOpt.get().isActive() && userOpt.get().getEmailVerifiedAt() != null) {
                 AppUser user = userOpt.get();
 
                 CurrentUser currentUser = new CurrentUser(
