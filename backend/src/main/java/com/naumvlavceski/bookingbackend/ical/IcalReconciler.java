@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.ical;
 
+import com.naumvlavceski.bookingbackend.mail.ReservationNotifier;
 import com.naumvlavceski.bookingbackend.model.*;
 import com.naumvlavceski.bookingbackend.repository.ExternalEventRepository;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
@@ -26,6 +27,7 @@ public class IcalReconciler {
     private final ReservationRepository reservationRepository;
     private final UnitRepository unitRepository;
     private final SyncConflictRepository syncConflictRepository;
+    private final ReservationNotifier notifier;
 
     @Transactional
     public void reconcile(ExternalCalendar calendar, List<ParsedIcalEvent> incomingEvents) {
@@ -70,6 +72,11 @@ public class IcalReconciler {
             }
             createNew(calendar, unit, incoming, newHash);
             resolveConflictIfAny(calendar, incoming.uid());
+            // The first successful sync imports the whole existing feed; only later arrivals are news
+            if (calendar.getLastSuccessAt() != null && incoming.endDate().isAfter(LocalDate.now())) {
+                notifier.externalReservationImported(unit, calendar.getPlatform(),
+                        incoming.startDate(), incoming.endDate(), incoming.summary());
+            }
             return;
         }
 
@@ -143,9 +150,18 @@ public class IcalReconciler {
             return;
         }
 
+        LocalDate oldStart = reservation.getStayRange().lower();
+        LocalDate oldEnd = reservation.getStayRange().upper();
         reservation.setStayRange(Range.closedOpen(incoming.startDate(), incoming.endDate()));
 //        reservation.setGuestName(incoming.summary());
         reservationRepository.save(reservation);
+
+        boolean datesChanged = !oldStart.equals(incoming.startDate()) || !oldEnd.equals(incoming.endDate());
+        if (datesChanged && reservation.getStatus() != ReservationStatus.CANCELLED
+                && incoming.endDate().isAfter(LocalDate.now())) {
+            notifier.externalReservationModified(unit, calendar.getPlatform(), oldStart, oldEnd,
+                    incoming.startDate(), incoming.endDate(), reservation.getGuestName());
+        }
 
         existing.setRawHash(newHash);
         externalEventRepository.save(existing);
@@ -158,6 +174,11 @@ public class IcalReconciler {
             if (reservation.getStatus() != ReservationStatus.CANCELLED) {
                 reservation.setStatus(ReservationStatus.CANCELLED);
                 reservationRepository.save(reservation);
+                if (reservation.getStayRange().upper().isAfter(LocalDate.now())) {
+                    notifier.externalReservationCancelled(reservation.getUnit(), reservation.getSource(),
+                            reservation.getStayRange().lower(), reservation.getStayRange().upper(),
+                            reservation.getGuestName());
+                }
             }
         });
     }

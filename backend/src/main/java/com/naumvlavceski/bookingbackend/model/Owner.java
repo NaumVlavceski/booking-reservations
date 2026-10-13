@@ -31,6 +31,10 @@ public class Owner {
     @Column(nullable = false)
     private boolean active=true;
 
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean notificationsEnabled = true;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

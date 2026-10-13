@@ -1,0 +1,2 @@
+ALTER TABLE owner DROP COLUMN IF EXISTS contact_email;
+ALTER TABLE owner ADD COLUMN notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE;
