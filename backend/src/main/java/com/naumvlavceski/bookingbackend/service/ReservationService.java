@@ -93,6 +93,7 @@ public class ReservationService {
         reservation.setNightlyRate(request.nightlyRate());
         reservation.setTotalAmount(request.totalAmount());
         reservation.setNotes(request.notes());
+        reservation.setPriceNeedsReview(false);
         Reservation saved = reservationRepository.save(reservation);
         return toResponse(saved);
     }
@@ -123,7 +124,8 @@ public class ReservationService {
                 r.getPricePerGuest(),
                 r.getNightlyRate(),
                 r.getTotalAmount(),
-                r.getNotes()
+                r.getNotes(),
+                r.isPriceNeedsReview()
         );
     }
 }

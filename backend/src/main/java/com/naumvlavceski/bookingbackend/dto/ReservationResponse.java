@@ -21,7 +21,8 @@ public record ReservationResponse(
         BigDecimal pricePerGuest,
         BigDecimal nightlyRate,
         BigDecimal totalAmount,
-        String notes
+        String notes,
+        boolean priceNeedsReview
 ) {
 
 }

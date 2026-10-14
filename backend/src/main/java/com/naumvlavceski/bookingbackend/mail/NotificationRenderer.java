@@ -85,16 +85,22 @@ final class NotificationRenderer {
         String current = dates(n.startDate(), n.endDate());
         String previous = modified ? dates(n.prevStart(), n.prevEnd()) : null;
         String guest = n.guest() == null || n.guest().isBlank() ? "" : n.guest();
+        // For a changed booking the detail is the price the owner had entered, which the feed cannot update
+        String priceWarning = modified && n.detail() != null
+                ? "The price was not updated: it is still " + n.detail() + ". Please check it and change it for the new dates."
+                : null;
 
         String text = "A reservation " + verb + " " + platform + ".\n\nPlace: " + place + "\n"
                 + (previous == null ? "" : "Previous dates: " + previous + "\n")
                 + label + ": " + current + "\n"
-                + (guest.isEmpty() ? "" : "Guest: " + guest + "\n");
+                + (guest.isEmpty() ? "" : "Guest: " + guest + "\n")
+                + (priceWarning == null ? "" : "\n! " + priceWarning + "\n");
         String html = "<p>A reservation " + verb + " <b>" + esc(platform) + "</b>.</p>"
                 + "<p><b>Place:</b> " + esc(place) + "<br>"
                 + (previous == null ? "" : "<b>Previous dates:</b> " + esc(previous) + "<br>")
                 + "<b>" + label + ":</b> " + esc(current)
-                + (guest.isEmpty() ? "" : "<br><b>Guest:</b> " + esc(guest)) + "</p>";
+                + (guest.isEmpty() ? "" : "<br><b>Guest:</b> " + esc(guest)) + "</p>"
+                + (priceWarning == null ? "" : "<p style=\"color:#B91C1C\"><b>! " + esc(priceWarning) + "</b></p>");
         return new Rendered(prefix + " " + platform + " reservation: " + place, html, text);
     }
 }

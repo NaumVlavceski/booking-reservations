@@ -16,6 +16,7 @@ export interface ReservationResponse {
     nightlyRate: number;
     totalAmount: number;
     notes: string;
+    priceNeedsReview: boolean;
 }
 
 export interface ReservationRequest{

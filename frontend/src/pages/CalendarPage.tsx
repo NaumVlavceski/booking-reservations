@@ -495,7 +495,7 @@ export default function CalendarPage() {
                 const clipPath = `polygon(${pointsArr.map(([x, y]) => `${x}px ${y}px`).join(", ")})`;
 
                 const guestName = r.guestName?.trim() || "Reservation";
-                const due = amountDue(r.status, r.totalAmount);
+                const due = amountDue(r.status, r.totalAmount, r.priceNeedsReview);
                 const label = layoutBarLabel({
                     name: guestName,
                     amount: due ? due.text : null,
@@ -514,7 +514,7 @@ export default function CalendarPage() {
                 const summary = [
                     guestName,
                     formatStay(r.checkIn, r.checkOut),
-                    due ? (due.missing ? "No amount recorded" : `Due ${due.text}`) : r.status === "PAID" ? "Paid" : null,
+                    due ? (due.missing ? "No amount recorded" : due.review ? `Due ${due.text.slice(2)} · dates changed, check the price` : `Due ${due.text}`) : r.status === "PAID" ? "Paid" : null,
                 ].filter(Boolean).join(" · ");
 
                 return {
@@ -531,7 +531,7 @@ export default function CalendarPage() {
                     lines: label.lines,
                     nameFontSize: label.fontSize,
                     labelAlign: label.align,
-                    amountMissing: due?.missing ?? false,
+                    amountMissing: due ? due.missing || Boolean(due.review) : false,
                     summary,
                 };
             })

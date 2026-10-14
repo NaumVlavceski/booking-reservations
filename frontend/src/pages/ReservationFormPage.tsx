@@ -210,6 +210,14 @@ export default function ReservationFormPage() {
                 <p className="alert-error mb-4">{apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}</p>
             )}
 
+            {existing?.priceNeedsReview && !isCancelled && (
+                <div className="alert-error mb-4" role="alert">
+                    <strong>! Check the price.</strong>{" "}
+                    The dates of this booking were changed on {existing.source === "AIRBNB" ? "Airbnb" : "Booking.com"},
+                    but the price ({existing.totalAmount}) was left as you entered it. Update it if needed, then press Save.
+                </div>
+            )}
+
             {isCancelled && (
                 <div className="alert-info mb-4">
                     This booking is cancelled. To put it back on the calendar, choose a status below and press Save.

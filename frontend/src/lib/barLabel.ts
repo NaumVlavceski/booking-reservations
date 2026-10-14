@@ -129,10 +129,17 @@ const amountFormat = new Intl.NumberFormat(undefined, {maximumFractionDigits: 2}
 /**
  * What the bar shows above the guest name: the total still due for any
  * booking that isn't paid. Paid bookings and blocked dates show nothing.
+ * A total flagged for review keeps its value but gets a leading "!".
  */
-export function amountDue(status: string, totalAmount: number | null | undefined): { text: string; missing: boolean } | null {
+export function amountDue(
+    status: string,
+    totalAmount: number | null | undefined,
+    priceNeedsReview = false,
+): { text: string; missing: boolean; review?: boolean } | null {
     if (status === "PAID" || status === "BLOCK" || status === "CANCELLED") return null;
     const total = Number(totalAmount ?? 0);
     if (!total || Number.isNaN(total)) return {text: "0", missing: true};
+    // The platform moved the dates but cannot move the price: keep the owner's total, with a warning
+    if (priceNeedsReview) return {text: `! ${amountFormat.format(total)}`, missing: false, review: true};
     return {text: amountFormat.format(total), missing: false};
 }

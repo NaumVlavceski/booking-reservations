@@ -106,6 +106,15 @@ describe("amountDue", () => {
         expect(amountDue("CONFIRMED", 0)).toEqual({text: "0", missing: true});
     });
 
+    it("keeps the total but warns when the price needs review", () => {
+        expect(amountDue("CONFIRMED", 50, true)).toEqual({text: "! 50", missing: false, review: true});
+    });
+
+    it("never warns without a price (that is the red 0) or on paid bookings", () => {
+        expect(amountDue("CONFIRMED", 0, true)).toEqual({text: "0", missing: true});
+        expect(amountDue("PAID", 50, true)).toBeNull();
+    });
+
     it("shows nothing for paid bookings and blocked dates", () => {
         expect(amountDue("PAID", 385)).toBeNull();
         expect(amountDue("BLOCK", null)).toBeNull();

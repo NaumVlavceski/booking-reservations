@@ -65,6 +65,8 @@ public class Reservation {
 
     private String notes;
 
+    private boolean priceNeedsReview = false;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

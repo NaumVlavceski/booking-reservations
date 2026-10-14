@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -39,8 +40,9 @@ public class ReservationNotifier {
 
     public void externalReservationModified(Unit unit, ReservationSource platform,
                                             LocalDate oldStart, LocalDate oldEnd,
-                                            LocalDate start, LocalDate end, String guest) {
-        dispatch(build(unit, NotificationRenderer.MODIFIED, platform, start, end, oldStart, oldEnd, guest, null));
+                                            LocalDate start, LocalDate end, String guest, BigDecimal keptPrice) {
+        String priceNote = keptPrice == null ? null : keptPrice.stripTrailingZeros().toPlainString();
+        dispatch(build(unit, NotificationRenderer.MODIFIED, platform, start, end, oldStart, oldEnd, guest, priceNote));
     }
 
     public void calendarSyncFailing(Unit unit, ReservationSource platform, int failures, String error) {
