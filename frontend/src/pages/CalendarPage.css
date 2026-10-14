@@ -8,7 +8,17 @@
 
    Breakpoint 640px matches isMobile in the component and Tailwind's `sm`. */
 
+/* The calendar is a panel of fixed height that scrolls inside itself (so the browser, not
+   JavaScript, does all the scrolling and the page never bounces under the grid). --cal-chrome is
+   what the dashboard layout puts around it: top/bottom padding, and on phones the bottom tab bar.
+   dvh follows the phone's collapsing address bar; vh is the fallback for older browsers. */
 .cal-root {
+    --cal-chrome: 4rem;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--cal-chrome));
+    height: calc(100dvh - var(--cal-chrome));
+    min-height: 320px;
     --border-color: #E4E7EC;
     --row-border-color: #EEF0F3;
     --muted-text: #9AA1AE;
@@ -22,6 +32,7 @@
 
 .cal-toolbar {
     display: flex;
+    flex: none;
     align-items: center;
     gap: 12px;
     margin-bottom: 16px;
@@ -175,7 +186,8 @@
 
 .cal-shell {
     position: relative;
-    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
     border: 1px solid var(--border-color);
     border-radius: 16px;
     overflow: hidden;
@@ -183,18 +195,111 @@
     box-shadow: 0 1px 2px rgba(16, 19, 26, 0.04);
 }
 
-.cal-label-col {
+/* The one scrolling element. Native scrolling in both directions gives diagonal panning in a single
+   gesture and the platform's own momentum. overscroll-behavior: none (set here only, never on
+   html/body) stops the rubber-band and pull-to-refresh for touches that start inside the grid;
+   pull-to-refresh elsewhere in the app is untouched. */
+.cal-scroller {
+    position: relative;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    cursor: grab;
+    /* The rendered window of days is re-positioned as you scroll; the browser must not "correct" scrollLeft for it */
+    overflow-anchor: none;
+}
+
+/* The scroll range spans five years each way, so a horizontal scrollbar would be a sliver whose thumb sits
+   misleadingly in the middle: hide it. People pan by dragging, the wheel, touch, Today and Jump to date.
+   Only for mouse-type devices (touch devices keep their own overlay scrollbars), and written as a zero-height
+   custom scrollbar because Chrome ignores display: none here. Do not set scrollbar-width: it overrides this. */
+@media (hover: hover) and (pointer: fine) {
+    .cal-scroller::-webkit-scrollbar {
+        width: 10px;
+        height: 0;
+    }
+
+    .cal-scroller::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .cal-scroller::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border: 2px solid #fff;
+        border-radius: 8px;
+    }
+}
+
+.cal-scroller:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+}
+
+.cal-scroller.is-dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.cal-content {
+    position: relative;
+}
+
+/* Date header: sticks to the top. z-index keeps rows and bars sliding underneath it. */
+.cal-head {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    background: #fff;
+}
+
+/* Top-left corner: sticks to the left too, so the days slide underneath it. */
+.cal-head-corner {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    flex: none;
     width: var(--label-width);
-    flex-shrink: 0;
+    height: 100%;
+    box-sizing: border-box;
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    background: #fff;
+    display: flex;
+    align-items: flex-end;
+}
+
+.cal-head-days {
+    position: relative;
+    flex: none;
+    height: 100%;
+}
+
+.cal-head-grid {
+    position: absolute;
+    top: 0;
+    display: grid;
+}
+
+.cal-body {
+    display: flex;
+}
+
+/* Room column: sticks to the left. Opaque, above the grid. */
+.cal-label-col {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    flex: none;
+    width: var(--label-width);
     border-right: 1px solid var(--border-color);
     background: #fff;
 }
 
-.cal-label-header {
-    height: calc(var(--header-h1) + var(--header-h2));
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: flex-end;
+.cal-days {
+    position: relative;
+    flex: none;
 }
 
 .cal-label-title {
@@ -247,26 +352,10 @@
 
 /* Scrolling viewport */
 
-.cal-viewport {
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-    /* Touches that start here are panned by the calendar's own handlers in both
-       directions at once (the grid sideways, the page up and down), so the browser
-       does no panning of its own: no axis lock, and no pull-to-refresh from here.
-       Scoped to this element on purpose: the rest of the page keeps native scrolling. */
-    touch-action: none;
-    cursor: grab;
-}
-
-.cal-viewport.is-dragging {
-    cursor: grabbing;
-}
-
 .cal-month-label {
-    position: absolute;
-    top: 0;
-    left: 0;
+    /* In flow at the start of the day area, and sticky to the left, so it stays just right of the corner */
+    position: sticky;
+    left: var(--label-width);
     height: var(--header-h1);
     z-index: 2;
     display: flex;
@@ -282,8 +371,11 @@
     pointer-events: none;
 }
 
+/* The rendered 60-column window of days. Positioned (not transformed) at its true place in the
+   scroll range, so nothing here moves while the browser scrolls and sticky children keep working. */
 .cal-grid {
-    will-change: transform;
+    position: absolute;
+    top: 0;
 }
 
 .cal-grid-header-bg {
@@ -327,19 +419,27 @@
    [chevron] [initials badge] Name            [+]
                               5 rooms · address
    with a teal accent on the left edge. */
-.cal-group-header {
+/* Full-width row slot for a property header; the header itself sticks to the left edge. */
+.cal-group-row {
     position: absolute;
     left: 0;
     right: 0;
-    z-index: 3;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.cal-group-header {
+    position: sticky;
+    left: 0;
+    height: 100%;
+    box-sizing: border-box;
+    pointer-events: auto;
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 0 12px 0 10px;
     color: #0F172A;
     box-shadow: inset 3px 0 0 var(--brand);
-    /* Same as .cal-viewport: panned by the calendar's handlers. */
-    touch-action: none;
 }
 
 /* Full-size, invisible toggle underneath the content. */
@@ -550,6 +650,7 @@
 /* Footer hint */
 
 .cal-footer {
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -560,6 +661,22 @@
 .cal-footer-hint {
     font-size: 12px;
     color: var(--muted-text);
+}
+
+/* Tablet: floating menu button row above (pt-20) and pb-8 below. */
+
+@media (min-width: 640px) {
+    .cal-root {
+        --cal-chrome: 7rem;
+    }
+}
+
+/* Desktop with the sidebar: pt-8 and pb-8. */
+
+@media (min-width: 1024px) {
+    .cal-root {
+        --cal-chrome: 4rem;
+    }
 }
 
 /* Desktop refinements */
@@ -593,6 +710,11 @@
    title/legend/hint (the toolbar carries everything that's needed). */
 
 @media (max-width: 639px) {
+    /* Bottom tab bar: 4rem plus its 1px top border and the home-indicator area */
+    .cal-root {
+        --cal-chrome: calc(4rem + 1px + env(safe-area-inset-bottom));
+    }
+
     .cal-toolbar {
         position: sticky;
         top: 0;
