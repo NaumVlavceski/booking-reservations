@@ -37,6 +37,10 @@ const STATUS_COLORS: Record<string, { fill: string; border: string; text: string
 const MOBILE_VISIBLE_DAYS = 7;
 // Movement under this is a tap (open a new reservation), over it is a drag.
 const DRAG_THRESHOLD_PX = 5;
+// Fingers wobble more than mice: touch needs a bit more movement (in any direction) before it counts as a drag.
+const TOUCH_DRAG_THRESHOLD_PX = 8;
+// A finger that rests this long before lifting is not flicking: no momentum.
+const TOUCH_REST_MS = 80;
 const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
 
 type PropertyGroup = { property: PropertyResponse; units: UnitResponse[] };
@@ -105,11 +109,21 @@ export default function CalendarPage() {
 
     const scrollXRef = useRef(0);
 
-    const dragRef = useRef<{ startX: number; startScroll: number; pointerId: number; moved: boolean } | null>(null);
+    // twoD: touch and pen pan both ways in one gesture (the page scrolls vertically, the grid horizontally);
+    // a mouse only drags the grid sideways, and the wheel keeps scrolling the page natively.
+    const dragRef = useRef<{
+        startX: number;
+        startScroll: number;
+        lastY: number;
+        pointerId: number;
+        moved: boolean;
+        twoD: boolean;
+    } | null>(null);
     const suppressClickRef = useRef(false);
     const navigate = useNavigate();
     const velocityRef = useRef(0);
-    const lastMoveRef = useRef<{ t: number; x: number } | null>(null);
+    const velocityYRef = useRef(0); // page scroll, px/ms
+    const lastMoveRef = useRef<{ t: number; x: number; y: number } | null>(null);
     const momentumFrameRef = useRef<number | null>(null);
 
     const [openMenu, setOpenMenu] = useState<"date" | "more" | null>(null);
@@ -284,12 +298,20 @@ export default function CalendarPage() {
             momentumFrameRef.current = null;
         }
         velocityRef.current = 0;
+        velocityYRef.current = 0;
         suppressClickRef.current = false;
         // Cursor via the DOM, not state — a state change here re-rendered the
         // whole calendar at the start of every drag.
         viewportRef.current?.classList.add("is-dragging");
-        dragRef.current = {startX: e.clientX, startScroll: scrollXRef.current, pointerId: e.pointerId, moved: false};
-        lastMoveRef.current = {t: performance.now(), x: scrollXRef.current};
+        dragRef.current = {
+            startX: e.clientX,
+            startScroll: scrollXRef.current,
+            lastY: e.clientY,
+            pointerId: e.pointerId,
+            moved: false,
+            twoD: e.pointerType !== "mouse",
+        };
+        lastMoveRef.current = {t: performance.now(), x: scrollXRef.current, y: window.scrollY};
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
     }
 
@@ -297,7 +319,17 @@ export default function CalendarPage() {
         const drag = dragRef.current;
         if (!drag) return;
         const delta = e.clientX - drag.startX;
-        if (Math.abs(delta) > DRAG_THRESHOLD_PX) drag.moved = true;
+        if (drag.twoD) {
+            // Stay put until the finger has clearly moved, so a tap with a little jitter is still a tap
+            if (!drag.moved && Math.hypot(delta, e.clientY - drag.lastY) > TOUCH_DRAG_THRESHOLD_PX) drag.moved = true;
+            if (!drag.moved) return;
+            // touch-action is "none" here, so the browser does no panning of its own (and no pull-to-refresh):
+            // the page is moved by hand. Scrolling past the top simply does nothing.
+            window.scrollBy(0, drag.lastY - e.clientY);
+            drag.lastY = e.clientY;
+        } else if (Math.abs(delta) > DRAG_THRESHOLD_PX) {
+            drag.moved = true;
+        }
         const target = drag.startScroll - delta;
         applyScroll(target);
 
@@ -308,9 +340,13 @@ export default function CalendarPage() {
             if (dt > 0) {
                 const instVelocity = (scrollXRef.current - last.x) / dt;
                 velocityRef.current = velocityRef.current * 0.7 + instVelocity * 0.3;
+                if (drag.twoD) {
+                    const instVelocityY = (window.scrollY - last.y) / dt;
+                    velocityYRef.current = velocityYRef.current * 0.7 + instVelocityY * 0.3;
+                }
             }
         }
-        lastMoveRef.current = {t: now, x: scrollXRef.current};
+        lastMoveRef.current = {t: now, x: scrollXRef.current, y: window.scrollY};
     }
 
     function onPointerUp(e: ReactPointerEvent) {
@@ -329,8 +365,15 @@ export default function CalendarPage() {
             openNewReservationAt(e.clientX, e.clientY);
         }
 
+        // A finger that stopped before lifting is not a flick
+        // e.timeStamp is on the same clock as performance.now()
+        if (drag?.twoD && lastMoveRef.current && e.timeStamp - lastMoveRef.current.t > TOUCH_REST_MS) {
+            velocityRef.current = 0;
+            velocityYRef.current = 0;
+        }
+
         const MIN_VELOCITY = 0.03;
-        if (Math.abs(velocityRef.current) > MIN_VELOCITY) {
+        if (Math.abs(velocityRef.current) > MIN_VELOCITY || Math.abs(velocityYRef.current) > MIN_VELOCITY) {
             startMomentum();
         }
     }
@@ -351,9 +394,11 @@ export default function CalendarPage() {
             const dt = now - lastT;
             lastT = now;
 
-            velocityRef.current *= Math.exp(-dt / 250);
+            const friction = Math.exp(-dt / 250);
+            velocityRef.current *= friction;
+            velocityYRef.current *= friction;
 
-            if (Math.abs(velocityRef.current) < 0.02) {
+            if (Math.abs(velocityRef.current) < 0.02 && Math.abs(velocityYRef.current) < 0.02) {
                 momentumFrameRef.current = null;
                 return;
             }
@@ -362,6 +407,12 @@ export default function CalendarPage() {
             const clamped = clampScroll(target);
             if (clamped !== target) velocityRef.current = 0;
             applyScroll(clamped);
+
+            if (Math.abs(velocityYRef.current) >= 0.02) {
+                const before = window.scrollY;
+                window.scrollBy(0, velocityYRef.current * dt);
+                if (window.scrollY === before) velocityYRef.current = 0; // hit the top or bottom of the page
+            }
 
             momentumFrameRef.current = requestAnimationFrame(step);
         }

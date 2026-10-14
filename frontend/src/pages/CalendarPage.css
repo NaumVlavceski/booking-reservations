@@ -251,10 +251,11 @@
     flex: 1;
     overflow: hidden;
     position: relative;
-    /* Horizontal drags go to the calendar's scroll handler; vertical page scroll
-       still works — same as .cal-group-header. This was the one spot still using
-       `none`, which blocked vertical scrolling anywhere over the day grid itself. */
-    touch-action: pan-y;
+    /* Touches that start here are panned by the calendar's own handlers in both
+       directions at once (the grid sideways, the page up and down), so the browser
+       does no panning of its own: no axis lock, and no pull-to-refresh from here.
+       Scoped to this element on purpose: the rest of the page keeps native scrolling. */
+    touch-action: none;
     cursor: grab;
 }
 
@@ -337,8 +338,8 @@
     padding: 0 12px 0 10px;
     color: #0F172A;
     box-shadow: inset 3px 0 0 var(--brand);
-    /* Horizontal drags go to the calendar's scroll handler; vertical page scroll still works. */
-    touch-action: pan-y;
+    /* Same as .cal-viewport: panned by the calendar's handlers. */
+    touch-action: none;
 }
 
 /* Full-size, invisible toggle underneath the content. */
