@@ -29,7 +29,6 @@ const STATUS_OPTIONS = [
 export default function ReservationFormPage() {
     const {id} = useParams();
     const isEditing = Boolean(id);
-    // Cancelling (which deletes the booking) only makes sense for one that already exists.
     const statusOptions = STATUS_OPTIONS;
     const toast = useToast();
     const [confirmCancel, setConfirmCancel] = useState(false);
@@ -94,8 +93,6 @@ export default function ReservationFormPage() {
         queryFn: () => getReservations({unitId: form.unitId}),
         enabled: Boolean(form.unitId),
     });
-    // Nights already taken by another stay on this unit. Checkout day itself
-    // isn't blocked — it's a valid check-in day for the next booking.
     const bookedRanges = (unitReservations ?? [])
         .filter((r) => r.id !== id && r.status !== "CANCELLED")
         .map((r) => ({checkIn: r.checkIn, checkOut: r.checkOut}));

@@ -5,7 +5,12 @@ import com.naumvlavceski.bookingbackend.repository.*;
 import io.hypersistence.utils.hibernate.type.range.Range;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
+import com.naumvlavceski.bookingbackend.mail.ReservationNotifier;
+import com.naumvlavceski.bookingbackend.service.ReservationService;
+import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +21,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /** Runs against the real schema, including the no-overlap constraint. Each test rolls back. */
 @SpringBootTest
@@ -23,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 class IcalReconcilerTest {
 
+    @MockitoBean ReservationNotifier notifier;
+    @Autowired ReservationService reservationService;
     @Autowired IcalReconciler reconciler;
     @Autowired OwnerRepository ownerRepository;
     @Autowired PropertyRepository propertyRepository;
@@ -113,11 +122,71 @@ class IcalReconcilerTest {
         assertEquals(LocalDate.of(2030, 6, 17), r.getStayRange().upper());
     }
 
+    private void setPrice(Reservation r, String total) {
+        r.setTotalAmount(new BigDecimal(total));
+        reservationRepository.save(r);
+    }
+
+    @Test
+    void changedDatesKeepThePriceButFlagItForReviewAndRemindInTheEmail() {
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300613")));
+        setPrice(reservationFor("a1"), "50.00");
+
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300616")));
+
+        Reservation r = reservationFor("a1");
+        assertEquals(0, new BigDecimal("50").compareTo(r.getTotalAmount()), "price must not be recalculated");
+        assertTrue(r.isPriceNeedsReview());
+        verify(notifier).externalReservationModified(any(), eq(ReservationSource.AIRBNB),
+                eq(LocalDate.of(2030, 6, 10)), eq(LocalDate.of(2030, 6, 13)),
+                eq(LocalDate.of(2030, 6, 10)), eq(LocalDate.of(2030, 6, 16)), any(),
+                argThat(p -> p != null && p.compareTo(new BigDecimal("50")) == 0));
+    }
+
+    @Test
+    void changedDatesWithoutAPriceDoNotFlagAnything() {
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300613")));
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300616")));
+
+        assertFalse(reservationFor("a1").isPriceNeedsReview(), "already shown as a red 0");
+        verify(notifier).externalReservationModified(any(), any(), any(), any(), any(), any(), any(), isNull());
+    }
+
+    @Test
+    void aFeedUpdateThatKeepsTheSameDatesDoesNotFlagThePrice() {
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300613")));
+        setPrice(reservationFor("a1"), "50");
+        // Same dates, different raw block (e.g. a changed description): hash differs, dates do not
+        ParsedIcalEvent sameDatesNewBlock = new ParsedIcalEvent("a1", LocalDate.of(2030, 6, 10), LocalDate.of(2030, 6, 13),
+                "Reserved", "BEGIN:VEVENT\r\nUID:a1\r\nDESCRIPTION:changed\r\nEND:VEVENT");
+        reconciler.reconcile(calendar, List.of(sameDatesNewBlock));
+
+        assertFalse(reservationFor("a1").isPriceNeedsReview());
+    }
+
+    @Test
+    void savingTheBookingClearsTheReviewFlag() {
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300613")));
+        Reservation r = reservationFor("a1");
+        setPrice(r, "50");
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300616")));
+        assertTrue(reservationFor("a1").isPriceNeedsReview());
+
+        reservationService.update(unit.getOwnerId(), r.getId(), new ReservationRequest(unit.getId(),
+                LocalDate.of(2030, 6, 10), LocalDate.of(2030, 6, 16), ReservationStatus.CONFIRMED,
+                null, null, new BigDecimal("100"), "Guest", null, null, 2, null));
+
+        Reservation saved = reservationFor("a1");
+        assertFalse(saved.isPriceNeedsReview());
+        assertEquals(0, new BigDecimal("100").compareTo(saved.getTotalAmount()));
+    }
+
     @Test
     void eventRemovedFromFeedCancelsTheReservation() {
         reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300615")));
         reconciler.reconcile(calendar, List.of());
         assertEquals(ReservationStatus.CANCELLED, reservationFor("a1").getStatus());
+        assertNotNull(reservationFor("a1").getCancelledAt(), "the cancelled list sorts by this");
     }
 
     @Test
@@ -127,6 +196,7 @@ class IcalReconcilerTest {
         reconciler.reconcile(calendar, List.of());
         reconciler.reconcile(calendar, feed);
         assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus());
+        assertNull(reservationFor("a1").getCancelledAt(), "a restored booking is no longer cancelled");
     }
 
     @Test
@@ -140,6 +210,37 @@ class IcalReconcilerTest {
         assertEquals(ConflictStatus.OPEN, conflict.getStatus());
         assertEquals(ConflictKind.NEW_OVERLAP, conflict.getKind());
         assertEquals(direct.getId(), conflict.getConflictingReservationId());
+    }
+
+    @Test
+    void aNewConflictEmailsTheOwnerOnceAndRepeatedSyncsStaySilent() {
+        manualReservation("2030-06-12", "2030-06-14");
+        List<ParsedIcalEvent> feed = List.of(event("a1", "20300610", "20300615"));
+
+        reconciler.reconcile(calendar, feed);
+        reconciler.reconcile(calendar, feed);
+        reconciler.reconcile(calendar, feed);
+
+        verify(notifier, times(1)).bookingConflict(any(), eq(ReservationSource.AIRBNB), eq(false),
+                eq(LocalDate.of(2030, 6, 10)), eq(LocalDate.of(2030, 6, 15)), any(),
+                any(), eq(LocalDate.of(2030, 6, 12)), eq(LocalDate.of(2030, 6, 14)), any());
+    }
+
+    @Test
+    void aConflictThatChangesIsReportedAgain() {
+        manualReservation("2030-06-12", "2030-06-14");
+        reconciler.reconcile(calendar, List.of(event("a1", "20300610", "20300615")));
+        reconciler.reconcile(calendar, List.of(event("a1", "20300611", "20300616")));
+
+        verify(notifier, times(2)).bookingConflict(any(), any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aConflictInThePastSendsNoEmail() {
+        manualReservation("2020-06-12", "2020-06-14");
+        reconciler.reconcile(calendar, List.of(event("a1", "20200610", "20200615")));
+
+        verify(notifier, never()).bookingConflict(any(), any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
