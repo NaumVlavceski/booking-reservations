@@ -194,6 +194,12 @@ public class IcalReconciler {
                 && incoming.endDate().equals(conflict.getIncomingEnd());
         if (alreadyDismissed) return; // owner already acknowledged this exact collision
 
+        // Syncs repeat every few minutes: only a new or changed conflict is news
+        boolean alreadyReported = conflict.getStatus() == ConflictStatus.OPEN
+                && incoming.startDate().equals(conflict.getIncomingStart())
+                && incoming.endDate().equals(conflict.getIncomingEnd())
+                && colliding.getId().equals(conflict.getConflictingReservationId());
+
         conflict.setOwnerId(unit.getOwnerId());
         conflict.setUnitId(unit.getId());
         conflict.setExternalCalendarId(calendar.getId());
@@ -207,6 +213,13 @@ public class IcalReconciler {
         conflict.setStatus(ConflictStatus.OPEN);
         conflict.setResolvedAt(null);
         syncConflictRepository.save(conflict);
+
+        if (!alreadyReported && incoming.endDate().isAfter(LocalDate.now())) {
+            notifier.bookingConflict(unit, calendar.getPlatform(), kind == ConflictKind.CHANGE_OVERLAP,
+                    incoming.startDate(), incoming.endDate(), incoming.summary(),
+                    colliding.getSource(), colliding.getStayRange().lower(), colliding.getStayRange().upper(),
+                    colliding.getGuestName());
+        }
     }
 
     private void resolveConflictIfAny(ExternalCalendar calendar, String uid) {

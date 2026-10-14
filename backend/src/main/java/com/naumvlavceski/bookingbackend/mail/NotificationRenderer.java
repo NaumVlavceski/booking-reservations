@@ -12,6 +12,8 @@ final class NotificationRenderer {
     static final String CANCELLED = "EXTERNAL_RESERVATION_CANCELLED";
     static final String MODIFIED = "EXTERNAL_RESERVATION_MODIFIED";
     static final String SYNC_FAILING = "CALENDAR_SYNC_FAILING";
+    static final String CONFLICT_NEW = "BOOKING_CONFLICT";
+    static final String CONFLICT_CHANGED = "BOOKING_CONFLICT_CHANGED";
 
     record Rendered(String subject, String html, String text) {}
 
@@ -52,6 +54,24 @@ final class NotificationRenderer {
                     "The " + platform + " calendar for " + place
                             + " keeps failing to sync, so new bookings and cancellations may be missing.\n\n"
                             + "Details: " + reason + "\n\nCheck that the calendar link is still valid in RoomTrack.");
+        }
+        if (CONFLICT_NEW.equals(n.type()) || CONFLICT_CHANGED.equals(n.type())) {
+            boolean changed = CONFLICT_CHANGED.equals(n.type());
+            String intro = changed
+                    ? "A " + platform + " booking was changed and now overlaps one of your reservations."
+                    : "A new " + platform + " booking overlaps one of your reservations.";
+            String advice = "RoomTrack kept your existing booking" + (changed ? " as it was" : " and did not add the new one")
+                    + ". Open Booking conflicts in RoomTrack, then cancel one of the two on its platform to avoid a double booking.";
+            String incoming = dates(n.startDate(), n.endDate()) + (n.guest() == null || n.guest().isBlank() ? "" : " (" + n.guest() + ")");
+            return new Rendered(
+                    "Booking conflict at " + place + ": " + platform + " booking overlaps",
+                    "<p><b>" + esc(intro) + "</b></p>"
+                            + "<p><b>Place:</b> " + esc(place) + "<br>"
+                            + "<b>" + esc(platform) + " booking:</b> " + esc(incoming) + "<br>"
+                            + "<b>Your existing booking:</b> " + esc(n.detail()) + "</p>"
+                            + "<p>" + esc(advice) + "</p>",
+                    intro + "\n\nPlace: " + place + "\n" + platform + " booking: " + incoming + "\n"
+                            + "Your existing booking: " + n.detail() + "\n\n" + advice);
         }
         String prefix;
         String verb;

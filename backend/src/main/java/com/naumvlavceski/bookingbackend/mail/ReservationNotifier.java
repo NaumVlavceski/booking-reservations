@@ -49,6 +49,17 @@ public class ReservationNotifier {
                 "Failed " + failures + " times in a row. Last error: " + reason));
     }
 
+   public void bookingConflict(Unit unit, ReservationSource platform, boolean changedBooking,
+                                LocalDate incomingStart, LocalDate incomingEnd, String incomingSummary,
+                                ReservationSource existingSource, LocalDate existingStart, LocalDate existingEnd,
+                                String existingGuest) {
+        String existing = NotificationRenderer.dates(existingStart, existingEnd)
+                + " (" + existingSource.name().charAt(0) + existingSource.name().substring(1).toLowerCase()
+                + (existingGuest == null || existingGuest.isBlank() ? "" : ", " + existingGuest) + ")";
+        dispatch(build(unit, changedBooking ? NotificationRenderer.CONFLICT_CHANGED : NotificationRenderer.CONFLICT_NEW,
+                platform, incomingStart, incomingEnd, null, null, incomingSummary, existing));
+    }
+
     private Notification build(Unit unit, String type, ReservationSource platform,
                                LocalDate start, LocalDate end, LocalDate prevStart, LocalDate prevEnd,
                                String guest, String detail) {
