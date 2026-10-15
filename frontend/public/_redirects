@@ -1,1 +1,2 @@
+/api/ical/*  https://api.roomtrack.app/api/ical/:splat  200
 /*    /index.html   200

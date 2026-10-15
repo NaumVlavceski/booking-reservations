@@ -363,11 +363,34 @@ class ApiIntegrationTest {
         String token = registerAndGetToken();
         String unit = unitWithToken(token);
         String path = "/api/units/" + unit + "/calendars";
-        for (String bad : new String[]{"http://example.com/a.ics", "https://localhost/a.ics", "https://127.0.0.1/a.ics",
-                "https://10.0.0.1/a.ics", "https://169.254.169.254/latest", "https://[::1]/a.ics", ""}) {
-            send(post(path), token, "{\"platform\":\"AIRBNB\",\"icsUrl\":\"" + bad + "\"}").andExpect(status().isBadRequest());
+        // Not https, or not a Booking.com / Airbnb host (private addresses are covered in IcalUrlGuardTest)
+        for (String bad : new String[]{"http://ical.booking.com/v1/export?t=a", "https://example.com/a.ics",
+                "https://localhost/a.ics", "https://127.0.0.1/a.ics", "https://169.254.169.254/latest",
+                "https://booking.com.evil.com/a.ics", "https://example.com/airbnb.com/a.ics", ""}) {
+            send(post(path), token, "{\"icsUrl\":\"" + bad + "\"}").andExpect(status().isBadRequest());
         }
-        send(post(path), token, "{\"platform\":\"DIRECT\",\"icsUrl\":\"https://example.com/a.ics\"}").andExpect(status().isBadRequest());
+        send(post(path), token, "{\"icsUrl\":\"https://example.com/a.ics\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Only Booking.com and Airbnb calendar links are supported."));
+    }
+
+    @Test
+    void theChannelIsWorkedOutFromTheLinkNotFromWhatTheClientSends() throws Exception {
+        String token = registerAndGetToken();
+        String path = "/api/units/" + unitWithToken(token) + "/calendars";
+
+        // an Airbnb link labelled as Booking by an old or wrong client is still Airbnb
+        send(post(path), token, "{\"platform\":\"BOOKING\",\"icsUrl\":\"https://www.airbnb.com/calendar/ical/123.ics?s=qa\"}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.platform").value("AIRBNB"));
+
+        // webcal:// is accepted and stored as https://
+        send(post(path), token, "{\"icsUrl\":\"webcal://ical.booking.com/v1/export?t=qa\"}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.platform").value("BOOKING"));
+
+        // one calendar per channel, with a message that names it
+        send(post(path), token, "{\"icsUrl\":\"https://www.airbnb.com/calendar/ical/999.ics?s=other\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("This room already has an Airbnb calendar."));
     }
 
     @Test
@@ -375,13 +398,13 @@ class ApiIntegrationTest {
         String token = registerAndGetToken();
         String unit = unitWithToken(token);
         String path = "/api/units/" + unit + "/calendars";
-        String calBody = send(post(path), token, "{\"platform\":\"BOOKING\",\"icsUrl\":\"https://example.com/qa-feed.ics\"}")
+        String calBody = send(post(path), token, "{\"icsUrl\":\"https://ical.booking.com/v1/export?t=qa-feed\"}")
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String calId = JsonPath.read(calBody, "$.id");
 
-        send(post(path), token, "{\"platform\":\"BOOKING\",\"icsUrl\":\"https://example.com/other.ics\"}").andExpect(status().isConflict());
+        send(post(path), token, "{\"icsUrl\":\"https://ical.booking.com/v1/export?t=other\"}").andExpect(status().isConflict());
 
-        // First sync runs (and fails gracefully: that host has no such feed). A second one right away is throttled.
+        // First sync runs (and fails gracefully: that token is not a real feed). A second one right away is throttled.
         send(post("/api/calendars/" + calId + "/sync"), token, null).andExpect(status().isOk());
         send(post("/api/calendars/" + calId + "/sync"), token, null)
                 .andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));

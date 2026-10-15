@@ -1,13 +1,10 @@
 import {useMemo, useState} from "react";
 import {DayPicker} from "react-day-picker";
 import "react-day-picker/style.css";
-import {addDays, differenceInCalendarDays, eachDayOfInterval, format} from "date-fns";
+import {differenceInCalendarDays, format} from "date-fns";
+import {blockedNights, canCheckOutOn, showAsBooked, type BookedRange, type PickStep} from "../lib/stayDates";
+import {parseLocalDate} from "../lib/dates";
 import {CalendarIcon} from "./icons";
-
-interface BookedRange {
-    checkIn: string;  // yyyy-MM-dd
-    checkOut: string; // yyyy-MM-dd, exclusive — the checkout day itself is free
-}
 
 interface StayDatesPickerProps {
     checkIn: string;   // yyyy-MM-dd or ""
@@ -17,13 +14,7 @@ interface StayDatesPickerProps {
     bookedRanges?: BookedRange[];
 }
 
-type Step = "checkIn" | "checkOut";
-
-// "yyyy-MM-dd" via new Date() is UTC midnight — parse as local to avoid off-by-one days.
-function parseLocalDate(value: string): Date {
-    const [y, m, d] = value.split("-").map(Number);
-    return new Date(y, m - 1, d);
-}
+type Step = PickStep;
 
 const toIso = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -33,21 +24,8 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
     const to = checkOut ? parseLocalDate(checkOut) : undefined;
     const nights = from && to ? differenceInCalendarDays(to, from) : 0;
 
-    // Every night already taken by another stay on this unit. Each range is
-    // half-open [checkIn, checkOut) — the checkout day itself is a free
-    // check-in day for the next booking, so it's not included here.
-    const blockedDates = useMemo(() => {
-        const dates = new Set<string>();
-        for (const range of bookedRanges) {
-            const rangeFrom = parseLocalDate(range.checkIn);
-            const rangeTo = parseLocalDate(range.checkOut);
-            if (differenceInCalendarDays(rangeTo, rangeFrom) <= 0) continue;
-            for (const day of eachDayOfInterval({start: rangeFrom, end: addDays(rangeTo, -1)})) {
-                dates.add(toIso(day));
-            }
-        }
-        return dates;
-    }, [bookedRanges]);
+    // Every night already taken by another stay on this unit (the check-out day itself is free).
+    const blockedDates = useMemo(() => blockedNights(bookedRanges), [bookedRanges]);
 
     function open(next: Step) {
         // Check-out is meaningless without a check-in to anchor it.
@@ -66,18 +44,10 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
         }
     }
 
-    // A checkout day is only pickable if none of the nights between the
-    // chosen check-in and that day are already booked.
-    function spansBookedNight(day: Date): boolean {
-        if (!from) return false;
-        if (differenceInCalendarDays(day, from) <= 0) return false;
-        return eachDayOfInterval({start: from, end: addDays(day, -1)})
-            .some((night) => blockedDates.has(toIso(night)));
-    }
-
-    const checkInDisabled = (day: Date) => blockedDates.has(toIso(day));
+    const checkInDisabled = (day: Date) => showAsBooked(day, "checkIn", undefined, blockedDates);
     const hasBookedNights = blockedDates.size > 0;
-    const checkOutDisabled = (day: Date) => (from ? differenceInCalendarDays(day, from) <= 0 : false) || spansBookedNight(day);
+    // A check-out day is only pickable if none of the nights between the chosen check-in and that day are booked
+    const checkOutDisabled = (day: Date) => !canCheckOutOn(day, from, blockedDates);
 
     const fieldClass = (active: boolean) =>
         `field-input flex items-center justify-between gap-2 text-left ${
@@ -140,7 +110,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
                             disabled={step === "checkOut" ? checkOutDisabled : checkInDisabled}
                             weekStartsOn={1}
                             showOutsideDays
-                            modifiers={{booked: (day: Date) => blockedDates.has(toIso(day))}}
+                            modifiers={{booked: (day: Date) => showAsBooked(day, step, from, blockedDates)}}
                             modifiersClassNames={{booked: "rdp-booked"}}
                         />
                     </div>

@@ -16,6 +16,8 @@ export interface ReservationResponse {
     nightlyRate: number;
     totalAmount: number;
     notes: string;
+    priceNeedsReview: boolean;
+    cancelledAt: string | null;
 }
 
 export interface ReservationRequest{
@@ -43,6 +45,36 @@ export async function getReservations(filters?: ReservationFilters): Promise<Res
     });
     return res.data;
 }
+export interface PageResponse<T> {
+    items: T[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+}
+
+export interface CancelledParams {
+    page: number;
+    size: number;
+    /** Guest name starts with this (ignoring case). */
+    name?: string;
+    /** "yyyy-MM-dd": only stays checking in on or after this day. */
+    checkInFrom?: string;
+}
+
+/** One page of cancelled bookings: newest cancellation first, or latest check-in first when a date is given. */
+export async function getCancelledReservations(params: CancelledParams): Promise<PageResponse<ReservationResponse>> {
+    const res = await apiClient.get<PageResponse<ReservationResponse>>("/api/reservations/cancelled", {
+        params: {
+            page: params.page,
+            size: params.size,
+            name: params.name || undefined,
+            checkInFrom: params.checkInFrom || undefined,
+        },
+    });
+    return res.data;
+}
+
 export const allReservationsQuery = queryOptions({
     queryKey: ["reservations", "calendar"],
     queryFn: () => getReservations(),

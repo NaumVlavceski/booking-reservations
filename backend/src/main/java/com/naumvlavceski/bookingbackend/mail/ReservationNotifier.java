@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -39,14 +40,26 @@ public class ReservationNotifier {
 
     public void externalReservationModified(Unit unit, ReservationSource platform,
                                             LocalDate oldStart, LocalDate oldEnd,
-                                            LocalDate start, LocalDate end, String guest) {
-        dispatch(build(unit, NotificationRenderer.MODIFIED, platform, start, end, oldStart, oldEnd, guest, null));
+                                            LocalDate start, LocalDate end, String guest, BigDecimal keptPrice) {
+        String priceNote = keptPrice == null ? null : keptPrice.stripTrailingZeros().toPlainString();
+        dispatch(build(unit, NotificationRenderer.MODIFIED, platform, start, end, oldStart, oldEnd, guest, priceNote));
     }
 
     public void calendarSyncFailing(Unit unit, ReservationSource platform, int failures, String error) {
         String reason = (error == null || error.isBlank()) ? "Unknown error" : error;
         dispatch(build(unit, NotificationRenderer.SYNC_FAILING, platform, null, null, null, null, null,
                 "Failed " + failures + " times in a row. Last error: " + reason));
+    }
+
+   public void bookingConflict(Unit unit, ReservationSource platform, boolean changedBooking,
+                                LocalDate incomingStart, LocalDate incomingEnd, String incomingSummary,
+                                ReservationSource existingSource, LocalDate existingStart, LocalDate existingEnd,
+                                String existingGuest) {
+        String existing = NotificationRenderer.dates(existingStart, existingEnd)
+                + " (" + existingSource.name().charAt(0) + existingSource.name().substring(1).toLowerCase()
+                + (existingGuest == null || existingGuest.isBlank() ? "" : ", " + existingGuest) + ")";
+        dispatch(build(unit, changedBooking ? NotificationRenderer.CONFLICT_CHANGED : NotificationRenderer.CONFLICT_NEW,
+                platform, incomingStart, incomingEnd, null, null, incomingSummary, existing));
     }
 
     private Notification build(Unit unit, String type, ReservationSource platform,

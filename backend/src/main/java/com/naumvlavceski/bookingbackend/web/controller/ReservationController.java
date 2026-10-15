@@ -1,15 +1,18 @@
 package com.naumvlavceski.bookingbackend.web.controller;
 
 import com.naumvlavceski.bookingbackend.config.security.CurrentUserId;
+import com.naumvlavceski.bookingbackend.dto.PageResponse;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
 import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +29,18 @@ public class ReservationController {
             @RequestParam(required = false) ReservationStatus status
     ) {
         return reservationService.findAllForOwner(ownerId, unitId, status);
+    }
+
+    /** Cancelled bookings, paged. Newest cancellation first; with checkInFrom, latest check-in first. */
+    @GetMapping("/cancelled")
+    public PageResponse<ReservationResponse> cancelled(
+            @CurrentUserId UUID ownerId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInFrom,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return reservationService.listCancelled(ownerId, name, checkInFrom, page, size);
     }
 
     @GetMapping("/{id}")

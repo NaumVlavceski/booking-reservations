@@ -5,6 +5,7 @@ import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record ReservationResponse(
@@ -21,7 +22,9 @@ public record ReservationResponse(
         BigDecimal pricePerGuest,
         BigDecimal nightlyRate,
         BigDecimal totalAmount,
-        String notes
+        String notes,
+        boolean priceNeedsReview,
+        OffsetDateTime cancelledAt
 ) {
 
 }

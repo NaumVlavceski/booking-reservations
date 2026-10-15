@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent} from "react";
+import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, UIEvent as ReactUIEvent} from "react";
 import {Link, useNavigate} from "react-router-dom";
 import {useQuery} from "@tanstack/react-query";
 import {format, addDays, differenceInCalendarDays} from "date-fns";
@@ -37,7 +37,41 @@ const STATUS_COLORS: Record<string, { fill: string; border: string; text: string
 const MOBILE_VISIBLE_DAYS = 7;
 // Movement under this is a tap (open a new reservation), over it is a drag.
 const DRAG_THRESHOLD_PX = 5;
+// A touch that moves more than this (in any direction) is a scroll, not a tap.
+const TAP_SLOP_PX = 8;
 const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
+
+/**
+ * iOS before 16 ignores `overscroll-behavior`, so the grid would still bounce the page (and start
+ * pull-to-refresh) when dragged past its top or bottom. For those browsers only, swallow a mostly
+ * vertical touch that would scroll past an edge. Everything else keeps native scrolling.
+ */
+function guardEdgeBounce(el: HTMLElement): () => void {
+    if (typeof CSS !== "undefined" && CSS.supports?.("overscroll-behavior", "none")) return () => {};
+
+    let startX = 0;
+    let startY = 0;
+    const onStart = (e: TouchEvent) => {
+        if (e.touches.length !== 1) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    };
+    const onMove = (e: TouchEvent) => {
+        if (e.touches.length !== 1 || !e.cancelable) return; // multi-touch (pinch) is left alone
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+        if (Math.abs(dy) <= Math.abs(dx)) return;
+        const atTop = el.scrollTop <= 0;
+        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+        if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
+    };
+    el.addEventListener("touchstart", onStart, {passive: true});
+    el.addEventListener("touchmove", onMove, {passive: false});
+    return () => {
+        el.removeEventListener("touchstart", onStart);
+        el.removeEventListener("touchmove", onMove);
+    };
+}
 
 type PropertyGroup = { property: PropertyResponse; units: UnitResponse[] };
 type LayoutRow =
@@ -85,16 +119,18 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 export default function CalendarPage() {
-    const viewportRef = useRef<HTMLDivElement | null>(null);
+    // The one element that scrolls, natively, in both directions (room column and date header are CSS-sticky inside it).
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
     const resizeObserverRef = useRef<ResizeObserver | null>(null);
-    const innerRef = useRef<HTMLDivElement>(null); // the transformed grid — moved via direct DOM writes, not React state
+    const edgeGuardCleanupRef = useRef<(() => void) | null>(null);
     const monthLabelRef = useRef<HTMLDivElement>(null); // sticky "current month" label — text written directly, not via React state
     const currentMonthKeyRef = useRef<string>("");
     const today = useMemo(() => startOfToday(), []);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-    const [viewportWidth, setViewportWidth] = useState(() =>
-        Math.max(260, window.innerWidth - (window.innerWidth < 640 ? 104 : 120 + 48))
+    // Width of the scroller (room column included); the day columns get what is left after the room column.
+    const [scrollerWidth, setScrollerWidth] = useState(() =>
+        Math.max(364, window.innerWidth - (window.innerWidth < 640 ? 0 : 48))
     );
 
     const [windowState, setWindowState] = useState({start: 0, end: 0});
@@ -105,12 +141,22 @@ export default function CalendarPage() {
 
     const scrollXRef = useRef(0);
 
-    const dragRef = useRef<{ startX: number; startScroll: number; pointerId: number; moved: boolean } | null>(null);
+    // Only a mouse pans by dragging (`pan`); touch and pen scroll natively, so here they just need tap detection.
+    const dragRef = useRef<{
+        startX: number;
+        startY: number;
+        startScroll: number;
+        pointerId: number;
+        moved: boolean;
+        pan: boolean;
+    } | null>(null);
     const suppressClickRef = useRef(false);
     const navigate = useNavigate();
     const velocityRef = useRef(0);
     const lastMoveRef = useRef<{ t: number; x: number } | null>(null);
     const momentumFrameRef = useRef<number | null>(null);
+    const scrollFrameRef = useRef<number | null>(null);
+    const pendingLeftRef = useRef(0);
 
     const [openMenu, setOpenMenu] = useState<"date" | "more" | null>(null);
     const datePickerRef = useRef<HTMLDivElement | null>(null);
@@ -145,25 +191,27 @@ export default function CalendarPage() {
         return () => window.removeEventListener("resize", onResize);
     }, []);
 
-    const setViewportRef = useCallback((node: HTMLDivElement | null) => {
-        if (resizeObserverRef.current) {
-            resizeObserverRef.current.disconnect();
-            resizeObserverRef.current = null;
-        }
-        viewportRef.current = node;
+    const setScrollerRef = useCallback((node: HTMLDivElement | null) => {
+        resizeObserverRef.current?.disconnect();
+        resizeObserverRef.current = null;
+        edgeGuardCleanupRef.current?.();
+        edgeGuardCleanupRef.current = null;
+        scrollerRef.current = node;
         if (node) {
-            setViewportWidth(node.clientWidth);
+            setScrollerWidth(node.clientWidth);
             const observer = new ResizeObserver((entries) => {
-                setViewportWidth(entries[0].contentRect.width);
+                setScrollerWidth(entries[0].contentRect.width);
             });
             observer.observe(node);
             resizeObserverRef.current = observer;
+            edgeGuardCleanupRef.current = guardEdgeBounce(node);
         }
     }, []);
 
     useEffect(() => {
         return () => {
             if (momentumFrameRef.current) cancelAnimationFrame(momentumFrameRef.current);
+            if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
         };
     }, []);
 
@@ -191,6 +239,8 @@ export default function CalendarPage() {
         setOpenMenu((current) => (current === menu ? null : menu));
     }
 
+    const LABEL_WIDTH = isMobile ? 104 : 120;
+    const viewportWidth = Math.max(0, scrollerWidth - LABEL_WIDTH);
     // Phones: exactly a week fills the width. Desktop: 20 days.
     const DAY_COL_WIDTH = isMobile
         ? Math.max(45, viewportWidth / MOBILE_VISIBLE_DAYS)
@@ -199,7 +249,6 @@ export default function CalendarPage() {
     const GROUP_HEIGHT = isMobile ? 48 : 52;
     const BAR_HEIGHT = isMobile ? 44 : 60;
     const BAR_MARGIN = isMobile ? 3 : 5;
-    const LABEL_WIDTH = isMobile ? 104 : 120;
     const HEADER_H1 = 26;
     const HEADER_H2 = isMobile ? 52 : 48;
     const CUT_PX = DAY_COL_WIDTH;
@@ -238,8 +287,10 @@ export default function CalendarPage() {
         }
     }
 
-    function applyScroll(rawScrollX: number) {
-        const clamped = clampScroll(rawScrollX);
+    // The scroller's scrollLeft is the logical position plus maxScroll, so "today" sits at scrollLeft = maxScroll
+    // and the whole ±5 years fit in one native scroll range. Called once per frame after the browser has scrolled.
+    function syncFromScroll(scrollXPx: number) {
+        const clamped = clampScroll(scrollXPx);
         scrollXRef.current = clamped;
         updateMonthLabel(clamped);
 
@@ -252,54 +303,83 @@ export default function CalendarPage() {
                 setWindowState(next);
             }
         }
+    }
 
-        if (innerRef.current) {
-            innerRef.current.style.transform = `translateX(${windowRef.current.start * DAY_COL_WIDTH - clamped}px)`;
-        }
+    // Moves the grid from code (Today, Jump to date, mouse drag, momentum): write scrollLeft and let the
+    // browser report back through onScroll.
+    function scrollToX(rawScrollX: number) {
+        const clamped = clampScroll(rawScrollX);
+        scrollXRef.current = clamped;
+        if (scrollerRef.current) scrollerRef.current.scrollLeft = clamped + maxScroll;
     }
 
     useLayoutEffect(() => {
-        if (!viewportWidth) return;
+        if (!scrollerWidth) return;
         const next = computeWindow(scrollXRef.current);
         windowRef.current = next;
         setWindowState(next);
-        if (innerRef.current) {
-            innerRef.current.style.transform = `translateX(${next.start * DAY_COL_WIDTH - scrollXRef.current}px)`;
-        }
+        // Right after the grid mounts or the column width changes: put the scroller back where we were
+        // (initially: today at the left edge).
+        if (scrollerRef.current) scrollerRef.current.scrollLeft = scrollXRef.current + maxScroll;
         updateMonthLabel(scrollXRef.current);
-        // Re-run once the grid itself mounts, too: while properties/units are still
-        // loading the grid (and innerRef) doesn't exist yet, so the transform above
-        // is a no-op. It ran once already with the same viewportWidth/DAY_COL_WIDTH,
-        // so without `isLoading` here this effect wouldn't fire again when the grid
-        // finally appears — leaving it untransformed at day `windowState.start`
-        // (weeks in the past) until the first drag set it. That's exactly the
-        // "shows the wrong date until I scroll" bug on mobile, where the initial
-        // load is slow enough for this gap to be visible.
+        // Re-run once the grid itself mounts, too: while properties/units are still loading there is no
+        // scroller yet, so without `isLoading` here this wouldn't fire again when it appears.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewportWidth, DAY_COL_WIDTH, isLoading]);
 
-    function onPointerDown(e: ReactPointerEvent) {
+    // Native scroll: remember where we are here, do the work once per frame. Nothing is read and written
+    // in the same handler, and React state only changes when the day window actually moves.
+    function handleScroll(e: ReactUIEvent<HTMLDivElement>) {
+        pendingLeftRef.current = e.currentTarget.scrollLeft;
+        if (scrollFrameRef.current !== null) return;
+        scrollFrameRef.current = requestAnimationFrame(() => {
+            scrollFrameRef.current = null;
+            // While a mouse drag or momentum is moving the grid, our own position is the fresher one
+            const driving = momentumFrameRef.current !== null || dragRef.current?.pan;
+            syncFromScroll(driving ? scrollXRef.current : pendingLeftRef.current - maxScroll);
+        });
+    }
+
+    function cancelMomentum() {
         if (momentumFrameRef.current) {
             cancelAnimationFrame(momentumFrameRef.current);
             momentumFrameRef.current = null;
         }
         velocityRef.current = 0;
-        suppressClickRef.current = false;
-        // Cursor via the DOM, not state — a state change here re-rendered the
-        // whole calendar at the start of every drag.
-        viewportRef.current?.classList.add("is-dragging");
-        dragRef.current = {startX: e.clientX, startScroll: scrollXRef.current, pointerId: e.pointerId, moved: false};
-        lastMoveRef.current = {t: performance.now(), x: scrollXRef.current};
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
     }
 
-    function onPointerMove(e: ReactPointerEvent) {
+    function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+        cancelMomentum();
+        suppressClickRef.current = false;
+        const target = e.target as HTMLElement;
+        const pan = e.pointerType === "mouse" && e.button === 0 && target !== e.currentTarget // not the scrollbar
+            && !target.closest(".cal-label-col, .cal-head-corner");
+        dragRef.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            startScroll: scrollXRef.current,
+            pointerId: e.pointerId,
+            moved: false,
+            pan,
+        };
+        if (pan) {
+            // Cursor via the DOM, not state — a state change here re-rendered the whole calendar at the start of every drag.
+            e.currentTarget.classList.add("is-dragging");
+            lastMoveRef.current = {t: performance.now(), x: scrollXRef.current};
+            target.setPointerCapture(e.pointerId);
+        }
+    }
+
+    function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
         const drag = dragRef.current;
         if (!drag) return;
         const delta = e.clientX - drag.startX;
+        if (!drag.pan) {
+            if (Math.hypot(delta, e.clientY - drag.startY) > TAP_SLOP_PX) drag.moved = true;
+            return;
+        }
         if (Math.abs(delta) > DRAG_THRESHOLD_PX) drag.moved = true;
-        const target = drag.startScroll - delta;
-        applyScroll(target);
+        scrollToX(drag.startScroll - delta);
 
         const now = performance.now();
         const last = lastMoveRef.current;
@@ -313,24 +393,30 @@ export default function CalendarPage() {
         lastMoveRef.current = {t: now, x: scrollXRef.current};
     }
 
-    function onPointerUp(e: ReactPointerEvent) {
+    function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
         const drag = dragRef.current;
-        if (drag) {
-            (e.target as HTMLElement).releasePointerCapture(drag.pointerId);
-        }
         dragRef.current = null;
-        viewportRef.current?.classList.remove("is-dragging");
+        e.currentTarget.classList.remove("is-dragging");
+        if (!drag) return;
 
-        if (drag?.moved) {
-            // A drag that started on a reservation bar would otherwise end in a
-            // click on that link and open it.
+        if (drag.pan) {
+            try {
+                (e.target as HTMLElement).releasePointerCapture(drag.pointerId);
+            } catch {
+                // already released
+            }
+        }
+
+        if (drag.pan && drag.moved) {
+            // A drag that started on a reservation bar would otherwise end in a click on that link and open it.
             suppressClickRef.current = true;
-        } else if (drag && e.type === "pointerup" && !(e.target as Element).closest(".cal-bar")) {
+        } else if (!drag.moved && e.type === "pointerup" && !(e.target as Element).closest(".cal-bar")) {
+            // For touch, a pan makes the browser cancel the pointer, so reaching pointerup means it was a tap.
             openNewReservationAt(e.clientX, e.clientY);
         }
 
         const MIN_VELOCITY = 0.03;
-        if (Math.abs(velocityRef.current) > MIN_VELOCITY) {
+        if (drag.pan && Math.abs(velocityRef.current) > MIN_VELOCITY) {
             startMomentum();
         }
     }
@@ -361,7 +447,7 @@ export default function CalendarPage() {
             const target = scrollXRef.current + velocityRef.current * dt;
             const clamped = clampScroll(target);
             if (clamped !== target) velocityRef.current = 0;
-            applyScroll(clamped);
+            scrollToX(clamped);
 
             momentumFrameRef.current = requestAnimationFrame(step);
         }
@@ -371,13 +457,9 @@ export default function CalendarPage() {
 
     function handleJumpToDate(date: Date | undefined) {
         if (!date) return;
-        if (momentumFrameRef.current) {
-            cancelAnimationFrame(momentumFrameRef.current);
-            momentumFrameRef.current = null;
-        }
-        velocityRef.current = 0;
+        cancelMomentum();
         const dayIndex = differenceInCalendarDays(date, today);
-        applyScroll(dayIndex * DAY_COL_WIDTH);
+        scrollToX(dayIndex * DAY_COL_WIDTH);
         setOpenMenu(null);
     }
 
@@ -430,7 +512,7 @@ export default function CalendarPage() {
                     kind: "group",
                     group,
                     collapsed: isCollapsed,
-                    gridRow: rows.length + 3,
+                    gridRow: rows.length + 1,
                     top,
                     height: GROUP_HEIGHT
                 });
@@ -438,7 +520,7 @@ export default function CalendarPage() {
             }
             if (isCollapsed) continue;
             for (const unit of group.units) {
-                rows.push({kind: "unit", unit, gridRow: rows.length + 3, top, height: ROW_HEIGHT});
+                rows.push({kind: "unit", unit, gridRow: rows.length + 1, top, height: ROW_HEIGHT});
                 top += ROW_HEIGHT;
             }
         }
@@ -495,7 +577,7 @@ export default function CalendarPage() {
                 const clipPath = `polygon(${pointsArr.map(([x, y]) => `${x}px ${y}px`).join(", ")})`;
 
                 const guestName = r.guestName?.trim() || "Reservation";
-                const due = amountDue(r.status, r.totalAmount);
+                const due = amountDue(r.status, r.totalAmount, r.priceNeedsReview);
                 const label = layoutBarLabel({
                     name: guestName,
                     amount: due ? due.text : null,
@@ -514,7 +596,7 @@ export default function CalendarPage() {
                 const summary = [
                     guestName,
                     formatStay(r.checkIn, r.checkOut),
-                    due ? (due.missing ? "No amount recorded" : `Due ${due.text}`) : r.status === "PAID" ? "Paid" : null,
+                    due ? (due.missing ? "No amount recorded" : due.review ? `Due ${due.text.slice(2)} · dates changed, check the price` : `Due ${due.text}`) : r.status === "PAID" ? "Paid" : null,
                 ].filter(Boolean).join(" · ");
 
                 return {
@@ -531,7 +613,7 @@ export default function CalendarPage() {
                     lines: label.lines,
                     nameFontSize: label.fontSize,
                     labelAlign: label.align,
-                    amountMissing: due?.missing ?? false,
+                    amountMissing: due ? due.missing || Boolean(due.review) : false,
                     summary,
                 };
             })
@@ -539,21 +621,28 @@ export default function CalendarPage() {
     }, [reservations, units, unitRows, today, windowState, CUT_PX, DAY_COL_WIDTH, BAR_HEIGHT, BAR_MARGIN,
         LABEL_FONT_SIZES, LABEL_LINE_HEIGHT, LABEL_PADDING, isMobile]);
 
-    const bodyEndRow = layout.length + 3;
+    const bodyEndRow = layout.length + 1;
     const headerHeight = HEADER_H1 + HEADER_H2;
+    const bodyHeight = layout.reduce((h, r) => h + r.height, 0);
+    // Room for the whole ±5 years, so the browser's own scroll range covers it
+    const spacerWidth = 2 * maxScroll + viewportWidth;
+    // The 60-column window of days that is actually rendered sits at its true position inside that range
+    const gridLeft = (windowState.start + MAX_RANGE_DAYS) * DAY_COL_WIDTH;
 
     // One handler for the whole grid instead of a <Link> per room per day
     // (hundreds of them, all re-rendered whenever the day window shifted —
     // that's what made scrolling stutter). Maps the tap position to a room + day.
     function openNewReservationAt(clientX: number, clientY: number) {
-        const viewport = viewportRef.current;
-        if (!viewport) return;
-        const rect = viewport.getBoundingClientRect();
-        const y = clientY - rect.top - headerHeight;
+        const scroller = scrollerRef.current;
+        if (!scroller) return;
+        const rect = scroller.getBoundingClientRect();
+        const x = clientX - rect.left - LABEL_WIDTH; // inside the day columns (not the room column)
+        if (x < 0) return;
+        const y = clientY - rect.top + scroller.scrollTop - headerHeight; // inside the rows (not the date header)
         if (y < 0) return;
         const row = unitRows.find((r) => y >= r.top && y < r.top + r.height);
         if (!row) return;
-        const dayIndex = Math.floor((clientX - rect.left + scrollXRef.current) / DAY_COL_WIDTH);
+        const dayIndex = Math.floor((x + scrollXRef.current) / DAY_COL_WIDTH);
         const checkIn = format(addDays(today, dayIndex), "yyyy-MM-dd");
         navigate(`/dashboard/reservations/new?unitId=${row.unit.id}&checkIn=${checkIn}`);
     }
@@ -688,223 +777,248 @@ export default function CalendarPage() {
                 </div>
             ) : (
                 <div className="cal-shell">
-                    <div className="cal-label-col">
-                        <div className="cal-label-header">
-                            <div className="cal-label-title">
-                                Rooms ({units?.length ?? 0})
-                            </div>
-                        </div>
-                        {layout.map((row) =>
-                            row.kind === "group" ? (
-                                // Placeholder — the visible header is the full-width overlay below.
-                                <div key={"g-" + row.group.property.id} className="cal-group-spacer"/>
-                            ) : (
-                                <Link
-                                    key={row.unit.id}
-                                    to={`/dashboard/properties/${row.unit.propertyId}/units/${row.unit.id}`}
-                                    state={fromHere}
-                                    className="cal-unit-row"
-                                >
-                                    <div className="cal-unit-name" title={row.unit.name}>
-                                        {row.unit.name}
-                                    </div>
-                                    <div className="cal-unit-capacity">
-                                        <BedIcon/>
-                                        <PersonIcon/>
-                                        {row.unit.capacity}
-                                    </div>
-                                </Link>
-                            )
-                        )}
-                    </div>
-
-                    {/* Property headers span the label column and the grid, so long
-                        names aren't squeezed into the narrow label column. */}
-                    {layout.map((row) => {
-                        if (row.kind !== "group") return null;
-                        const {property, units: groupUnits} = row.group;
-                        const count = `${groupUnits.length} ${groupUnits.length === 1 ? "room" : "rooms"}`;
-                        return (
-                            <div
-                                key={"gh-" + property.id}
-                                className={`cal-group-header${canCollapse ? "" : " is-static"}`}
-                                style={{top: headerHeight + row.top, height: row.height}}
-                                onPointerDown={onPointerDown}
-                                onPointerMove={onPointerMove}
-                                onPointerUp={onPointerUp}
-                                onPointerCancel={onPointerUp}
-                                onClickCapture={suppressClickAfterDrag}
-                            >
-
-                                {/* Toggle covers the whole header; the content sits above it
-                                    with pointer-events off, except the add-unit button — so the
-                                    two controls stay siblings instead of nesting a link in a button. */}
-                                {canCollapse && (
-                                    <button
-                                        type="button"
-                                        className="cal-group-toggle"
-                                        aria-expanded={!row.collapsed}
-                                        aria-label={`${row.collapsed ? "Expand" : "Collapse"} ${property.name}`}
-                                        onClick={() => toggleGroup(property.id)}
-                                    />
-                                )}
-                                {/*{canCollapse && (*/}
-                                {/*    <ChevronDownIcon className={`cal-group-chevron${row.collapsed ? " is-collapsed" : ""}`}/>*/}
-                                {/*)}*/}
-                                <Link
-                                    to={`/dashboard/properties/${property.id}/units/new`}
-                                    state={fromHere}
-                                    className="cal-group-add"
-                                    title={`Add a room to ${property.name}`}
-                                    aria-label={`Add a room to ${property.name}`}
-                                >
-                                    <PlusIcon size={15}/>
-                                </Link>
-                                <span className="cal-group-text">
-                                    <span className="cal-group-name">{property.name}</span>
-                                    <span className="cal-group-meta">
-                                        {count}{property.address ? ` · ${property.address}` : ""}
-                                    </span>
-                                </span>
-
-                            </div>
-                        );
-                    })}
-
                     <div
-                        ref={setViewportRef}
+                        ref={setScrollerRef}
+                        className="cal-scroller"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Booking calendar"
+                        onScroll={handleScroll}
+                        onWheel={cancelMomentum}
                         onPointerDown={onPointerDown}
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}
                         onPointerCancel={onPointerUp}
                         onClickCapture={suppressClickAfterDrag}
-                        className="cal-viewport"
                     >
-                        {/* Sticky month label — sits outside the scrolling grid so it
-                            stays fixed on the current month instead of scrolling with
-                            the days; its text is written directly via monthLabelRef. */}
-                        <div ref={monthLabelRef} className="cal-month-label">
-                            {format(today, "MMMM yyyy")}
-                        </div>
-
-                        <div
-                            ref={innerRef}
-                            className="cal-grid"
-                            style={{
-                                width: windowColCount * DAY_COL_WIDTH,
-                                display: "grid",
-                                gridTemplateColumns: `repeat(${windowColCount}, ${DAY_COL_WIDTH}px)`,
-                                gridTemplateRows: [HEADER_H1, HEADER_H2, ...layout.map((r) => r.height)]
-                                    .map((h) => `${h}px`).join(" "),
-                            }}
-                        >
-                            <div
-                                className="cal-grid-header-bg"
-                                style={{gridColumn: `1 / ${windowColCount + 1}`, gridRow: "1 / 3"}}
-                            />
-
-                            {renderedDays.map((d, i) => (
-                                <div
-                                    key={"bg-" + d.index}
-                                    className={`cal-day-bg${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}
-                                    style={{
-                                        gridColumn: `${i + 1} / ${i + 2}`,
-                                        gridRow: `3 / ${bodyEndRow}`,
-                                    }}
-                                />
-                            ))}
-
-                            {/* Row separators, and an opaque band behind each property header. */}
-                            {layout.map((row) => (
-
-                                    <div
-                                        key={row.kind === "group" ? "band-" + row.group.property.id : "line-" + row.unit.id}
-                                        className={row.kind === "group" ? "cal-group-band" : "cal-row-line"}
-                                        style={{
-                                            gridColumn: `1 / ${windowColCount + 1}`,
-                                            gridRow: `${row.gridRow} / ${row.gridRow + 1}`
-                                        }}
-                                    />
-                                )
-                            )}
-
-                            {todayColIndex >= 0 && (
-                                <div
-                                    className="cal-today-marker"
-                                    style={{
-                                        gridColumn: `${todayColIndex + 1} / ${todayColIndex + 2}`,
-                                        gridRow: "1 / 3"
-                                    }}
-                                />
-                            )}
-
-                            {renderedDays.map((d, i) => (
-                                <div
-                                    key={"h-" + d.index}
-                                    className={`cal-day-header${d.isWeekend && !d.isToday ? " is-weekend" : ""}`}
-                                    style={{gridColumn: `${i + 1} / ${i + 2}`, gridRow: "2 / 3"}}
-                                >
-                                    <div
-                                        className={`cal-day-num${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}>
-                                        {d.dayNum}
-                                    </div>
-                                    <div
-                                        className={`cal-day-weekday${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}>
-                                        {d.weekdayLabel}
+                        <div className="cal-content" style={{width: LABEL_WIDTH + spacerWidth}}>
+                            {/* Date header: sticky to the top of the scroller. The corner stays put on the left;
+                                the days slide underneath it. */}
+                            <div className="cal-head" style={{height: headerHeight}}>
+                                <div className="cal-head-corner">
+                                    <div className="cal-label-title">
+                                        Rooms ({units?.length ?? 0})
                                     </div>
                                 </div>
-                            ))}
-
-                            {bars.map((b) => (
-                                <Link
-                                    key={b.id}
-                                    to={`/dashboard/reservations/${b.id}`}
-                                    title={b.summary}
-                                    aria-label={b.summary}
-                                    className="cal-bar"
-                                    style={{
-                                        gridColumn: b.gridColumn,
-                                        gridRow: b.gridRow,
-                                        alignSelf: "center",
-                                        width: b.W,
-                                        height: b.H,
-                                        clipPath: b.clipPath,
-                                    }}
-                                >
-                                    <svg width={b.W} height={b.H} className="cal-bar-svg">
-                                        <polygon
-                                            points={b.points}
-                                            fill={b.fill}
-                                            stroke={b.borderColor}
-                                            strokeWidth={1.5}
-                                            strokeLinejoin="round"
+                                <div className="cal-head-days" style={{width: spacerWidth}}>
+                                    {/* Sticky month label: stays on the current month instead of scrolling with the
+                                        days; its text is written directly via monthLabelRef. */}
+                                    <div ref={monthLabelRef} className="cal-month-label">
+                                        {format(today, "MMMM yyyy")}
+                                    </div>
+                                    <div
+                                        className="cal-head-grid"
+                                        style={{
+                                            left: gridLeft,
+                                            width: windowColCount * DAY_COL_WIDTH,
+                                            gridTemplateColumns: `repeat(${windowColCount}, ${DAY_COL_WIDTH}px)`,
+                                            gridTemplateRows: `${HEADER_H1}px ${HEADER_H2}px`,
+                                        }}
+                                    >
+                                        <div
+                                            className="cal-grid-header-bg"
+                                            style={{gridColumn: `1 / ${windowColCount + 1}`, gridRow: "1 / 3"}}
                                         />
-                                    </svg>
-                                    {/* Each line is placed along the bar's slanted edges
-                                        (see lib/barLabel.ts); CSS ellipsises what's left. */}
-                                    {b.lines.map((line, i) => (
-                                        <span
-                                            key={i}
-                                            aria-hidden="true"
-                                            className={`cal-bar-line cal-bar-line--${line.kind}`}
+
+                                        {todayColIndex >= 0 && (
+                                            <div
+                                                className="cal-today-marker"
+                                                style={{
+                                                    gridColumn: `${todayColIndex + 1} / ${todayColIndex + 2}`,
+                                                    gridRow: "1 / 3"
+                                                }}
+                                            />
+                                        )}
+
+                                        {renderedDays.map((d, i) => (
+                                            <div
+                                                key={"h-" + d.index}
+                                                className={`cal-day-header${d.isWeekend && !d.isToday ? " is-weekend" : ""}`}
+                                                style={{gridColumn: `${i + 1} / ${i + 2}`, gridRow: "2 / 3"}}
+                                            >
+                                                <div
+                                                    className={`cal-day-num${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}>
+                                                    {d.dayNum}
+                                                </div>
+                                                <div
+                                                    className={`cal-day-weekday${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}>
+                                                    {d.weekdayLabel}
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="cal-body" style={{height: bodyHeight}}>
+                                {/* Room column: sticky to the left of the scroller. */}
+                                <div className="cal-label-col">
+                            {layout.map((row) =>
+                                row.kind === "group" ? (
+                                    // Placeholder — the visible header is the full-width overlay below.
+                                    <div key={"g-" + row.group.property.id} className="cal-group-spacer"/>
+                                ) : (
+                                    <Link
+                                        key={row.unit.id}
+                                        to={`/dashboard/properties/${row.unit.propertyId}/units/${row.unit.id}`}
+                                        state={fromHere}
+                                        className="cal-unit-row"
+                                    >
+                                        <div className="cal-unit-name" title={row.unit.name}>
+                                            {row.unit.name}
+                                        </div>
+                                        <div className="cal-unit-capacity">
+                                            <BedIcon/>
+                                            <PersonIcon/>
+                                            {row.unit.capacity}
+                                        </div>
+                                    </Link>
+                                )
+                            )}
+                                </div>
+
+                                <div className="cal-days" style={{width: spacerWidth}}>
+                                    <div
+                                        className="cal-grid"
+                                        style={{
+                                            left: gridLeft,
+                                            width: windowColCount * DAY_COL_WIDTH,
+                                            display: "grid",
+                                            gridTemplateColumns: `repeat(${windowColCount}, ${DAY_COL_WIDTH}px)`,
+                                            gridTemplateRows: layout.map((r) => `${r.height}px`).join(" "),
+                                        }}
+                                    >
+                                    {renderedDays.map((d, i) => (
+                                        <div
+                                            key={"bg-" + d.index}
+                                            className={`cal-day-bg${d.isToday ? " is-today" : d.isWeekend ? " is-weekend" : ""}`}
                                             style={{
-                                                left: line.left,
-                                                top: line.top,
-                                                width: line.width,
-                                                height: LABEL_LINE_HEIGHT,
-                                                lineHeight: `${LABEL_LINE_HEIGHT}px`,
-                                                fontSize: line.kind === "name" ? b.nameFontSize : undefined,
-                                                textAlign: b.labelAlign,
-                                                color: b.textColor,
+                                                gridColumn: `${i + 1} / ${i + 2}`,
+                                                gridRow: `1 / ${bodyEndRow}`,
+                                            }}
+                                        />
+                                    ))}
+
+                                    {/* Row separators, and an opaque band behind each property header. */}
+                                    {layout.map((row) => (
+
+                                            <div
+                                                key={row.kind === "group" ? "band-" + row.group.property.id : "line-" + row.unit.id}
+                                                className={row.kind === "group" ? "cal-group-band" : "cal-row-line"}
+                                                style={{
+                                                    gridColumn: `1 / ${windowColCount + 1}`,
+                                                    gridRow: `${row.gridRow} / ${row.gridRow + 1}`
+                                                }}
+                                            />
+                                        )
+                                    )}
+
+                                    {bars.map((b) => (
+                                        <Link
+                                            key={b.id}
+                                            to={`/dashboard/reservations/${b.id}`}
+                                            title={b.summary}
+                                            aria-label={b.summary}
+                                            className="cal-bar"
+                                            style={{
+                                                gridColumn: b.gridColumn,
+                                                gridRow: b.gridRow,
+                                                alignSelf: "center",
+                                                width: b.W,
+                                                height: b.H,
+                                                clipPath: b.clipPath,
                                             }}
                                         >
-                                            {line.kind === "amount" && b.amountMissing
-                                                ? <span className="cal-bar-amount-missing">{line.text}</span>
-                                                : line.text}
-                                        </span>
+                                            <svg width={b.W} height={b.H} className="cal-bar-svg">
+                                                <polygon
+                                                    points={b.points}
+                                                    fill={b.fill}
+                                                    stroke={b.borderColor}
+                                                    strokeWidth={1.5}
+                                                    strokeLinejoin="round"
+                                                />
+                                            </svg>
+                                            {/* Each line is placed along the bar's slanted edges
+                                                (see lib/barLabel.ts); CSS ellipsises what's left. */}
+                                            {b.lines.map((line, i) => (
+                                                <span
+                                                    key={i}
+                                                    aria-hidden="true"
+                                                    className={`cal-bar-line cal-bar-line--${line.kind}`}
+                                                    style={{
+                                                        left: line.left,
+                                                        top: line.top,
+                                                        width: line.width,
+                                                        height: LABEL_LINE_HEIGHT,
+                                                        lineHeight: `${LABEL_LINE_HEIGHT}px`,
+                                                        fontSize: line.kind === "name" ? b.nameFontSize : undefined,
+                                                        textAlign: b.labelAlign,
+                                                        color: b.textColor,
+                                                    }}
+                                                >
+                                                    {line.kind === "amount" && b.amountMissing
+                                                        ? <span className="cal-bar-amount-missing">{line.text}</span>
+                                                        : line.text}
+                                                </span>
+                                            ))}
+                                        </Link>
                                     ))}
-                                </Link>
-                            ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Property headers span the room column and the grid, so long names aren't squeezed
+                                into the narrow room column. Each one sticks to the left edge of the scroller. */}
+                            {layout.map((row) => {
+                                if (row.kind !== "group") return null;
+                                const {property, units: groupUnits} = row.group;
+                                const count = `${groupUnits.length} ${groupUnits.length === 1 ? "room" : "rooms"}`;
+                                return (
+                                    <div
+                                        key={"gh-" + property.id}
+                                        className="cal-group-row"
+                                        style={{top: headerHeight + row.top, height: row.height}}
+                                    >
+                                        <div
+                                            className={`cal-group-header${canCollapse ? "" : " is-static"}`}
+                                            style={{width: scrollerWidth}}
+                                        >
+                                    {/* Toggle covers the whole header; the content sits above it
+                                        with pointer-events off, except the add-unit button — so the
+                                        two controls stay siblings instead of nesting a link in a button. */}
+                                    {canCollapse && (
+                                        <button
+                                            type="button"
+                                            className="cal-group-toggle"
+                                            aria-expanded={!row.collapsed}
+                                            aria-label={`${row.collapsed ? "Expand" : "Collapse"} ${property.name}`}
+                                            onClick={() => toggleGroup(property.id)}
+                                        />
+                                    )}
+                                    {/*{canCollapse && (*/}
+                                    {/*    <ChevronDownIcon className={`cal-group-chevron${row.collapsed ? " is-collapsed" : ""}`}/>*/}
+                                    {/*)}*/}
+                                    <Link
+                                        to={`/dashboard/properties/${property.id}/units/new`}
+                                        state={fromHere}
+                                        className="cal-group-add"
+                                        title={`Add a room to ${property.name}`}
+                                        aria-label={`Add a room to ${property.name}`}
+                                    >
+                                        <PlusIcon size={15}/>
+                                    </Link>
+                                    <span className="cal-group-text">
+                                        <span className="cal-group-name">{property.name}</span>
+                                        <span className="cal-group-meta">
+                                            {count}{property.address ? ` · ${property.address}` : ""}
+                                        </span>
+                                    </span>
+
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

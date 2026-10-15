@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.dto.PageResponse;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
 import com.naumvlavceski.bookingbackend.dto.UnitResponse;
@@ -10,11 +11,16 @@ import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import io.hypersistence.utils.hibernate.type.range.Range;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -37,6 +43,22 @@ public class ReservationService {
                 .sorted((a, b) -> a.getStayRange().lower().compareTo(b.getStayRange().lower()))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private static final int MAX_PAGE_SIZE = 100;
+
+    /** Cancelled bookings, one page at a time. See {@link ReservationRepository#findCancelled}. */
+    public PageResponse<ReservationResponse> listCancelled(UUID ownerId, String name, LocalDate checkInFrom,
+                                                           int page, int size) {
+        String trimmed = name == null ? "" : name.trim();
+        // "Starts with", ignoring case; %, _ and ! typed by the user must match themselves, not act as wildcards
+        String prefix = trimmed.isEmpty() ? null
+                : trimmed.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
+
+        Page<Reservation> result = reservationRepository.findCancelled(ownerId, prefix, checkInFrom, pageable);
+        return new PageResponse<>(result.getContent().stream().map(this::toResponse).toList(),
+                result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
     }
 
     public ReservationResponse findOneForOwner(UUID ownerId, UUID reservationId) {
@@ -93,6 +115,7 @@ public class ReservationService {
         reservation.setNightlyRate(request.nightlyRate());
         reservation.setTotalAmount(request.totalAmount());
         reservation.setNotes(request.notes());
+        reservation.setPriceNeedsReview(false);
         Reservation saved = reservationRepository.save(reservation);
         return toResponse(saved);
     }
@@ -123,7 +146,9 @@ public class ReservationService {
                 r.getPricePerGuest(),
                 r.getNightlyRate(),
                 r.getTotalAmount(),
-                r.getNotes()
+                r.getNotes(),
+                r.isPriceNeedsReview(),
+                r.getCancelledAt()
         );
     }
 }

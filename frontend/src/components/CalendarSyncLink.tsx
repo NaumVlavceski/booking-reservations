@@ -1,10 +1,8 @@
 import {useState} from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
 export default function CalendarSyncLink({token}: { token: string }) {
     const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-    const feedUrl = `${API_BASE}/api/ical/${token}.ics`;
+    const feedUrl = `${window.location.origin}/api/ical/${token}.ics`;
 
     async function handleCopy() {
         try {

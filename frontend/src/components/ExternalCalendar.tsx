@@ -9,6 +9,7 @@ import {
     type ExternalCalendar,
 } from "../lib/api/calendars";
 import {formatWhen} from "../lib/dates";
+import {detectPlatform, normalizeIcsUrl} from "../lib/calendarPlatform";
 import {describeSyncError, PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
 import ConfirmDialog from "./ConfirmDialog";
@@ -17,7 +18,6 @@ import SyncProblem from "./SyncProblem";
 export default function ExternalCalendars({unitId}: { unitId: string }) {
     const queryClient = useQueryClient();
     const toast = useToast();
-    const [platform, setPlatform] = useState<"BOOKING" | "AIRBNB">("BOOKING");
     const [icsUrl, setIcsUrl] = useState("");
     const [formError, setFormError] = useState<string | null>(null);
     const [removing, setRemoving] = useState<ExternalCalendar | null>(null);
@@ -30,11 +30,13 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     const availablePlatforms = (["BOOKING", "AIRBNB"] as const).filter(
         (p) => !calendars?.some((c) => c.platform === p)
     );
-    // Keep the dropdown on a platform that can still be added.
-    const selectedPlatform = availablePlatforms.includes(platform) ? platform : availablePlatforms[0];
+    // The channel comes from the link itself, so it can never disagree with what was pasted
+    const detected = detectPlatform(icsUrl);
+    const alreadyConnected = detected !== null && !availablePlatforms.includes(detected);
+    const canConnect = detected !== null && !alreadyConnected;
 
     const addMutation = useMutation({
-        mutationFn: () => addCalendar(unitId, selectedPlatform, icsUrl.trim()),
+        mutationFn: () => addCalendar(unitId, normalizeIcsUrl(icsUrl)),
         onSuccess: (added) => {
             queryClient.invalidateQueries({queryKey: ["calendars"]});
             setIcsUrl("");
@@ -132,32 +134,39 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
             {availablePlatforms.length > 0 ? (
                 <form onSubmit={handleAdd} className="space-y-2">
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        <label className="sr-only" htmlFor={`platform-${unitId}`}>Channel</label>
-                        <select
-                            id={`platform-${unitId}`}
-                            value={selectedPlatform}
-                            onChange={(e) => setPlatform(e.target.value as "BOOKING" | "AIRBNB")}
-                            className="field-input sm:w-40"
-                        >
-                            {availablePlatforms.map((p) => (
-                                <option key={p} value={p}>{PLATFORM_NAME[p]}</option>
-                            ))}
-                        </select>
                         <label className="sr-only" htmlFor={`ics-${unitId}`}>Calendar export link</label>
                         <input
                             id={`ics-${unitId}`}
                             type="url"
                             inputMode="url"
                             value={icsUrl}
-                            onChange={(e) => setIcsUrl(e.target.value)}
-                            placeholder="https://… .ics link"
+                            onChange={(e) => {
+                                setIcsUrl(e.target.value);
+                                setFormError(null);
+                            }}
+                            placeholder="Paste the Booking.com or Airbnb link"
+                            aria-describedby={`ics-hint-${unitId}`}
                             required
                             className="field-input min-w-0 flex-1"
                         />
-                        <button type="submit" disabled={addMutation.isPending} className="btn btn-primary min-h-11 shrink-0">
+                        <button type="submit" disabled={addMutation.isPending || !canConnect}
+                                className="btn btn-primary min-h-11 shrink-0">
                             {addMutation.isPending ? "Connecting…" : "Connect"}
                         </button>
                     </div>
+                    <p id={`ics-hint-${unitId}`} aria-live="polite" className="min-h-5 text-sm">
+                        {icsUrl.trim() === "" ? null : alreadyConnected ? (
+                            <span className="text-amber-700">
+                                This room already has {detected === "AIRBNB" ? "an" : "a"} {PLATFORM_NAME[detected]} calendar.
+                            </span>
+                        ) : detected ? (
+                            <span className="font-medium text-teal-700">{PLATFORM_NAME[detected]} link detected</span>
+                        ) : (
+                            <span className="text-slate-600">
+                                Only Booking.com and Airbnb calendar links are supported.
+                            </span>
+                        )}
+                    </p>
                     {formError && <p className="alert-error">{formError}</p>}
                 </form>
             ) : (

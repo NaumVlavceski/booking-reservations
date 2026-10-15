@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -153,14 +154,18 @@ public class IcalReconciler {
         LocalDate oldStart = reservation.getStayRange().lower();
         LocalDate oldEnd = reservation.getStayRange().upper();
         reservation.setStayRange(Range.closedOpen(incoming.startDate(), incoming.endDate()));
-//        reservation.setGuestName(incoming.summary());
+        boolean datesChanged = !oldStart.equals(incoming.startDate()) || !oldEnd.equals(incoming.endDate());
+        BigDecimal keptPrice = reservation.getTotalAmount();
+        boolean priceNeedsReview = datesChanged && keptPrice != null && keptPrice.signum() > 0;
+        if (priceNeedsReview)
+            reservation.setPriceNeedsReview(true);
         reservationRepository.save(reservation);
 
-        boolean datesChanged = !oldStart.equals(incoming.startDate()) || !oldEnd.equals(incoming.endDate());
         if (datesChanged && reservation.getStatus() != ReservationStatus.CANCELLED
                 && incoming.endDate().isAfter(LocalDate.now())) {
             notifier.externalReservationModified(unit, calendar.getPlatform(), oldStart, oldEnd,
-                    incoming.startDate(), incoming.endDate(), reservation.getGuestName());
+                    incoming.startDate(), incoming.endDate(), reservation.getGuestName(),
+                    priceNeedsReview ? keptPrice : null);
         }
 
         existing.setRawHash(newHash);
@@ -194,6 +199,12 @@ public class IcalReconciler {
                 && incoming.endDate().equals(conflict.getIncomingEnd());
         if (alreadyDismissed) return; // owner already acknowledged this exact collision
 
+        // Syncs repeat every few minutes: only a new or changed conflict is news
+        boolean alreadyReported = conflict.getStatus() == ConflictStatus.OPEN
+                && incoming.startDate().equals(conflict.getIncomingStart())
+                && incoming.endDate().equals(conflict.getIncomingEnd())
+                && colliding.getId().equals(conflict.getConflictingReservationId());
+
         conflict.setOwnerId(unit.getOwnerId());
         conflict.setUnitId(unit.getId());
         conflict.setExternalCalendarId(calendar.getId());
@@ -207,6 +218,13 @@ public class IcalReconciler {
         conflict.setStatus(ConflictStatus.OPEN);
         conflict.setResolvedAt(null);
         syncConflictRepository.save(conflict);
+
+        if (!alreadyReported && incoming.endDate().isAfter(LocalDate.now())) {
+            notifier.bookingConflict(unit, calendar.getPlatform(), kind == ConflictKind.CHANGE_OVERLAP,
+                    incoming.startDate(), incoming.endDate(), incoming.summary(),
+                    colliding.getSource(), colliding.getStayRange().lower(), colliding.getStayRange().upper(),
+                    colliding.getGuestName());
+        }
     }
 
     private void resolveConflictIfAny(ExternalCalendar calendar, String uid) {

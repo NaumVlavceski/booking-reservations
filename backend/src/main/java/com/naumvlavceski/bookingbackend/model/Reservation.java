@@ -14,6 +14,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -65,9 +66,22 @@ public class Reservation {
 
     private String notes;
 
+    private boolean priceNeedsReview = false;
+
+    private OffsetDateTime cancelledAt;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public void setStatus(ReservationStatus status) {
+        if (status == ReservationStatus.CANCELLED && this.status != ReservationStatus.CANCELLED) {
+            this.cancelledAt = java.time.OffsetDateTime.now();
+        } else if (status != ReservationStatus.CANCELLED) {
+            this.cancelledAt = null;
+        }
+        this.status = status;
+    }
 }
