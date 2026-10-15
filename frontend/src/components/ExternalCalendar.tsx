@@ -8,7 +8,9 @@ import {
     syncCalendarNow,
     type ExternalCalendar,
 } from "../lib/api/calendars";
+import {Link} from "react-router-dom";
 import {formatWhen} from "../lib/dates";
+import {useFromHere} from "../lib/useReturnTo";
 import {detectPlatform, normalizeIcsUrl} from "../lib/calendarPlatform";
 import {describeSyncError, PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
@@ -18,6 +20,7 @@ import SyncProblem from "./SyncProblem";
 export default function ExternalCalendars({unitId}: { unitId: string }) {
     const queryClient = useQueryClient();
     const toast = useToast();
+    const fromHere = useFromHere();
     const [icsUrl, setIcsUrl] = useState("");
     const [formError, setFormError] = useState<string | null>(null);
     const [removing, setRemoving] = useState<ExternalCalendar | null>(null);
@@ -80,7 +83,10 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
             <h2 className="text-sm font-semibold text-slate-900">Bring in bookings from other channels</h2>
             <p className="mt-0.5 mb-3 text-sm text-slate-600">
                 Paste the calendar export link from Booking.com or Airbnb. Their bookings then appear on your calendar
-                automatically.
+                automatically. Not sure where to find the link? See how it works on{" "}
+                <Link to="/dashboard/help/connect-calendars#airbnb" state={fromHere} className="font-medium text-teal-700 underline">Airbnb</Link>
+                {" "}or{" "}
+                <Link to="/dashboard/help/connect-calendars#booking" state={fromHere} className="font-medium text-teal-700 underline">Booking.com</Link>.
             </p>
 
             {isLoading && <p className="text-sm text-slate-500">Loading…</p>}

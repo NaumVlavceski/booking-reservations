@@ -1,17 +1,3 @@
-/* CalendarPage — layout is driven by CSS custom properties set once on
-   .cal-root (--day-col-width, --row-height, --bar-height, --label-width,
-   --header-h1, --header-h2) so the numbers computed in CalendarPage.tsx
-   stay the single source of truth, while every other rule here is plain,
-   static CSS. Only genuinely per-cell values (grid-column/row spans,
-   the scroll transform, per-reservation colors/SVG points) stay inline —
-   they're computed fresh per render and can't be expressed as static CSS.
-
-   Breakpoint 640px matches isMobile in the component and Tailwind's `sm`. */
-
-/* The calendar is a panel of fixed height that scrolls inside itself (so the browser, not
-   JavaScript, does all the scrolling and the page never bounces under the grid). --cal-chrome is
-   what the dashboard layout puts around it: top/bottom padding, and on phones the bottom tab bar.
-   dvh follows the phone's collapsing address bar; vh is the fallback for older browsers. */
 .cal-root {
     --cal-chrome: 4rem;
     display: flex;
@@ -28,7 +14,6 @@
     --group-bg: #F8FAFC;
 }
 
-/* Toolbar: [title] [Today] ........ [sync] [jump] [more] */
 
 .cal-toolbar {
     display: flex;
@@ -158,7 +143,6 @@
     background: #F1F5F9;
 }
 
-/* Loading / empty states */
 
 .cal-loading {
     color: #6B7280;
@@ -182,7 +166,6 @@
     font-weight: 600;
 }
 
-/* Grid shell */
 
 .cal-shell {
     position: relative;
@@ -195,10 +178,6 @@
     box-shadow: 0 1px 2px rgba(16, 19, 26, 0.04);
 }
 
-/* The one scrolling element. Native scrolling in both directions gives diagonal panning in a single
-   gesture and the platform's own momentum. overscroll-behavior: none (set here only, never on
-   html/body) stops the rubber-band and pull-to-refresh for touches that start inside the grid;
-   pull-to-refresh elsewhere in the app is untouched. */
 .cal-scroller {
     position: relative;
     height: 100%;
@@ -206,14 +185,9 @@
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
     cursor: grab;
-    /* The rendered window of days is re-positioned as you scroll; the browser must not "correct" scrollLeft for it */
     overflow-anchor: none;
 }
 
-/* The scroll range spans five years each way, so a horizontal scrollbar would be a sliver whose thumb sits
-   misleadingly in the middle: hide it. People pan by dragging, the wheel, touch, Today and Jump to date.
-   Only for mouse-type devices (touch devices keep their own overlay scrollbars), and written as a zero-height
-   custom scrollbar because Chrome ignores display: none here. Do not set scrollbar-width: it overrides this. */
 @media (hover: hover) and (pointer: fine) {
     .cal-scroller::-webkit-scrollbar {
         width: 10px;
@@ -245,7 +219,6 @@
     position: relative;
 }
 
-/* Date header: sticks to the top. z-index keeps rows and bars sliding underneath it. */
 .cal-head {
     position: sticky;
     top: 0;
@@ -254,7 +227,6 @@
     background: #fff;
 }
 
-/* Top-left corner: sticks to the left too, so the days slide underneath it. */
 .cal-head-corner {
     position: sticky;
     left: 0;
@@ -286,7 +258,6 @@
     display: flex;
 }
 
-/* Room column: sticks to the left. Opaque, above the grid. */
 .cal-label-col {
     position: sticky;
     left: 0;
@@ -325,8 +296,6 @@
     border-bottom: 1px solid var(--row-border-color);
 }
 
-/* Up to two lines, then "…". A single long word breaks rather than spilling
-   out. Line height is tight so two lines + capacity fit the 50px phone row. */
 .cal-unit-name {
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -350,10 +319,8 @@
     margin-top: 2px;
 }
 
-/* Scrolling viewport */
 
 .cal-month-label {
-    /* In flow at the start of the day area, and sticky to the left, so it stays just right of the corner */
     position: sticky;
     left: var(--label-width);
     height: var(--header-h1);
@@ -371,8 +338,6 @@
     pointer-events: none;
 }
 
-/* The rendered 60-column window of days. Positioned (not transformed) at its true place in the
-   scroll range, so nothing here moves while the browser scrolls and sticky children keep working. */
 .cal-grid {
     position: absolute;
     top: 0;
@@ -396,15 +361,11 @@
     background-color: var(--weekend-bg);
 }
 
-/* Rows have mixed heights (property headers vs rooms), so separators are
-   real per-row elements rather than a repeating background gradient. */
 .cal-row-line {
     border-bottom: 1px solid #E9EBEF;
     pointer-events: none;
 }
 
-/* Property grouping: an opaque band in the grid + a spacer in the label
-   column, with the visible header laid over both from .cal-shell. */
 .cal-group-band,
 .cal-group-spacer {
     background: var(--group-bg);
@@ -414,12 +375,6 @@
 .cal-group-spacer {
     height: var(--group-height);
 }
-
-/* Section header per property:
-   [chevron] [initials badge] Name            [+]
-                              5 rooms · address
-   with a teal accent on the left edge. */
-/* Full-width row slot for a property header; the header itself sticks to the left edge. */
 .cal-group-row {
     position: absolute;
     left: 0;
@@ -439,10 +394,11 @@
     gap: 10px;
     padding: 0 12px 0 10px;
     color: #0F172A;
+    background: var(--group-bg);
+    border-bottom: 1px solid var(--border-color);
     box-shadow: inset 3px 0 0 var(--brand);
 }
 
-/* Full-size, invisible toggle underneath the content. */
 .cal-group-toggle {
     position: absolute;
     inset: 0;
@@ -581,7 +537,6 @@
     color: #fff;
 }
 
-/* Reservation bars */
 
 .cal-bar {
     position: relative;
@@ -606,9 +561,6 @@
     stroke-width: 3px;
 }
 
-/* One absolutely-positioned line per row of text; left/top/width come from
-   lib/barLabel.ts so each line follows the bar's slanted ends. Font sizes and
-   line height must match LABEL_* in CalendarPage.tsx. */
 .cal-bar-line {
     position: absolute;
     display: block;
@@ -631,7 +583,6 @@
     opacity: 0.85;
 }
 
-/* No total recorded on an unpaid booking. */
 .cal-bar-amount-missing {
     display: inline-block;
     min-width: 18px;
@@ -647,7 +598,6 @@
     opacity: 1;
 }
 
-/* Footer hint */
 
 .cal-footer {
     flex: none;
@@ -663,7 +613,6 @@
     color: var(--muted-text);
 }
 
-/* Tablet: floating menu button row above (pt-20) and pb-8 below. */
 
 @media (min-width: 640px) {
     .cal-root {
@@ -671,7 +620,6 @@
     }
 }
 
-/* Desktop with the sidebar: pt-8 and pb-8. */
 
 @media (min-width: 1024px) {
     .cal-root {
@@ -679,7 +627,6 @@
     }
 }
 
-/* Desktop refinements */
 
 @media (min-width: 640px) {
     .cal-unit-name {
@@ -706,11 +653,8 @@
     }
 }
 
-/* Phones: full-bleed, app-style — sticky toolbar, no card chrome, no
-   title/legend/hint (the toolbar carries everything that's needed). */
 
 @media (max-width: 639px) {
-    /* Bottom tab bar: 4rem plus its 1px top border and the home-indicator area */
     .cal-root {
         --cal-chrome: calc(4rem + 1px + env(safe-area-inset-bottom));
     }

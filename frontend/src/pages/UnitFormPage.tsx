@@ -1,22 +1,24 @@
-import {useParams} from "react-router-dom";
+import {Link, useParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {useCallback, useState} from "react";
 import {createUnit, deleteUnit, getUnit, type UnitRequest, updateUnit} from "../lib/api/units.ts";
 import {getProperty} from "../lib/api/properties.ts";
 import {apiErrorMessage} from "../lib/api/client.ts";
-import {useReturnTo} from "../lib/useReturnTo";
+import {useFromHere, useReturnTo} from "../lib/useReturnTo";
 import ConfirmDialog from "../components/ConfirmDialog";
 import FormTopBar from "../components/FormTopBar";
 import {allReservationsQuery} from "../lib/api/reservations.ts";
 import {unitDeleteMessage} from "../lib/plural";
 import CalendarSyncLink from "../components/CalendarSyncLink.tsx";
 import ExternalCalendars from "../components/ExternalCalendar.tsx";
+import {ChevronRightIcon, HelpIcon} from "../components/icons";
 
 export default function UnitFormPage() {
     const {propertyId, unitId} = useParams();
     const isEditing = Boolean(unitId);
     const queryClient = useQueryClient();
     const {to: backTo, goBack} = useReturnTo(`/dashboard/properties/${propertyId}`);
+    const fromHere = useFromHere();
     const [form, setForm] = useState<UnitRequest>({
         name: "",
         capacity: 2,
@@ -138,6 +140,15 @@ export default function UnitFormPage() {
             <div>
             {isEditing && existing?.token && (
                 <>
+                    <Link
+                        to="/dashboard/help/connect-calendars"
+                        state={fromHere}
+                        className="mb-4 flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
+                    >
+                        <HelpIcon size={20} className="shrink-0"/>
+                        <span className="min-w-0 flex-1">Step-by-step guide: connect Airbnb and Booking.com</span>
+                        <ChevronRightIcon size={18} className="shrink-0"/>
+                    </Link>
                     <CalendarSyncLink token={existing.token} />
                     <br/>
                     <ExternalCalendars unitId={existing.id} />

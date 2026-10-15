@@ -193,3 +193,11 @@ export const BellIcon = (p: IconProps) => (
         <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
     </Icon>
 );
+
+export const HelpIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/>
+        <line x1="12" y1="17.5" x2="12" y2="17.5"/>
+    </Icon>
+);
