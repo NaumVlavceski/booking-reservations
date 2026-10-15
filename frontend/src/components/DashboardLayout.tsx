@@ -86,7 +86,7 @@ export default function DashboardLayout() {
     const panelVisible = isWide || isDrawerOpen;
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-dvh">
             {/* Tablets: floating menu button. Phones use the bottom tab bar; wide screens the sidebar. */}
             <button
                 type="button"
