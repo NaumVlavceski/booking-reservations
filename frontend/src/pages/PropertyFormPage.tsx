@@ -134,7 +134,7 @@ export default function PropertyFormPage() {
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         required
-                        placeholder="Apartments Vlavcheski"
+                        placeholder="Property Name"
                         className="field-input"
                     />
                 </div>
@@ -145,7 +145,7 @@ export default function PropertyFormPage() {
                         id="address"
                         value={form.address}
                         onChange={(e) => setForm({ ...form, address: e.target.value })}
-                        placeholder="Peštani, Lake Ohrid, North Macedonia"
+                        placeholder="Address ..."
                         className="field-input"
                     />
                 </div>

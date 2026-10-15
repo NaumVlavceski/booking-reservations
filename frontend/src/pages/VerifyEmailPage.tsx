@@ -107,7 +107,7 @@ export default function VerifyEmailPage() {
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center px-5 py-10">
+        <div className="flex min-h-dvh items-center justify-center px-5 py-10">
             <div
                 className="w-full max-w-md space-y-6 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm">
                 <div className="flex flex-col items-center gap-3 text-center">

@@ -1,5 +1,10 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import type {MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, UIEvent as ReactUIEvent} from "react";
+import type {
+    MouseEvent as ReactMouseEvent,
+    PointerEvent as ReactPointerEvent,
+    TouchEvent as ReactTouchEvent,
+    UIEvent as ReactUIEvent,
+} from "react";
 import {Link, useNavigate} from "react-router-dom";
 import {useQuery} from "@tanstack/react-query";
 import {format, addDays, differenceInCalendarDays} from "date-fns";
@@ -15,6 +20,7 @@ import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
 import {amountDue, layoutBarLabel} from "../lib/barLabel";
 import {formatStay} from "../lib/dates";
+import {easeOutQuad, flingTail} from "../lib/fling";
 
 const MAX_RANGE_DAYS = 5 * 365;
 const CHUNK = 20;
@@ -35,10 +41,13 @@ const STATUS_COLORS: Record<string, { fill: string; border: string; text: string
 };
 
 const MOBILE_VISIBLE_DAYS = 7;
-// Movement under this is a tap (open a new reservation), over it is a drag.
 const DRAG_THRESHOLD_PX = 5;
-// A touch that moves more than this (in any direction) is a scroll, not a tap.
 const TAP_SLOP_PX = 8;
+const FLING_HANDOVER_DAYS = 3;
+const FLING_TAIL_MS = 200;
+const FLING_MAX_TAIL_DAYS = 7;
+const FLING_MIN_SPEED = 0.4;
+const FLING_WATCH_MS = 3000;
 const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
 
 /**
@@ -157,6 +166,11 @@ export default function CalendarPage() {
     const momentumFrameRef = useRef<number | null>(null);
     const scrollFrameRef = useRef<number | null>(null);
     const pendingLeftRef = useRef(0);
+    // Touch flings (see FLING_* above)
+    const touchingRef = useRef(false);
+    const sampleRef = useRef<{ t: number; left: number; top: number; vx: number; vy: number } | null>(null);
+    const flingRef = useRef<{ releasedAt: number; releaseLeft: number } | null>(null);
+    const tailFrameRef = useRef<number | null>(null);
 
     const [openMenu, setOpenMenu] = useState<"date" | "more" | null>(null);
     const datePickerRef = useRef<HTMLDivElement | null>(null);
@@ -212,6 +226,7 @@ export default function CalendarPage() {
         return () => {
             if (momentumFrameRef.current) cancelAnimationFrame(momentumFrameRef.current);
             if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+            if (tailFrameRef.current) cancelAnimationFrame(tailFrameRef.current);
         };
     }, []);
 
@@ -310,6 +325,7 @@ export default function CalendarPage() {
     function scrollToX(rawScrollX: number) {
         const clamped = clampScroll(rawScrollX);
         scrollXRef.current = clamped;
+        flingRef.current = null;
         if (scrollerRef.current) scrollerRef.current.scrollLeft = clamped + maxScroll;
     }
 
@@ -327,10 +343,10 @@ export default function CalendarPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewportWidth, DAY_COL_WIDTH, isLoading]);
 
-    // Native scroll: remember where we are here, do the work once per frame. Nothing is read and written
-    // in the same handler, and React state only changes when the day window actually moves.
     function handleScroll(e: ReactUIEvent<HTMLDivElement>) {
-        pendingLeftRef.current = e.currentTarget.scrollLeft;
+        const left = e.currentTarget.scrollLeft;
+        pendingLeftRef.current = left;
+        trackFling(e.currentTarget, left, e.currentTarget.scrollTop, e.timeStamp);
         if (scrollFrameRef.current !== null) return;
         scrollFrameRef.current = requestAnimationFrame(() => {
             scrollFrameRef.current = null;
@@ -345,7 +361,85 @@ export default function CalendarPage() {
             cancelAnimationFrame(momentumFrameRef.current);
             momentumFrameRef.current = null;
         }
+        cancelFlingTail();
         velocityRef.current = 0;
+    }
+
+    function cancelFlingTail() {
+        if (tailFrameRef.current !== null) {
+            cancelAnimationFrame(tailFrameRef.current);
+            tailFrameRef.current = null;
+        }
+    }
+
+    function onTouchStart() {
+        cancelFlingTail();
+        flingRef.current = null;
+        touchingRef.current = true;
+    }
+
+    function onTouchEnd(e: ReactTouchEvent<HTMLDivElement>) {
+        if (e.touches.length > 0) return; // another finger is still down
+        touchingRef.current = false;
+        // From here the phone glides on its own; trackFling keeps an eye on how far
+        flingRef.current = {releasedAt: e.timeStamp, releaseLeft: pendingLeftRef.current};
+    }
+
+    // Called for every scroll event: keeps a running speed, and when a sideways flick has glided far enough
+    // after release, hands over to a shorter tail.
+    function trackFling(el: HTMLDivElement, left: number, top: number, t: number) {
+        const prev = sampleRef.current;
+        let vx = 0;
+        let vy = 0;
+        if (prev && t > prev.t && t - prev.t < 100) {
+            const dt = t - prev.t;
+            vx = prev.vx * 0.5 + ((left - prev.left) / dt) * 0.5;
+            vy = prev.vy * 0.5 + ((top - prev.top) / dt) * 0.5;
+        }
+        sampleRef.current = {t, left, top, vx, vy};
+
+        const fling = flingRef.current;
+        if (!fling || touchingRef.current || tailFrameRef.current !== null) return;
+        if (t - fling.releasedAt > FLING_WATCH_MS) {
+            flingRef.current = null;
+            return;
+        }
+        if (Math.abs(vx) < FLING_MIN_SPEED || Math.abs(vx) < Math.abs(vy)) return;
+        if (Math.abs(left - fling.releaseLeft) < FLING_HANDOVER_DAYS * DAY_COL_WIDTH) return;
+
+        flingRef.current = null;
+        startFlingTail(el, left, top, vx, vy);
+    }
+
+    function startFlingTail(el: HTMLDivElement, startLeft: number, startTop: number, vx: number, vy: number) {
+        const maxTail = FLING_MAX_TAIL_DAYS * DAY_COL_WIDTH;
+        const tailX = flingTail(vx, FLING_TAIL_MS, maxTail);
+        const duration = tailX.durationMs;
+        if (duration <= 0) return;
+        // Same duration on both axes keeps the direction of the flick; vertical starts at its own speed.
+        const tailY = Math.max(-maxTail, Math.min(maxTail, (vy * duration) / 2));
+
+        // Writing the current position makes the browser drop its own glide (where it allows that)
+        el.scrollLeft = startLeft;
+        let lastLeft = startLeft;
+        let lastTop = startTop;
+        const t0 = performance.now();
+
+        function step(now: number) {
+            // If the position moved on its own, the browser is still gliding and did not let go: do not fight it.
+            if (Math.abs(el.scrollLeft - lastLeft) > 2 || Math.abs(el.scrollTop - lastTop) > 2) {
+                tailFrameRef.current = null;
+                return;
+            }
+            const eased = easeOutQuad((now - t0) / duration);
+            lastLeft = startLeft + tailX.distance * eased;
+            lastTop = startTop + tailY * eased;
+            el.scrollLeft = lastLeft;
+            el.scrollTop = lastTop;
+            tailFrameRef.current = now - t0 < duration ? requestAnimationFrame(step) : null;
+        }
+
+        tailFrameRef.current = requestAnimationFrame(step);
     }
 
     function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
@@ -785,6 +879,9 @@ export default function CalendarPage() {
                         aria-label="Booking calendar"
                         onScroll={handleScroll}
                         onWheel={cancelMomentum}
+                        onTouchStart={onTouchStart}
+                        onTouchEnd={onTouchEnd}
+                        onTouchCancel={onTouchEnd}
                         onPointerDown={onPointerDown}
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}

@@ -40,7 +40,7 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center px-5 py-10">
+        <div className="flex min-h-dvh items-center justify-center px-5 py-10">
             <form
                 onSubmit={handleSubmit}
                 className="w-full max-w-md space-y-5 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm"
