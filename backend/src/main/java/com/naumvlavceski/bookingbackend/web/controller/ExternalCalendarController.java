@@ -5,6 +5,7 @@ import com.naumvlavceski.bookingbackend.config.security.IcalUrlGuard;
 import com.naumvlavceski.bookingbackend.dto.ExternalCalendarRequest;
 import com.naumvlavceski.bookingbackend.dto.ExternalCalendarResponse;
 import com.naumvlavceski.bookingbackend.ical.IcalFetchException;
+import com.naumvlavceski.bookingbackend.ical.PlatformDetector;
 import com.naumvlavceski.bookingbackend.model.ExternalCalendar;
 import com.naumvlavceski.bookingbackend.model.ReservationSource;
 import com.naumvlavceski.bookingbackend.model.Unit;
@@ -49,25 +50,28 @@ public class ExternalCalendarController {
                                     @Valid @RequestBody ExternalCalendarRequest request) {
         Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Room not found"));
         requireOwnedUnit(ownerId, unitId);
-        if (request.platform() == ReservationSource.DIRECT) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Choose Booking or Airbnb."));
+        String icsUrl = PlatformDetector.normalize(request.icsUrl());
+        ReservationSource platform = PlatformDetector.detect(icsUrl).orElse(null);
+        if (platform == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Only Booking.com and Airbnb calendar links are supported."));
         }
         boolean exists = calendarRepository.findAllByUnitId(unitId).stream()
-                .anyMatch(c -> c.getPlatform() == request.platform());
+                .anyMatch(c -> c.getPlatform() == platform);
         if (exists) {
-            return ResponseEntity.status(409)
-                    .body(Map.of("message", "This room already has a calendar for that platform."));
+            return ResponseEntity.status(409).body(Map.of("message",
+                    "This room already has " + PlatformDetector.withArticle(platform) + " calendar."));
         }
         try {
-            IcalUrlGuard.validate(request.icsUrl());
+            IcalUrlGuard.validate(icsUrl);
         } catch (IcalFetchException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
 
         ExternalCalendar calendar = new ExternalCalendar();
         calendar.setUnitId(unitId);
-        calendar.setPlatform(request.platform());
-        calendar.setIcsUrl(request.icsUrl().trim());
+        calendar.setPlatform(platform);
+        calendar.setIcsUrl(icsUrl);
         return ResponseEntity.ok(ExternalCalendarResponse.from(calendarRepository.save(calendar),unit.getName()));
     }
 

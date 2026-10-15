@@ -20,15 +20,9 @@ export async function getUnitCalendars(unitId: string): Promise<ExternalCalendar
     return res.data;
 }
 
-export async function addCalendar(
-    unitId: string,
-    platform: "BOOKING" | "AIRBNB",
-    icsUrl: string
-): Promise<ExternalCalendar> {
-    const res = await apiClient.post<ExternalCalendar>(`/api/units/${unitId}/calendars`, {
-        platform,
-        icsUrl,
-    });
+/** The channel is not sent: the backend works it out from the link. */
+export async function addCalendar(unitId: string, icsUrl: string): Promise<ExternalCalendar> {
+    const res = await apiClient.post<ExternalCalendar>(`/api/units/${unitId}/calendars`, {icsUrl});
     return res.data;
 }
 
