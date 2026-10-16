@@ -1,9 +1,10 @@
 import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {useNavigate, Link, Navigate} from "react-router-dom";
 import {login, resendCode} from "../lib/api/auth";
 import {tokenStorage} from "../lib/auth/tokenStorage";
+import {clearSessionExpired, takeReturnTo, wasSessionExpired} from "../lib/auth/session";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import AuthLayout from "../components/AuthLayout";
 import {TextField} from "../components/ui/Field";
@@ -21,12 +22,14 @@ export default function LoginPage() {
     const [form, setForm] = useState({email: "", password: ""});
     const passwordRef = useRef<HTMLInputElement>(null);
     const {errors, validate, recheck} = useInlineValidation(MESSAGES);
+    const [sessionExpired] = useState(wasSessionExpired);
+    useEffect(clearSessionExpired, []);
 
     const mutation = useMutation({
         mutationFn: login,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
-            navigate("/dashboard/calendar", {replace: true});
+            navigate(takeReturnTo("/dashboard/calendar"), {replace: true});
         },
         onError: (error) => {
             if (apiErrorCode(error) === "EMAIL_NOT_VERIFIED") {
@@ -64,6 +67,9 @@ export default function LoginPage() {
             footer={<p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>}
         >
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                {sessionExpired && !mutation.isError && (
+                    <Callout tone="info" role="status">Your session expired, please log in again.</Callout>
+                )}
                 <TextField
                     label="Email"
                     id="email"

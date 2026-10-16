@@ -25,7 +25,9 @@ app:
     ip-limit-per-hour: ${AUTH_IP_LIMIT_PER_HOUR:30}
   jwt:
     secret: ${APP_JWT_SECRET:}
-    expiration-ms: 86400000
+    idle-timeout-ms: ${APP_JWT_IDLE_TIMEOUT_MS}
+    absolute-timeout-ms: ${APP_JWT_ABSOLUTE_TIMEOUT_MS}
+    renew-threshold-ratio: ${APP_JWT_RENEW_THRESHOLD_RATIO}
   mail:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}

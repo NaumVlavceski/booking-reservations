@@ -1,4 +1,4 @@
-import {apiClient} from "./client.ts";
+import {apiClient, backgroundRequest} from "./client.ts";
 
 export interface ExternalCalendar {
     id: string;
@@ -13,6 +13,11 @@ export interface ExternalCalendar {
 
 export async function getFailingCalendars(): Promise<ExternalCalendar[]> {
     const res = await apiClient.get<ExternalCalendar[]>("/api/calendars/health");
+    return res.data;
+}
+/** Same as getFailingCalendars, for the automatic polling: doesn't keep an idle session alive. */
+export async function pollFailingCalendars(): Promise<ExternalCalendar[]> {
+    const res = await apiClient.get<ExternalCalendar[]>("/api/calendars/health", backgroundRequest);
     return res.data;
 }
 export async function getUnitCalendars(unitId: string): Promise<ExternalCalendar[]> {

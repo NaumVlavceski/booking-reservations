@@ -1,5 +1,6 @@
-import axios from "axios";
+import axios, {type AxiosResponse} from "axios";
 import {tokenStorage} from "../auth/tokenStorage";
+import {markSessionExpired} from "../auth/session";
 
 /** The backend's human-readable `message` from an error response, if it sent one. */
 export function apiErrorMessage(error: unknown, fallback: string): string {
@@ -19,6 +20,12 @@ export const apiClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8080",
 });
 
+/**
+ * Request options for automatic calls (polling): the backend doesn't count them as activity, so an idle
+ * session still expires. Calls the user triggers must not use this.
+ */
+export const backgroundRequest = {headers: {"X-Background": "true"}} as const;
+
 apiClient.interceptors.request.use((config) => {
     const token = tokenStorage.get();
     if (token) {
@@ -27,13 +34,37 @@ apiClient.interceptors.request.use((config) => {
     return config;
 });
 
+// Sliding session: the backend sends a fresh token in this header while the user is active.
+function keepRefreshedToken(response?: AxiosResponse) {
+    const refreshed = response?.headers?.["x-refreshed-token"];
+    if (typeof refreshed === "string" && refreshed) tokenStorage.set(refreshed);
+}
+
+// Several requests can fail at once when a session ends: only the first one sends the user to log in.
+let sessionEnding = false;
+
+function endSession() {
+    if (sessionEnding) return;
+    sessionEnding = true;
+    tokenStorage.clear();
+    const {pathname, search, hash} = window.location;
+    markSessionExpired(pathname + search + hash);
+    window.location.replace("/login");
+}
+
 apiClient.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        keepRefreshedToken(response);
+        return response;
+    },
     (error) => {
-        const status = error.response?.status;
-        if ((status === 401 || status === 403) && window.location.pathname !== "/login") {
-            tokenStorage.clear();
-            window.location.href = "/login";
+        keepRefreshedToken(error.response);
+        const sentToken = Boolean(error.config?.headers?.Authorization);
+        const isAuthCall = String(error.config?.url ?? "").startsWith("/api/auth/");
+        // 401 = the session is over (expired, logged out everywhere, account disabled). A wrong password on
+        // the log-in call is also a 401 but not a session ending. 403 means "not allowed" and keeps you signed in.
+        if (error.response?.status === 401 && sentToken && !isAuthCall) {
+            endSession();
         }
 
         return Promise.reject(error);

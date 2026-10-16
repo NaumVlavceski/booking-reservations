@@ -1,4 +1,4 @@
-import {apiClient} from "./client.ts";
+import {apiClient, backgroundRequest} from "./client.ts";
 
 export interface SyncConflict {
     id: string;
@@ -14,6 +14,11 @@ export interface SyncConflict {
 }
 export async function getOpenConflicts(): Promise<SyncConflict[]> {
     const res = await apiClient.get<SyncConflict[]>("/api/conflicts");
+    return res.data;
+}
+/** Same as getOpenConflicts, for the automatic polling: doesn't keep an idle session alive. */
+export async function pollOpenConflicts(): Promise<SyncConflict[]> {
+    const res = await apiClient.get<SyncConflict[]>("/api/conflicts", backgroundRequest);
     return res.data;
 }
 export async function dismissConflict(id: string): Promise<void> {

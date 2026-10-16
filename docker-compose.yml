@@ -34,6 +34,9 @@ services:
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-RoomTrack <onboarding@resend.dev>}
+      APP_JWT_IDLE_TIMEOUT_MS: ${APP_JWT_IDLE_TIMEOUT_MS}
+      APP_JWT_ABSOLUTE_TIMEOUT_MS: ${APP_JWT_ABSOLUTE_TIMEOUT_MS}
+      APP_JWT_RENEW_THRESHOLD_RATIO: ${APP_JWT_RENEW_THRESHOLD_RATIO}
     depends_on:
       postgres:
         condition: service_healthy
