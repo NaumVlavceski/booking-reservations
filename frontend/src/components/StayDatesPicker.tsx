@@ -1,9 +1,10 @@
-import {useMemo, useState} from "react";
+import {useId, useMemo, useState} from "react";
 import {DayPicker} from "react-day-picker";
 import "react-day-picker/style.css";
 import {differenceInCalendarDays, format} from "date-fns";
 import {blockedNights, canCheckOutOn, showAsBooked, type BookedRange, type PickStep} from "../lib/stayDates";
 import {parseLocalDate} from "../lib/dates";
+import {dayButtonLabel} from "../lib/dayPickerLabels";
 import {CalendarIcon} from "./icons";
 
 interface StayDatesPickerProps {
@@ -12,14 +13,17 @@ interface StayDatesPickerProps {
     onChange: (checkIn: string, checkOut: string) => void;
     invalid?: boolean;
     bookedRanges?: BookedRange[];
+    /** id of an error message to tie to both date fields. */
+    describedBy?: string;
 }
 
 type Step = PickStep;
 
 const toIso = (d: Date) => format(d, "yyyy-MM-dd");
 
-export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, bookedRanges = []}: StayDatesPickerProps) {
+export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, bookedRanges = [], describedBy}: StayDatesPickerProps) {
     const [step, setStep] = useState<Step | null>(null);
+    const ids = useId();
     const from = checkIn ? parseLocalDate(checkIn) : undefined;
     const to = checkOut ? parseLocalDate(checkOut) : undefined;
     const nights = from && to ? differenceInCalendarDays(to, from) : 0;
@@ -49,50 +53,53 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
     // A check-out day is only pickable if none of the nights between the chosen check-in and that day are booked
     const checkOutDisabled = (day: Date) => !canCheckOutOn(day, from, blockedDates);
 
-    const fieldClass = (active: boolean) =>
-        `field-input flex items-center justify-between gap-2 text-left ${
-            active ? "border-teal-600 ring-4 ring-teal-600/15" : invalid ? "border-red-400" : ""
+    const fieldClass = (active: boolean, empty: boolean) =>
+        `field-input flex items-center justify-between gap-2 text-left ${empty ? "text-subtle" : "text-fg"} ${
+            active ? "border-primary ring-3 ring-focus/30" : invalid && empty ? "border-danger ring-1 ring-danger" : ""
         }`;
+
+    const field = (which: Step, label: string, date: Date | undefined) => (
+        <div>
+            <span id={`${ids}-${which}-label`} className="field-label">{label}</span>
+            <button
+                type="button"
+                className={fieldClass(step === which, !date)}
+                onClick={() => open(which)}
+                aria-expanded={step === which}
+                aria-controls={step ? `${ids}-panel` : undefined}
+                aria-labelledby={`${ids}-${which}-label ${ids}-${which}-value`}
+                aria-invalid={invalid && !date ? true : undefined}
+                aria-describedby={invalid && !date ? describedBy : undefined}
+            >
+                <span id={`${ids}-${which}-value`} className="truncate">
+                    {date ? format(date, "EEE, d MMM") : "Add date"}
+                </span>
+                <CalendarIcon size={18} className="shrink-0 text-subtle"/>
+            </button>
+        </div>
+    );
 
     return (
         <div>
             <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <span className="field-label">Check-in</span>
-                    <button type="button" className={fieldClass(step === "checkIn")} onClick={() => open("checkIn")}
-                            aria-expanded={step === "checkIn"}>
-                        <span className={from ? "text-slate-900" : "text-slate-400"}>
-                            {from ? format(from, "EEE, d MMM") : "Add date"}
-                        </span>
-                        <CalendarIcon size={16} className="shrink-0 text-slate-400"/>
-                    </button>
-                </div>
-                <div>
-                    <span className="field-label">Check-out</span>
-                    <button type="button" className={fieldClass(step === "checkOut")} onClick={() => open("checkOut")}
-                            aria-expanded={step === "checkOut"}>
-                        <span className={to ? "text-slate-900" : "text-slate-400"}>
-                            {to ? format(to, "EEE, d MMM") : "Add date"}
-                        </span>
-                        <CalendarIcon size={16} className="shrink-0 text-slate-400"/>
-                    </button>
-                </div>
+                {field("checkIn", "Check-in", from)}
+                {field("checkOut", "Check-out", to)}
             </div>
 
             {nights > 0 && !step && (
-                <p className="field-hint">
+                <p className="field-hint num">
                     {nights} {nights === 1 ? "night" : "nights"} · {format(from!, "d MMM")} – {format(to!, "d MMM yyyy")}
                 </p>
             )}
 
             {step && (
-                <div className="rdp-theme mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                    <div className="flex items-center justify-between px-1 pb-1">
-                        <p className="text-sm font-semibold text-slate-900">
+                <div id={`${ids}-panel`} className="rdp-theme mt-3 animate-pop-in rounded-2xl border border-subtle bg-surface-raised p-2 shadow-popover sm:p-3">
+                    <div className="flex items-center justify-between px-2 pt-1">
+                        <p aria-live="polite" className="text-title-3 text-fg">
                             {step === "checkIn" ? "Select check-in" : "Select check-out"}
                         </p>
                         {nights > 0 && (
-                            <p className="text-xs font-medium text-slate-500">
+                            <p className="num text-caption text-subtle">
                                 {nights} {nights === 1 ? "night" : "nights"}
                             </p>
                         )}
@@ -112,25 +119,25 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
                             showOutsideDays
                             modifiers={{booked: (day: Date) => showAsBooked(day, step, from, blockedDates)}}
                             modifiersClassNames={{booked: "rdp-booked"}}
+                            labels={{labelDayButton: dayButtonLabel}}
                         />
                     </div>
                     {hasBookedNights && (
-                        <p className="flex items-center gap-2 px-1 pb-2 text-xs text-slate-600">
-                            <span className="inline-block h-3 w-3 rounded-sm border border-red-300 bg-red-50"/>
+                        <p className="flex items-center gap-2 px-2 pb-2 text-caption text-muted">
+                            <span aria-hidden="true" className="inline-flex size-4 items-center justify-center rounded border border-danger-line bg-danger-soft text-[0.625rem] leading-none text-danger line-through">8</span>
                             Already booked
                             {step === "checkOut" && " · the stay can't run into another booking"}
                         </p>
                     )}
-                    <div className="flex items-center justify-between border-t border-slate-100 px-1 pt-2">
-                        <button type="button" className="text-sm font-semibold text-slate-500 hover:text-slate-800"
+                    <div className="flex items-center justify-between border-t border-subtle px-1 pt-2">
+                        <button type="button" className="btn btn-quiet"
                                 onClick={() => {
                                     onChange("", "");
                                     setStep("checkIn");
                                 }}>
                             Clear
                         </button>
-                        <button type="button" className="text-sm font-semibold text-teal-700"
-                                onClick={() => setStep(null)}>
+                        <button type="button" className="btn btn-ghost" onClick={() => setStep(null)}>
                             Done
                         </button>
                     </div>

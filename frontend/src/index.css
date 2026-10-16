@@ -1,144 +1,337 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
-@theme {
-    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+/*
+ * Tokens → Tailwind. Components use these semantic names (bg-surface, text-muted, border-subtle,
+ * bg-primary, text-danger, ...) and never raw hex, so light and dark come for free.
+ * Dark mode follows the device (Tailwind's default `dark:` variant is prefers-color-scheme).
+ */
+@theme inline {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --background-color-canvas: var(--rt-canvas);
+    --background-color-surface: var(--rt-surface);
+    --background-color-surface-raised: var(--rt-surface-raised);
+    --background-color-surface-sunken: var(--rt-surface-sunken);
+    --background-color-surface-hover: var(--rt-surface-hover);
+    --background-color-surface-pressed: var(--rt-surface-pressed);
+    --background-color-scrim: var(--rt-scrim);
+
+    --text-color-fg: var(--rt-fg);
+    --text-color-muted: var(--rt-fg-muted);
+    --text-color-subtle: var(--rt-fg-subtle);
+    --text-color-disabled: var(--rt-fg-disabled);
+    --text-color-inverse: var(--rt-fg-inverse);
+
+    --border-color-subtle: var(--rt-border-subtle);
+    --border-color-default: var(--rt-border);
+    --border-color-strong: var(--rt-border-strong);
+
+    --color-primary: var(--rt-primary);
+    --color-primary-hover: var(--rt-primary-hover);
+    --color-primary-pressed: var(--rt-primary-pressed);
+    --color-on-primary: var(--rt-on-primary);
+    --color-primary-soft: var(--rt-primary-soft);
+    --color-on-primary-soft: var(--rt-on-primary-soft);
+    --color-primary-line: var(--rt-primary-line);
+    --color-focus: var(--rt-focus);
+
+    --color-success: var(--rt-success);
+    --color-success-soft: var(--rt-success-soft);
+    --color-success-line: var(--rt-success-line);
+    --color-success-solid: var(--rt-success-solid);
+    --color-on-success-solid: var(--rt-on-success-solid);
+    --color-warning: var(--rt-warning);
+    --color-warning-soft: var(--rt-warning-soft);
+    --color-warning-line: var(--rt-warning-line);
+    --color-warning-solid: var(--rt-warning-solid);
+    --color-on-warning-solid: var(--rt-on-warning-solid);
+    --color-danger: var(--rt-danger);
+    --color-danger-soft: var(--rt-danger-soft);
+    --color-danger-line: var(--rt-danger-line);
+    --color-danger-solid: var(--rt-danger-solid);
+    --color-on-danger-solid: var(--rt-on-danger-solid);
+    --color-info: var(--rt-info);
+    --color-info-soft: var(--rt-info-soft);
+    --color-info-line: var(--rt-info-line);
+    --color-info-solid: var(--rt-info-solid);
+    --color-on-info-solid: var(--rt-on-info-solid);
+
+    --color-src-booking-fill: var(--rt-src-booking-fill);
+    --color-src-booking-line: var(--rt-src-booking-line);
+    --color-src-booking-fg: var(--rt-src-booking-fg);
+    --color-src-airbnb-fill: var(--rt-src-airbnb-fill);
+    --color-src-airbnb-line: var(--rt-src-airbnb-line);
+    --color-src-airbnb-fg: var(--rt-src-airbnb-fg);
+    --color-src-direct-fill: var(--rt-src-direct-fill);
+    --color-src-direct-line: var(--rt-src-direct-line);
+    --color-src-direct-fg: var(--rt-src-direct-fg);
+    --color-src-paid-fill: var(--rt-src-paid-fill);
+    --color-src-paid-line: var(--rt-src-paid-line);
+    --color-src-paid-fg: var(--rt-src-paid-fg);
+    --color-src-blocked-fill: var(--rt-src-blocked-fill);
+    --color-src-blocked-line: var(--rt-src-blocked-line);
+    --color-src-blocked-fg: var(--rt-src-blocked-fg);
+
+    --shadow-card: var(--rt-shadow-1);
+    --shadow-popover: var(--rt-shadow-2);
+    --shadow-overlay: var(--rt-shadow-3);
+
+    --ease-standard: var(--rt-ease);
+    --ease-emphasized: var(--rt-ease-out);
+
+    /* Type scale. 16px body keeps iOS from zooming into inputs. */
+    --text-display: 1.75rem;
+    --text-display--line-height: 2.125rem;
+    --text-display--letter-spacing: -0.02em;
+    --text-display--font-weight: 700;
+    --text-title-1: 1.375rem;
+    --text-title-1--line-height: 1.75rem;
+    --text-title-1--letter-spacing: -0.015em;
+    --text-title-1--font-weight: 700;
+    --text-title-2: 1.125rem;
+    --text-title-2--line-height: 1.5rem;
+    --text-title-2--letter-spacing: -0.01em;
+    --text-title-2--font-weight: 650;
+    --text-title-3: 1rem;
+    --text-title-3--line-height: 1.375rem;
+    --text-title-3--font-weight: 600;
+    --text-body: 1rem;
+    --text-body--line-height: 1.5rem;
+    --text-body-sm: 0.875rem;
+    --text-body-sm--line-height: 1.25rem;
+    --text-caption: 0.75rem;
+    --text-caption--line-height: 1rem;
+    --text-caption--font-weight: 500;
+    --text-overline: 0.6875rem;
+    --text-overline--line-height: 0.875rem;
+    --text-overline--letter-spacing: 0.06em;
+    --text-overline--font-weight: 700;
+
+    --animate-fade-in: fade-in var(--rt-dur-base) var(--rt-ease) both;
+    --animate-sheet-in: sheet-in var(--rt-dur-slow) var(--rt-ease-out) both;
+    --animate-pop-in: pop-in var(--rt-dur-base) var(--rt-ease-out) both;
+    --animate-spin-slow: spin 800ms linear infinite;
+    --animate-shimmer: shimmer 1.4s ease-in-out infinite;
 }
 
-@keyframes dialog-fade {
+@keyframes fade-in {
     from { opacity: 0; }
 }
 
-@keyframes dialog-rise {
-    from { opacity: 0; transform: translateY(12px); }
+@keyframes sheet-in {
+    from { transform: translateY(100%); }
 }
 
-/* react-day-picker, themed to the app's teal. Scoped to .rdp-root because the
-   library declares its defaults on that element — vars on a wrapper lose. */
+@keyframes pop-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+@keyframes shimmer {
+    50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* react-day-picker on the theme tokens. Scoped to .rdp-root because the library declares its
+   defaults on that element — vars on a wrapper lose. */
 .rdp-theme .rdp-root {
-    --rdp-accent-color: var(--color-teal-700);
-    --rdp-accent-background-color: var(--color-teal-50);
-    --rdp-today-color: var(--color-teal-700);
-    --rdp-range_middle-background-color: var(--color-teal-50);
-    --rdp-range_start-date-background-color: var(--color-teal-700);
-    --rdp-range_end-date-background-color: var(--color-teal-700);
-    --rdp-day-height: 42px;
-    --rdp-day-width: 42px;
-    --rdp-day_button-height: 40px;
-    --rdp-day_button-width: 40px;
-    --rdp-disabled-opacity: 0.3;
+    --rdp-accent-color: var(--rt-primary);
+    --rdp-accent-background-color: var(--rt-primary-soft);
+    --rdp-today-color: var(--rt-primary);
+    --rdp-range_middle-background-color: var(--rt-primary-soft);
+    --rdp-range_middle-color: var(--rt-on-primary-soft);
+    --rdp-range_start-date-background-color: var(--rt-primary);
+    --rdp-range_end-date-background-color: var(--rt-primary);
+    --rdp-range_start-color: var(--rt-on-primary);
+    --rdp-range_end-color: var(--rt-on-primary);
+    --rdp-selected-border: 2px solid var(--rt-primary);
+    --rdp-day-height: 44px;
+    --rdp-day-width: 44px;
+    --rdp-day_button-height: 42px;
+    --rdp-day_button-width: 42px;
+    --rdp-day_button-border-radius: 12px;
+    --rdp-disabled-opacity: 0.35;
+    --rdp-outside-opacity: 0.5;
+    --rdp-nav_button-height: 44px;
+    --rdp-nav_button-width: 44px;
+    color: var(--rt-fg);
 }
 
-/* Nights another booking already holds: clearly "taken", not just greyed out
-   like dates that are merely before check-in. */
+.rdp-theme .rdp-chevron {
+    fill: var(--rt-primary);
+}
+
+.rdp-theme .rdp-weekday {
+    color: var(--rt-fg-subtle);
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 1;
+}
+
+.rdp-theme .rdp-month_caption {
+    font-size: 1rem;
+    font-weight: 650;
+}
+
+.rdp-theme .rdp-day_button:focus-visible {
+    outline: 2px solid var(--rt-focus);
+    outline-offset: 1px;
+}
+
+/* Nights another booking already holds: clearly "taken" (colour, strike-through and a corner mark), not
+   just greyed out like dates that are merely before check-in. */
 .rdp-theme .rdp-day.rdp-booked {
     opacity: 1;
 }
 
 .rdp-theme .rdp-day.rdp-booked .rdp-day_button {
-    background: var(--color-red-50);
-    color: var(--color-red-700);
+    background: var(--rt-danger-soft);
+    color: var(--rt-danger);
     text-decoration: line-through;
-    border-radius: 6px;
+    border-radius: 12px;
 }
 
 @layer base {
     html {
         -webkit-tap-highlight-color: transparent;
+        background-color: var(--rt-canvas);
     }
 
-    /* Phones get a plain white canvas (the screen *is* the card);
-       from sm up the page sits on a soft gray with white cards on it. */
     body {
-        @apply bg-white font-sans text-slate-900 antialiased sm:bg-slate-100;
+        @apply bg-canvas font-sans text-fg antialiased;
+        font-size: 1rem;
+        line-height: 1.5;
+        text-rendering: optimizeLegibility;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--rt-focus);
+        outline-offset: 2px;
+    }
+
+    ::selection {
+        background: color-mix(in srgb, var(--rt-primary) 22%, transparent);
+    }
+
+    /* Numbers that line up: prices, dates, counts. */
+    .num {
+        font-variant-numeric: tabular-nums;
     }
 }
 
 @layer components {
-    .page-title {
-        @apply text-2xl font-bold tracking-tight text-slate-900;
-    }
-
-    .page-subtitle {
-        @apply mt-1 text-slate-500;
-    }
-
-    .back-link {
-        @apply mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800;
-    }
-
-    /* Card that only exists from sm up — on phones it's just padding-free content. */
-    .surface {
-        @apply sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-white sm:p-6 sm:shadow-sm;
-    }
-
-    /* Lists: edge-to-edge divided rows on phones, separate cards from sm up. */
+    /* Lists: grouped rows inside one card. */
     .stack-list {
-        @apply -mx-4 divide-y divide-slate-100 border-y border-slate-100 sm:mx-0 sm:space-y-3 sm:divide-y-0 sm:border-0;
-    }
-
-    .stack-row {
-        @apply px-4 py-4 sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-white sm:px-5 sm:shadow-sm;
+        @apply divide-y divide-subtle overflow-hidden rounded-2xl border border-subtle bg-surface shadow-card;
     }
 
     .field-label {
-        @apply mb-1.5 block text-sm font-semibold text-slate-700;
+        @apply mb-1.5 block text-body-sm font-semibold text-fg;
     }
 
     .field-hint {
-        @apply mt-1.5 text-xs text-slate-500;
+        @apply mt-1.5 text-body-sm text-subtle;
     }
 
-    /* text-base on phones keeps iOS from zooming into focused inputs. */
+    .field-error {
+        @apply mt-1.5 flex items-start gap-1.5 text-body-sm font-medium text-danger;
+    }
+
+    /* 16px everywhere keeps iOS Safari from zooming into a focused field. */
     .field-input {
-        @apply block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base text-slate-900 shadow-xs transition placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/15 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400 sm:text-sm;
+        @apply block min-h-12 w-full rounded-xl border border-strong bg-surface px-3.5 py-2.5 text-body text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-subtle focus:border-primary focus:ring-3 focus:ring-focus/30 focus:outline-none disabled:border-default disabled:bg-surface-sunken disabled:text-disabled aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger;
+    }
+
+    textarea.field-input {
+        @apply min-h-24 resize-y;
     }
 
     .btn {
-        @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:ring-4 focus-visible:ring-teal-600/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-2 text-[0.9375rem] leading-5 font-semibold whitespace-nowrap transition-colors duration-150 select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed;
+    }
+
+    .btn-lg {
+        @apply min-h-13 rounded-2xl px-5 text-body;
+    }
+
+    .btn-sm {
+        @apply min-h-10 px-3 text-body-sm;
     }
 
     .btn-primary {
-        @apply bg-teal-700 text-white shadow-xs hover:bg-teal-800 active:bg-teal-900;
+        @apply bg-primary text-on-primary shadow-card hover:bg-primary-hover active:bg-primary-pressed disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
     }
 
     .btn-secondary {
-        @apply border border-slate-300 bg-white text-slate-700 shadow-xs hover:bg-slate-50;
+        @apply border-strong bg-surface text-fg hover:bg-surface-hover active:bg-surface-pressed disabled:border-default disabled:text-disabled;
     }
 
     .btn-ghost {
-        @apply text-slate-500 hover:bg-slate-100 hover:text-slate-800;
+        @apply text-primary hover:bg-primary-soft active:bg-surface-pressed disabled:text-disabled;
+    }
+
+    .btn-quiet {
+        @apply text-fg hover:bg-surface-hover active:bg-surface-pressed disabled:text-disabled;
     }
 
     .btn-danger {
-        @apply bg-red-600 text-white shadow-xs hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-600/20;
+        @apply bg-danger-solid text-on-danger-solid shadow-card hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
     }
 
     .btn-danger-ghost {
-        @apply text-red-600 hover:bg-red-50;
+        @apply text-danger hover:bg-danger-soft active:bg-danger-soft disabled:text-disabled;
     }
 
-    .dialog-backdrop {
-        animation: dialog-fade 150ms ease-out;
+    .icon-btn {
+        @apply inline-flex size-11 shrink-0 items-center justify-center rounded-full text-fg transition-colors duration-150 hover:bg-surface-hover active:bg-surface-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:text-disabled;
     }
 
-    .dialog-panel {
-        animation: dialog-rise 180ms ease-out;
+    .link {
+        @apply font-semibold text-primary underline-offset-2 hover:underline;
     }
 
-    .alert-info {
-        @apply flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-sm text-blue-700;
+    .skeleton {
+        @apply animate-shimmer rounded-lg bg-surface-pressed;
     }
 
-    .alert-error {
-        @apply rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700;
+    /* Reservation source / status badges: the calendar bar's colour, texture and a text label. */
+    .src-badge {
+        @apply inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pr-2.5 pl-1 text-caption font-semibold whitespace-nowrap;
     }
 
-    /* Phones: full-width stacked buttons (primary on top). sm+: inline row. */
-    .form-actions {
-        @apply flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:gap-3;
+    .src-badge--booking {
+        @apply border-src-booking-line bg-src-booking-fill text-src-booking-fg;
     }
 
-    .form-actions > .btn {
-        @apply w-full sm:w-auto;
+    .src-badge--airbnb {
+        @apply border-src-airbnb-line bg-src-airbnb-fill text-src-airbnb-fg;
+        background-image: radial-gradient(var(--rt-src-airbnb-texture) 1.1px, transparent 1.3px);
+        background-size: 6px 6px;
+    }
+
+    .src-badge--direct {
+        @apply border-dashed border-src-direct-line bg-src-direct-fill text-src-direct-fg;
+    }
+
+    .src-badge--paid {
+        @apply border-src-paid-line bg-src-paid-fill pl-2 text-src-paid-fg;
+    }
+
+    .src-badge--blocked {
+        @apply border-src-blocked-line bg-src-blocked-fill pl-2.5 text-src-blocked-fg;
+        background-image: repeating-linear-gradient(135deg, var(--rt-src-blocked-texture) 0 2px, transparent 2px 6px);
+    }
+
+    .src-badge--neutral {
+        @apply border-default bg-surface-sunken pl-2.5 text-muted;
     }
 }

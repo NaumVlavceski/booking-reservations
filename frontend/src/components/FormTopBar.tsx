@@ -1,8 +1,10 @@
 import type {MouseEvent} from "react";
 import {useState} from "react";
 import {Link, useNavigate} from "react-router-dom";
-import {CheckIcon, ChevronLeftIcon, TrashIcon} from "./icons";
+import {CheckIcon, ChevronLeftIcon, TrashIcon, WifiOffIcon} from "./icons";
 import ConfirmDialog from "./ConfirmDialog";
+import Button from "./ui/Button";
+import {useOnlineStatus} from "../lib/useOnlineStatus";
 
 interface FormTopBarProps {
     /** id of the <form> to submit — Save sits outside it, so it targets it via form="…". */
@@ -12,15 +14,21 @@ interface FormTopBarProps {
     /** Shows a delete button next to Save (edit mode). */
     onDelete?: () => void;
     deleteLabel?: string;
-    /** Centered label describing the current action, e.g. "Reservation Room 1", "Edit property". */
+    /** Label describing the current action, e.g. "Reservation Room 1", "Edit property". The page's heading. */
     title?: string;
+    /** Second line under the title, e.g. the property a room belongs to. */
+    subtitle?: string;
     /** When true, leaving via `back` first asks to confirm — used once the form has unsaved changes. */
     isDirty?: boolean;
 }
 
-/** Top bar for edit forms: back link left; delete + Save right. Pinned while scrolling. */
-export default function FormTopBar({formId, saving, back, onDelete, deleteLabel = "Delete", title, isDirty = false}: FormTopBarProps) {
+/**
+ * Header for edit forms: back, title, delete. Save is in the header from sm up and in a sticky bar at
+ * the bottom on phones, where the thumb is. Both submit the same form.
+ */
+export default function FormTopBar({formId, saving, back, onDelete, deleteLabel = "Delete", title, subtitle, isDirty = false}: FormTopBarProps) {
     const navigate = useNavigate();
+    const online = useOnlineStatus();
     const [confirmExit, setConfirmExit] = useState(false);
 
     function handleBackClick(e: MouseEvent) {
@@ -42,42 +50,58 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
         }
     }
 
+    const saveButton = (block: boolean) => (
+        <Button type="submit" form={formId} size={block ? "lg" : "md"} block={block} loading={saving} loadingLabel="Saving..."
+                disabled={!online} icon={<CheckIcon size={18}/>}>
+            Save
+        </Button>
+    );
+
     return (
-        <div className="sticky top-0 z-20 -mx-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:gap-3 sm:bg-slate-100/95 sm:px-0">
-            {back ? (
-                <Link to={back.to} onClick={handleBackClick} aria-label={`Back to ${back.label}`}
-                      className="back-link mb-0 flex h-10 w-10 items-center justify-center rounded-xl hover:bg-slate-200/60">
-                    <ChevronLeftIcon className="shrink-0"/>
-                    {/*<span className="truncate">{back.label}</span>*/}
-                </Link>
-            ) : (
-                <span/>
-            )}
-            {title ? (
-                <span className="truncate text-center text-sm font-semibold text-slate-900">
-                    {title}
-                </span>
-            ) : (
-                <span/>
-            )}
-            <div className="flex shrink-0 items-center gap-2">
-                {onDelete && (
-                    <button
-                        type="button"
-                        onClick={onDelete}
-                        disabled={saving}
-                        title={deleteLabel}
-                        aria-label={deleteLabel}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                    >
-                        <TrashIcon size={18}/>
-                    </button>
+        <>
+            <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:mx-0 sm:mb-6 sm:rounded-2xl sm:border sm:bg-surface/95 sm:shadow-card sm:backdrop-blur-md">
+                <div className="flex min-h-14 items-center gap-1 px-1 sm:min-h-16 sm:gap-2 sm:px-2">
+                    {back ? (
+                        <Link to={back.to} onClick={handleBackClick} aria-label={`Back to ${back.label}`} className="icon-btn">
+                            <ChevronLeftIcon size={22}/>
+                        </Link>
+                    ) : (
+                        <span className="w-3"/>
+                    )}
+                    <div className="min-w-0 flex-1">
+                        {title && <h1 className="truncate text-title-3 text-fg sm:text-title-2">{title}</h1>}
+                        {subtitle && <p className="truncate text-caption text-subtle sm:text-body-sm">{subtitle}</p>}
+                    </div>
+                    {onDelete && (
+                        <button
+                            type="button"
+                            onClick={onDelete}
+                            disabled={saving}
+                            title={deleteLabel}
+                            aria-label={deleteLabel}
+                            className="icon-btn text-muted hover:bg-danger-soft hover:text-danger"
+                        >
+                            <TrashIcon size={20}/>
+                        </button>
+                    )}
+                    <div className="hidden sm:block">{saveButton(false)}</div>
+                </div>
+            </header>
+
+            {/* Phones: Save where the thumb is. The tab bar steps aside on form pages. */}
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:hidden">
+                {!online && (
+                    <p role="status" className="mb-2 flex items-center justify-center gap-2 text-body-sm font-medium text-muted">
+                        <WifiOffIcon size={16}/> You're offline. Connect to save.
+                    </p>
                 )}
-                <button type="submit" form={formId} disabled={saving} className="btn btn-primary">
-                    <CheckIcon size={18}/>
-                    {saving ? "Saving..." : "Save"}
-                </button>
+                {saveButton(true)}
             </div>
+            {!online && (
+                <p role="status" className="mb-4 hidden items-center gap-2 text-body-sm font-medium text-muted sm:flex">
+                    <WifiOffIcon size={16}/> You're offline. Connect to save.
+                </p>
+            )}
 
             <ConfirmDialog
                 open={confirmExit}
@@ -88,6 +112,6 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                 onConfirm={handleExit}
                 onCancel={() => setConfirmExit(false)}
             />
-        </div>
+        </>
     );
 }

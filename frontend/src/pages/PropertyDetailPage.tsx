@@ -1,28 +1,34 @@
 import {Link, useParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {isAxiosError} from "axios";
 import {getProperty} from "../lib/api/properties.ts";
 import {getUnitsForProperty, deleteUnit, type UnitResponse} from "../lib/api/units.ts";
 import {apiErrorMessage} from "../lib/api/client.ts";
-import {ChevronLeftIcon, PersonIcon, PlusIcon} from "../components/icons";
+import {BedIcon, ChevronRightIcon, EditIcon, HouseIcon, PersonIcon, PlusIcon, TrashIcon} from "../components/icons";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {allReservationsQuery} from "../lib/api/reservations.ts";
 import {unitDeleteMessage} from "../lib/plural";
 import {useFromHere} from "../lib/useReturnTo";
 import {useCallback, useState} from "react";
+import PageHeader from "../components/ui/PageHeader";
+import {ButtonLink} from "../components/ui/Button";
+import Fab from "../components/ui/Fab";
+import Menu from "../components/ui/Menu";
+import {EmptyState, ErrorState, ListSkeleton, Skeleton} from "../components/ui/States";
 
 export default function PropertyDetailPage() {
     const {id} = useParams();
     const propertyId = id!;
     const queryClient = useQueryClient();
     const fromHere = useFromHere();
-    const {data:property,isLoading:isLoadingProperty} = useQuery({
+    const {data: property, isLoading: isLoadingProperty, error: propertyError, refetch: refetchProperty, isRefetching} = useQuery({
         queryKey: ["properties", propertyId],
-        queryFn: ()=> getProperty(propertyId)
+        queryFn: () => getProperty(propertyId),
     });
-    const {data:units,isLoading: isLoadingUnits} = useQuery({
+    const {data: units, isLoading: isLoadingUnits, isError: unitsFailed, refetch: refetchUnits} = useQuery({
         queryKey: ["units", propertyId],
-        queryFn: ()=>getUnitsForProperty(propertyId),
-    })
+        queryFn: () => getUnitsForProperty(propertyId),
+    });
     const [unitToDelete, setUnitToDelete] = useState<UnitResponse | null>(null);
     const {data: reservations} = useQuery(allReservationsQuery);
     const deleteMutation = useMutation({
@@ -31,8 +37,8 @@ export default function PropertyDetailPage() {
             // Prefix match also refreshes the calendar's ["units", "all"]; the
             // unit's reservations were deleted with it (DB cascade).
             await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ["units"] }),
-                queryClient.invalidateQueries({ queryKey: ["reservations"] }),
+                queryClient.invalidateQueries({queryKey: ["units"]}),
+                queryClient.invalidateQueries({queryKey: ["reservations"]}),
             ]);
             setUnitToDelete(null);
         },
@@ -41,92 +47,116 @@ export default function PropertyDetailPage() {
     const handleDelete = (unit: UnitResponse) => {
         deleteMutation.reset();
         setUnitToDelete(unit);
-    }
+    };
+    const back = {to: "/dashboard/properties", label: "Properties"};
+    const addRoomPath = `/dashboard/properties/${propertyId}/units/new`;
+
     if (isLoadingProperty) {
-        return <div className="text-slate-500">Loading property...</div>;
+        return (
+            <div role="status" aria-live="polite">
+                <span className="sr-only">Loading property...</span>
+                <PageHeader title={<Skeleton className="h-7 w-48"/>} back={back} alerts={false}/>
+                <ListSkeleton rows={2} label="Loading rooms..."/>
+            </div>
+        );
     }
 
     if (!property) {
-        return <div className="alert-error">Property not found.</div>;
+        const notFound = isAxiosError(propertyError) && propertyError.response?.status === 404;
+        return (
+            <div>
+                <PageHeader title="Property" back={back}/>
+                {notFound || !propertyError ? (
+                    <EmptyState
+                        icon={<HouseIcon size={24}/>}
+                        title="Property not found."
+                        action={<ButtonLink to="/dashboard/properties" variant="secondary">Back to properties</ButtonLink>}
+                    >
+                        It may have been deleted, or the link is wrong.
+                    </EmptyState>
+                ) : (
+                    <ErrorState title="Couldn't load this property" onRetry={() => refetchProperty()} retrying={isRefetching}>
+                        Check your connection and try again.
+                    </ErrorState>
+                )}
+            </div>
+        );
     }
 
     return (
-        <div className="pt-6">
-            <Link to="/dashboard/properties" className="back-link">
-                <ChevronLeftIcon/>
-            </Link>
+        <div>
+            <PageHeader
+                title={property.name}
+                back={back}
+                description={property.address || undefined}
+                actions={
+                    <>
+                        <ButtonLink to={`/dashboard/properties/${propertyId}/edit`} variant="ghost" className="sm:hidden" icon={<EditIcon size={18}/>}>
+                            Edit
+                        </ButtonLink>
+                        <ButtonLink to={`/dashboard/properties/${propertyId}/edit`} variant="secondary" className="hidden sm:inline-flex" icon={<EditIcon size={18}/>}>
+                            Edit property
+                        </ButtonLink>
+                    </>
+                }
+            />
 
-            <div className="mb-8 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                    <h1 className="page-title">{property.name}</h1>
-                    <p className="page-subtitle">{property.address}</p>
+            <section aria-labelledby="rooms-heading">
+                <div className="mb-3 flex items-center justify-between gap-4">
+                    <h2 id="rooms-heading" className="text-title-2 text-fg">
+                        Rooms {units && <span className="num font-medium text-subtle">({units.length})</span>}
+                    </h2>
+                    <ButtonLink to={addRoomPath} state={fromHere} variant="secondary" size="sm" icon={<PlusIcon size={16}/>} className="hidden sm:inline-flex">
+                        Add room
+                    </ButtonLink>
                 </div>
-                <Link
-                    to={`/dashboard/properties/${propertyId}/edit`}
-                    className="shrink-0 pt-1 text-sm font-semibold text-teal-700 sm:hidden"
-                >
-                    Edit
-                </Link>
-                <Link
-                    to={`/dashboard/properties/${propertyId}/edit`}
-                    className="btn btn-secondary hidden shrink-0 sm:inline-flex"
-                >
-                    Edit property
-                </Link>
-            </div>
 
-            <div className="mb-4 flex items-center justify-between gap-4">
-                <h2 className="text-lg font-bold text-slate-900">
-                    Rooms {units && <span className="font-medium text-slate-400">({units.length})</span>}
-                </h2>
-                <Link to={`/dashboard/properties/${propertyId}/units/new`} state={fromHere} className="btn btn-primary px-3 py-2 sm:px-4 sm:py-2.5">
-                    <PlusIcon size={16}/> Add room
-                </Link>
-            </div>
-
-            {isLoadingUnits ? (
-                <div className="text-slate-500">Loading rooms...</div>
-            ) : !units || units.length === 0 ? (
-                <div className="surface py-12 text-center">
-                    <p className="mb-4 text-slate-500">No rooms yet for this property.</p>
-                    <Link
-                        to={`/dashboard/properties/${propertyId}/units/new`}
-                        state={fromHere}
-                        className="font-semibold text-teal-700"
+                {isLoadingUnits ? (
+                    <ListSkeleton rows={3} label="Loading rooms..."/>
+                ) : unitsFailed ? (
+                    <ErrorState title="Couldn't load the rooms" onRetry={() => refetchUnits()}>
+                        Check your connection and try again.
+                    </ErrorState>
+                ) : !units || units.length === 0 ? (
+                    <EmptyState
+                        icon={<BedIcon size={24}/>}
+                        title="No rooms yet for this property."
+                        action={<ButtonLink to={addRoomPath} state={fromHere} size="lg" icon={<PlusIcon size={18}/>}>Add your first room</ButtonLink>}
                     >
-                        Add your first room
-                    </Link>
-                </div>
-            ) : (
-                <div className="stack-list">
-                    {units.map((unit) => (
-                        <div key={unit.id} className="stack-row flex items-center justify-between gap-4">
-                            <div className="min-w-0">
-                                <h3 className="truncate font-bold text-slate-900">{unit.name}</h3>
-                                <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-                                    <PersonIcon/> Sleeps {unit.capacity}
-                                </p>
-                            </div>
-                            <div className="flex shrink-0 gap-4">
+                        Rooms are what guests book. Each one gets its own row on the calendar.
+                    </EmptyState>
+                ) : (
+                    <ul className="stack-list">
+                        {units.map((unit) => (
+                            <li key={unit.id} className="flex items-center gap-1 pr-2 transition-colors hover:bg-surface-hover">
                                 <Link
                                     to={`/dashboard/properties/${propertyId}/units/${unit.id}`}
                                     state={fromHere}
-                                    className="text-sm font-semibold text-teal-700"
+                                    className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pl-4 sm:pl-5"
                                 >
-                                    Edit
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-title-3 text-fg">{unit.name}</span>
+                                        <span className="num mt-0.5 flex items-center gap-1.5 text-body-sm text-muted">
+                                            <PersonIcon size={14}/> Sleeps {unit.capacity}
+                                        </span>
+                                    </span>
+                                    <span className="hidden text-body-sm font-semibold text-primary sm:inline">Edit</span>
+                                    <ChevronRightIcon size={20} className="shrink-0 text-subtle"/>
                                 </Link>
-                                <button
-                                    onClick={() => handleDelete(unit)}
-                                    disabled={deleteMutation.isPending}
-                                    className="text-sm font-semibold text-red-600 disabled:opacity-50"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+                                <Menu
+                                    label={`Actions for ${unit.name}`}
+                                    items={[
+                                        {kind: "link", label: "Edit room", to: `/dashboard/properties/${propertyId}/units/${unit.id}`, state: fromHere, icon: <EditIcon size={18}/>},
+                                        {kind: "button", label: `Delete ${unit.name}`, danger: true, disabled: deleteMutation.isPending, icon: <TrashIcon size={18}/>, onSelect: () => handleDelete(unit)},
+                                    ]}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            {units && units.length > 0 && <Fab to={addRoomPath} state={fromHere} icon={<PlusIcon size={20}/>}>Add room</Fab>}
 
             <ConfirmDialog
                 open={unitToDelete !== null}

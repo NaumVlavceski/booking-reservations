@@ -5,7 +5,10 @@ import {resendCode, verifyEmail} from "../lib/api/auth";
 import {apiErrorMessage} from "../lib/api/client";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {useToast} from "../lib/toast";
-import AppLogo from "../components/AppLogo";
+import AuthLayout from "../components/AuthLayout";
+import Button from "../components/ui/Button";
+import Callout from "../components/ui/Callout";
+import Spinner from "../components/ui/Spinner";
 
 const LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -57,7 +60,7 @@ export default function VerifyEmailPage() {
         },
     });
 
-    if (tokenStorage.get()) return <Navigate to="/dashboard/calendar" replace/>;
+    if (tokenStorage.get() && !verifyMutation.isSuccess) return <Navigate to="/dashboard/calendar" replace/>;
     if (!email) return <Navigate to="/login" replace/>;
 
     function update(next: string[]) {
@@ -107,20 +110,22 @@ export default function VerifyEmailPage() {
     }
 
     return (
-        <div className="flex min-h-dvh items-center justify-center px-5 py-10">
-            <div
-                className="w-full max-w-md space-y-6 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm">
-                <div className="flex flex-col items-center gap-3 text-center">
-                    <AppLogo/>
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight text-slate-900">Check your email</h1>
-                        <p className="mt-1 text-sm text-slate-500">
-                            We sent a 6-digit code to <span className="font-semibold break-all text-slate-700">{email}</span>.
-                            It expires in 15 minutes.
-                        </p>
-                    </div>
-                </div>
-
+        <AuthLayout
+            title="Check your email"
+            subtitle={
+                <>
+                    We sent a 6-digit code to <span className="font-semibold text-fg [overflow-wrap:anywhere]">{email}</span>.
+                    It expires in 15 minutes.
+                </>
+            }
+            footer={
+                <>
+                    <p>Wrong address? <Link to="/register" className="link inline-flex min-h-11 items-center">Use a different email</Link></p>
+                    <p>Already verified? <Link to="/login" className="link inline-flex min-h-11 items-center">Log in</Link></p>
+                </>
+            }
+        >
+            <div className="space-y-6">
                 <div>
                     <div role="group" aria-label="Verification code" className="flex justify-center gap-2 sm:gap-3">
                         {digits.map((digit, i) => (
@@ -135,46 +140,45 @@ export default function VerifyEmailPage() {
                                 onPaste={handlePaste}
                                 onFocus={(e) => e.target.select()}
                                 inputMode="numeric"
+                                pattern="[0-9]*"
                                 autoComplete={i === 0 ? "one-time-code" : "off"}
                                 autoFocus={i === 0}
                                 aria-label={`Digit ${i + 1} of ${LENGTH}`}
+                                aria-invalid={verifyMutation.isError || undefined}
                                 disabled={verifyMutation.isPending}
-                                className={`h-14 w-11 rounded-xl border bg-white text-center text-2xl font-semibold text-slate-900 shadow-xs transition focus:ring-4 focus:outline-none disabled:bg-slate-50 sm:w-12 ${
+                                className={`num h-14 w-11 min-w-0 rounded-xl border bg-surface text-center text-2xl font-semibold text-fg transition-[border-color,box-shadow] focus:ring-3 focus:outline-none disabled:bg-surface-sunken disabled:text-muted sm:w-12 ${
                                     verifyMutation.isError
-                                        ? "border-red-400 focus:border-red-500 focus:ring-red-500/15"
-                                        : "border-slate-300 focus:border-teal-600 focus:ring-teal-600/15"
+                                        ? "border-danger ring-1 ring-danger focus:ring-danger/30"
+                                        : "border-strong focus:border-primary focus:ring-focus/30"
                                 }`}
                             />
                         ))}
                     </div>
 
                     <div aria-live="polite" className="mt-4 min-h-6 text-center">
-                        {verifyMutation.isPending && <p className="text-sm text-slate-500">Checking...</p>}
+                        {verifyMutation.isPending && (
+                            <p className="inline-flex items-center gap-2 text-body-sm text-muted"><Spinner size={16}/>Checking...</p>
+                        )}
                         {verifyMutation.isError && (
-                            <p className="alert-error">
+                            <Callout tone="danger" className="text-left">
                                 {apiErrorMessage(verifyMutation.error, "Couldn't verify the code. Check your connection and try again.")}
-                            </p>
+                            </Callout>
                         )}
                     </div>
                 </div>
 
-                <div className="space-y-3 text-center text-sm text-slate-500">
-                    <button
-                        type="button"
-                        onClick={() => resendMutation.mutate(email)}
-                        disabled={secondsLeft > 0 || resendMutation.isPending}
-                        className="btn btn-secondary w-full py-3"
-                    >
-                        {secondsLeft > 0 ? `Resend code in ${secondsLeft}s` : resendMutation.isPending ? "Sending..." : "Resend code"}
-                    </button>
-                    <p>
-                        Wrong address? <Link to="/register" className="font-semibold text-teal-700">Use a different email</Link>
-                    </p>
-                    <p>
-                        Already verified? <Link to="/login" className="font-semibold text-teal-700">Log in</Link>
-                    </p>
-                </div>
+                <Button
+                    variant="secondary"
+                    size="lg"
+                    block
+                    onClick={() => resendMutation.mutate(email)}
+                    disabled={secondsLeft > 0}
+                    loading={resendMutation.isPending}
+                    loadingLabel="Sending..."
+                >
+                    {secondsLeft > 0 ? <span className="num">Resend code in {secondsLeft}s</span> : "Resend code"}
+                </Button>
             </div>
-        </div>
+        </AuthLayout>
     );
 }

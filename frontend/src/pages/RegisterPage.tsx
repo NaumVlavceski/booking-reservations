@@ -3,94 +3,93 @@ import {Link, useNavigate} from "react-router-dom";
 import {useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {register} from "../lib/api/auth.ts";
-import AppLogo from "../components/AppLogo";
+import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+import AuthLayout from "../components/AuthLayout";
+import {TextField} from "../components/ui/Field";
+import PasswordField from "../components/ui/PasswordField";
+import Button from "../components/ui/Button";
+import Callout from "../components/ui/Callout";
 
-export default function RegisterPage(){
+const MESSAGES: ValidationMessages = {
+    businessName: {valueMissing: "Enter the name of your business."},
+    fullName: {valueMissing: "Enter your full name."},
+    email: {valueMissing: "Enter your email address.", typeMismatch: "Enter an email address like name@example.com."},
+    password: {
+        valueMissing: "Choose a password.",
+        tooShort: "Use at least 8 characters.",
+        tooLong: "Use 72 characters or fewer.",
+    },
+};
+
+export default function RegisterPage() {
     const navigate = useNavigate();
-    const [form,setForm] = useState({
+    const [form, setForm] = useState({
         businessName: "",
         contactPhone: "",
         email: "",
         password: "",
         fullName: "",
-    })
+    });
+    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
 
     const mutation = useMutation({
         mutationFn: register,
-        onSuccess:(data)=>{
+        onSuccess: (data) => {
             // No token until the emailed code is entered; a brand-new account then sets up its first property.
             navigate("/verify-email", {replace: true, state: {email: data.email, welcome: true}});
         },
     });
-    function handleSubmit(e: React.FormEvent) {
+
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        if (!validate(e.currentTarget)) return;
         mutation.mutate(form);
     }
+
     function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setForm({...form,[e.target.name]: e.target.value});
+        setForm({...form, [e.target.name]: e.target.value});
+        recheck(e.target);
     }
 
     return (
-        <div className="flex min-h-dvh items-center justify-center px-5 py-10">
-            <form
-                onSubmit={handleSubmit}
-                className="w-full max-w-md space-y-5 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm"
-            >
-                <div className="mb-8 flex flex-col items-center gap-3 text-center">
-                    <AppLogo />
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight text-slate-900">Create your account</h1>
-                        <p className="mt-1 text-sm text-slate-500">Start managing your rentals in minutes</p>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="field-label" htmlFor="businessName">Business name</label>
-                    <input id="businessName" name="businessName" value={form.businessName}
-                           onChange={handleChange} required autoComplete="organization" className="field-input"/>
-                </div>
+        <AuthLayout
+            title="Create your account"
+            subtitle="Start managing your rentals in minutes"
+            footer={<p>Already have an account? <Link to="/login" className="link inline-flex min-h-11 items-center">Log in</Link></p>}
+        >
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                <TextField label="Business name" id="businessName" name="businessName" value={form.businessName}
+                           onChange={handleChange} required autoComplete="organization" enterKeyHint="next"
+                           error={errors.businessName}/>
 
                 <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
-                    <div>
-                        <label className="field-label" htmlFor="fullName">Full name</label>
-                        <input id="fullName" name="fullName" value={form.fullName}
-                               onChange={handleChange} required autoComplete="name" className="field-input"/>
-                    </div>
-                    <div>
-                        <label className="field-label" htmlFor="contactPhone">
-                            Contact phone <span className="font-normal text-slate-500">(optional)</span>
-                        </label>
-                        <input id="contactPhone" name="contactPhone" type="tel" value={form.contactPhone}
-                               onChange={handleChange} autoComplete="tel" className="field-input"/>
-                    </div>
+                    <TextField label="Full name" id="fullName" name="fullName" value={form.fullName}
+                               onChange={handleChange} required autoComplete="name" enterKeyHint="next"
+                               error={errors.fullName}/>
+                    <TextField label="Contact phone" optional id="contactPhone" name="contactPhone" type="tel"
+                               inputMode="tel" value={form.contactPhone} onChange={handleChange} autoComplete="tel"
+                               enterKeyHint="next"/>
                 </div>
 
-                <div>
-                    <label className="field-label" htmlFor="email">Email</label>
-                    <input id="email" name="email" type="email" value={form.email}
-                           onChange={handleChange} required autoComplete="email" className="field-input"/>
-                </div>
+                <TextField label="Email" id="email" name="email" type="email" inputMode="email" value={form.email}
+                           onChange={handleChange} required autoComplete="email" autoCapitalize="none"
+                           spellCheck={false} enterKeyHint="next" error={errors.email}/>
 
-                <div>
-                    <label className="field-label" htmlFor="password">Password</label>
-                    <input id="password" name="password" type="password" value={form.password}
-                           onChange={handleChange} required minLength={8} maxLength={72}
-                           aria-describedby="password-hint" autoComplete="new-password" className="field-input"/>
-                    <p id="password-hint" className="field-hint">At least 8 characters.</p>
-                </div>
+                <PasswordField label="Password" id="password" name="password" value={form.password}
+                               onChange={handleChange} required minLength={8} maxLength={72}
+                               autoComplete="new-password" enterKeyHint="go"
+                               hint="At least 8 characters." error={errors.password}/>
 
                 {mutation.isError && (
-                    <p className="alert-error">{apiErrorMessage(mutation.error, "Registration failed. Check your details and try again.")}</p>
+                    <Callout tone="danger" role="alert">
+                        {apiErrorMessage(mutation.error, "Registration failed. Check your details and try again.")}
+                    </Callout>
                 )}
 
-                <button type="submit" disabled={mutation.isPending} className="btn btn-primary w-full py-3">
-                    {mutation.isPending ? "Creating account..." : "Create account"}
-                </button>
-
-                <p className="text-center text-sm text-slate-500">
-                    Already have an account? <Link to="/login" className="font-semibold text-teal-700">Log in</Link>
-                </p>
+                <Button type="submit" size="lg" block loading={mutation.isPending} loadingLabel="Creating account...">
+                    Create account
+                </Button>
             </form>
-        </div>
+        </AuthLayout>
     );
 }

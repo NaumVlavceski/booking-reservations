@@ -1,4 +1,6 @@
 import {useQuery} from "@tanstack/react-query";
+import {useLocation} from "react-router-dom";
+import {useOnlineStatus} from "./useOnlineStatus";
 import {getOpenConflicts} from "./api/conflicts";
 import {getFailingCalendars} from "./api/calendars";
 
@@ -17,4 +19,14 @@ export function useSyncAlerts() {
     const conflictCount = conflicts?.length ?? 0;
     const failingCount = failing?.length ?? 0;
     return {conflictCount, failingCount, total: conflictCount + failingCount};
+}
+
+/** Whether the SyncAlerts strip has anything to show on this page (offline, or alerts for another page). */
+export function useAlertStripVisible(): boolean {
+    const {conflictCount, failingCount} = useSyncAlerts();
+    const online = useOnlineStatus();
+    const {pathname} = useLocation();
+    return !online
+        || (conflictCount > 0 && pathname !== "/dashboard/conflicts")
+        || (failingCount > 0 && pathname !== "/dashboard/sync-health");
 }

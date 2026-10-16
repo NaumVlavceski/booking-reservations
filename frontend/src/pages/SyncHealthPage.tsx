@@ -1,5 +1,4 @@
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {Link} from "react-router-dom";
 import {getFailingCalendars, syncCalendarNow, type ExternalCalendar} from "../lib/api/calendars";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
@@ -9,11 +8,16 @@ import {describeSyncError, PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
 import SyncProblem from "../components/SyncProblem";
 import {CheckIcon} from "../components/icons";
+import PageHeader from "../components/ui/PageHeader";
+import ChannelsNav from "../components/ChannelsNav";
+import Card from "../components/ui/Card";
+import Button, {ButtonLink} from "../components/ui/Button";
+import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
 
 export default function SyncHealthPage() {
     const queryClient = useQueryClient();
     const toast = useToast();
-    const {data: failing, isLoading} = useQuery({
+    const {data: failing, isLoading, isError, refetch, isRefetching} = useQuery({
         queryKey: ["calendars", "health"],
         queryFn: getFailingCalendars,
     });
@@ -39,22 +43,22 @@ export default function SyncHealthPage() {
 
     return (
         <div>
-            <h1 className="page-title">Sync status</h1>
-            <p className="page-subtitle mb-6">
-                Booking.com and Airbnb calendars that couldn't be updated. Until they work again, bookings made on
-                those channels may be missing from your calendar.
-            </p>
+            <PageHeader
+                title="Sync status"
+                description="Booking.com and Airbnb calendars that couldn't be updated. Until they work again, bookings made on those channels may be missing from your calendar."
+            />
+            <ChannelsNav/>
 
             {isLoading ? (
-                <p className="text-sm text-slate-500">Loading…</p>
+                <ListSkeleton rows={2} label="Loading…"/>
+            ) : isError ? (
+                <ErrorState title="Couldn't load the sync status" onRetry={() => refetch()} retrying={isRefetching}>
+                    Check your connection and try again.
+                </ErrorState>
             ) : !failing || failing.length === 0 ? (
-                <div className="surface flex flex-col items-center gap-2 py-10 text-center">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-                        <CheckIcon size={22}/>
-                    </span>
-                    <p className="font-semibold text-slate-700">All channels are syncing</p>
-                    <p className="text-sm text-slate-500">Bookings from Booking.com and Airbnb are arriving normally.</p>
-                </div>
+                <EmptyState icon={<CheckIcon size={24}/>} title="All channels are syncing">
+                    Bookings from Booking.com and Airbnb are arriving normally.
+                </EmptyState>
             ) : (
                 <ul className="space-y-4">
                     {failing.map((c) => {
@@ -62,13 +66,13 @@ export default function SyncHealthPage() {
                         const property = unit ? propertyById.get(unit.propertyId) : undefined;
                         const retrying = retryMutation.isPending && retryMutation.variables?.id === c.id;
                         return (
-                            <li key={c.id} className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-5">
+                            <Card as="li" key={c.id} className="border-warning-line">
                                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                                    <p className="font-semibold text-slate-900">
+                                    <h2 className="text-title-3 text-fg">
                                         {c.unitName}
-                                        {property && <span className="font-normal text-slate-500"> · {property.name}</span>}
-                                    </p>
-                                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+                                        {property && <span className="font-normal text-muted"> · {property.name}</span>}
+                                    </h2>
+                                    <span className="rounded-full border border-default bg-surface-sunken px-2.5 py-0.5 text-caption font-semibold text-fg">
                                         {PLATFORM_NAME[c.platform] ?? c.platform}
                                     </span>
                                 </div>
@@ -77,30 +81,32 @@ export default function SyncHealthPage() {
                                     <SyncProblem error={c.lastError} platform={c.platform}/>
                                 </div>
 
-                                <p className="mt-3 text-xs text-slate-500">
+                                <p className="mt-3 text-caption text-subtle">
                                     Last tried {formatWhen(c.lastSyncedAt)} · last worked {formatWhen(c.lastSuccessAt)}
                                     {c.consecutiveFailures > 1 && ` · failed ${c.consecutiveFailures} times in a row`}
                                 </p>
 
                                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <button
-                                        type="button"
+                                    <Button
                                         onClick={() => retryMutation.mutate(c)}
-                                        disabled={retryMutation.isPending}
-                                        className="btn btn-primary min-h-11"
+                                        disabled={retryMutation.isPending && !retrying}
+                                        loading={retrying}
+                                        loadingLabel="Trying…"
+                                        className="min-h-12 sm:min-h-11"
                                     >
-                                        {retrying ? "Trying…" : "Try again"}
-                                    </button>
+                                        Try again
+                                    </Button>
                                     {unit && (
-                                        <Link
+                                        <ButtonLink
                                             to={`/dashboard/properties/${unit.propertyId}/units/${unit.id}`}
-                                            className="btn btn-secondary min-h-11"
+                                            variant="secondary"
+                                            className="min-h-12 sm:min-h-11"
                                         >
                                             Change the calendar link
-                                        </Link>
+                                        </ButtonLink>
                                     )}
                                 </div>
-                            </li>
+                            </Card>
                         );
                     })}
                 </ul>
