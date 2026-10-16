@@ -50,8 +50,7 @@ export default function DateFilter({label, value, onChange, placeholder = "Any d
 
     return (
         <div ref={anchorRef} className="relative">
-            <label className="field-label" htmlFor={id}>{label}</label>
-            <div className="relative">
+            <div className="float-field is-floated">
                 <button
                     id={id}
                     type="button"
@@ -75,6 +74,7 @@ export default function DateFilter({label, value, onChange, placeholder = "Any d
                         <CloseIcon size={16}/>
                     </button>
                 )}
+                <label className="float-label" htmlFor={id}>{label}</label>
             </div>
 
             {open && (

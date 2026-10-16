@@ -11,7 +11,7 @@ export default function AppLogo({ size = 56 }: { size?: number }) {
             style={{
                 width: CROP.w * scale,
                 height: size,
-                backgroundImage: "url(/logo.webp)",
+                backgroundImage: "url(/logo.png)",
                 backgroundRepeat: "no-repeat",
                 backgroundSize: `${CROP.full * scale}px ${CROP.full * scale}px`,
                 backgroundPosition: `-${CROP.x * scale}px -${CROP.y * scale}px`,

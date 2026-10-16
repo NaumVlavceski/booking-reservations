@@ -33,14 +33,16 @@ export default function CalendarSyncLink({token}: { token: string }) {
                 </div>
             </div>
             <div className="flex gap-2">
-                <label className="sr-only" htmlFor={`feed-${token}`}>Calendar link</label>
-                <input
-                    id={`feed-${token}`}
-                    readOnly
-                    value={feedUrl}
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="field-input min-w-0 flex-1 bg-surface-sunken font-mono"
-                />
+                <div className="float-field is-floated min-w-0 flex-1 [--field-bg:var(--rt-surface-sunken)]">
+                    <input
+                        id={`feed-${token}`}
+                        readOnly
+                        value={feedUrl}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="field-input bg-surface-sunken font-mono"
+                    />
+                    <label className="float-label" htmlFor={`feed-${token}`}>Calendar link</label>
+                </div>
                 <Button variant={copyState === "copied" ? "secondary" : "primary"} onClick={handleCopy} className="min-h-12 shrink-0"
                         icon={copyState === "copied" ? <CheckIcon size={18}/> : <CopyIcon size={18}/>}>
                     <span aria-live="polite">{copyState === "copied" ? "Copied!" : "Copy"}</span>

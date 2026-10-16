@@ -99,13 +99,12 @@ export default function UnitFormPage() {
     if (isEditing && isLoadingExisting) {
         return (
             <div className="mx-auto max-w-2xl">
-                <FormTopBar formId="unit-form" saving={false} title="Edit room" back={{to: backTo, label: "Back", onClick: handleBack}}/>
+                <FormTopBar formId="unit-form" saving={false} title="Edit room" back={{to: backTo, onClick: handleBack}}/>
                 <FormSkeleton label="Loading unit..." sections={2}/>
             </div>
         );
     }
 
-    const backLabel = backTo.startsWith("/dashboard/calendar") ? "Calendar" : (property?.name ?? "Property");
     const title = isEditing ? `Edit ${existing?.name ?? "room"}` : "Add a room";
     const isDirty = isEditing
         ? existing != null && (form.name !== existing.name || form.capacity !== existing.capacity)
@@ -119,7 +118,7 @@ export default function UnitFormPage() {
                 title={title}
                 subtitle={property?.name}
                 isDirty={isDirty}
-                back={{to: backTo, label: backLabel, onClick: handleBack}}
+                back={{to: backTo, onClick: handleBack}}
                 onDelete={isEditing ? () => {
                     deleteMutation.reset();
                     setConfirmDelete(true);

@@ -48,7 +48,7 @@ export default function PropertyDetailPage() {
         deleteMutation.reset();
         setUnitToDelete(unit);
     };
-    const back = {to: "/dashboard/properties", label: "Properties"};
+    const back = {to: "/dashboard/properties"};
     const addRoomPath = `/dashboard/properties/${propertyId}/units/new`;
 
     if (isLoadingProperty) {

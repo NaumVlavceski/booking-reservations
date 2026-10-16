@@ -9,17 +9,18 @@ interface ActiveToast extends ToastOptions {
     message: string;
 }
 
+// Solid colour per tone, so a toast stands out on any page in either theme (text/background pairs are AA in both).
 const TONE: Record<ToastTone, { box: string; icon: ReactNode; action: string }> = {
-    success: {box: "bg-fg text-inverse", icon: <CheckCircleIcon className="text-primary-line"/>, action: "text-primary-line"},
-    info: {box: "bg-fg text-inverse", icon: <InfoIcon className="text-primary-line"/>, action: "text-primary-line"},
-    error: {box: "bg-danger-solid text-on-danger-solid", icon: <AlertIcon/>, action: "text-on-danger-solid underline"},
+    success: {box: "bg-success-solid text-on-success-solid", icon: <CheckCircleIcon/>, action: "underline"},
+    info: {box: "bg-info-solid text-on-info-solid", icon: <InfoIcon/>, action: "underline"},
+    error: {box: "bg-danger-solid text-on-danger-solid", icon: <AlertIcon/>, action: "underline"},
 };
 
-// Phones: just above the tab bar / a form's Save bar. From sm up: bottom centre.
+// Just above the tab bar (phones) or a form's Save bar (all sizes); otherwise near the bottom.
 const OFFSET = {
-    tabs: "bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.75rem)]",
-    form: "bottom-[calc(5rem+env(safe-area-inset-bottom)+0.75rem)]",
-    none: "bottom-[calc(env(safe-area-inset-bottom)+1rem)]",
+    tabs: "bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.75rem)] sm:bottom-6",
+    form: "bottom-[calc(5rem+env(safe-area-inset-bottom)+0.75rem)] sm:bottom-24",
+    none: "bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:bottom-6",
 } as const;
 
 /** Holds one toast at a time — a newer message replaces the older one. */
@@ -52,7 +53,7 @@ export default function ToastProvider({children}: { children: ReactNode }) {
     const card = toast && (
         <div
             key={toast.id}
-            className={`pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-2xl py-2 pr-2 pl-4 text-body-sm font-medium shadow-overlay ${tone.box}`}
+            className={`pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-2xl py-2 pr-2 pl-4 text-body-sm font-semibold shadow-overlay ring-1 ring-black/10 ${tone.box}`}
         >
             <span className="shrink-0">{tone.icon}</span>
             <span className="min-w-0 flex-1 py-1.5">{toast.message}</span>
@@ -82,7 +83,7 @@ export default function ToastProvider({children}: { children: ReactNode }) {
     return (
         <ToastContext.Provider value={api}>
             {children}
-            <div className={`pointer-events-none fixed inset-x-0 z-[70] flex justify-center px-4 sm:bottom-6 ${OFFSET[bottomChrome(pathname)]}`}>
+            <div className={`pointer-events-none fixed inset-x-0 z-[70] flex justify-center px-4 ${OFFSET[bottomChrome(pathname)]}`}>
                 <div role="status" aria-live="polite" className="contents">{!isError && card}</div>
                 <div role="alert" className="contents">{isError && card}</div>
             </div>

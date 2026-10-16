@@ -1,10 +1,12 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * Tokens → Tailwind. Components use these semantic names (bg-surface, text-muted, border-subtle,
  * bg-primary, text-danger, ...) and never raw hex, so light and dark come for free.
- * Dark mode follows the device (Tailwind's default `dark:` variant is prefers-color-scheme).
+ * Dark mode is the [data-theme="dark"] attribute on <html>, set by the theme switch (lib/theme.ts).
  */
 @theme inline {
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
@@ -234,10 +236,6 @@
         @apply divide-y divide-subtle overflow-hidden rounded-2xl border border-subtle bg-surface shadow-card;
     }
 
-    .field-label {
-        @apply mb-1.5 block text-body-sm font-semibold text-fg;
-    }
-
     .field-hint {
         @apply mt-1.5 text-body-sm text-subtle;
     }
@@ -246,13 +244,102 @@
         @apply mt-1.5 flex items-start gap-1.5 text-body-sm font-medium text-danger;
     }
 
-    /* 16px everywhere keeps iOS Safari from zooming into a focused field. */
+    /* 16px everywhere keeps iOS Safari from zooming into a focused field. Focus = a 2px outline in the brand colour. */
     .field-input {
-        @apply block min-h-12 w-full rounded-xl border border-strong bg-surface px-3.5 py-2.5 text-body text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-subtle focus:border-primary focus:ring-3 focus:ring-focus/30 focus:outline-none disabled:border-default disabled:bg-surface-sunken disabled:text-disabled aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger;
+        @apply block min-h-12 w-full rounded-xl border border-strong bg-surface px-3.5 py-2.5 text-body text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-subtle focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:border-default disabled:bg-surface-sunken disabled:text-disabled aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger;
     }
 
     textarea.field-input {
         @apply min-h-24 resize-y;
+    }
+
+    /*
+     * Outlined field with a floating label: the label rests inside the box like a placeholder and moves up
+     * onto the top-left border when the field is focused or has a value. The label sits after the control in
+     * the markup; its background hides the border line behind it (card colour above, field colour below).
+     */
+    .float-field {
+        --float-bg: var(--rt-surface);
+        --field-bg: var(--rt-surface);
+        position: relative;
+    }
+
+    .float-field:has(.field-input:disabled) {
+        --field-bg: var(--rt-surface-sunken);
+    }
+
+    .float-label {
+        position: absolute;
+        top: 1.5rem;
+        left: 0.625rem;
+        max-width: calc(100% - 1.25rem);
+        padding: 0 0.25rem;
+        border-radius: 4px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 1rem;
+        line-height: 1.25rem;
+        color: var(--rt-fg-subtle);
+        pointer-events: none;
+        transform: translateY(-50%);
+        transition: top var(--rt-dur-fast) var(--rt-ease), left var(--rt-dur-fast) var(--rt-ease),
+            font-size var(--rt-dur-fast) var(--rt-ease), color var(--rt-dur-fast) var(--rt-ease);
+    }
+
+    /* Room for an icon drawn inside the left edge (search fields). */
+    .float-field--icon .float-label {
+        left: 2.25rem;
+        max-width: calc(100% - 3rem);
+    }
+
+    .float-field.is-floated .float-label,
+    .float-field:focus-within .float-label,
+    .float-field:has(.field-input:not(:placeholder-shown)) .float-label,
+    .float-field:has(.field-input:disabled) .float-label {
+        top: 0;
+        left: 0.625rem;
+        max-width: calc(100% - 1.25rem);
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 600;
+        color: var(--rt-fg-muted);
+        background: linear-gradient(to bottom, var(--float-bg) 50%, var(--field-bg) 50%);
+    }
+
+    .float-field:focus-within .float-label,
+    .float-field.is-active .float-label {
+        color: var(--rt-primary);
+    }
+
+    .float-field:has([aria-invalid="true"]) .float-label {
+        color: var(--rt-danger);
+    }
+
+    /* Placeholders ("e.g. Ana", "Pick dates") only show once the label has moved out of their way. */
+    .float-field .field-input::placeholder {
+        color: transparent;
+    }
+
+    .float-field:focus-within .field-input::placeholder,
+    .float-field .field-input:disabled::placeholder {
+        color: var(--rt-fg-subtle);
+    }
+
+    /* Browsers without :has() keep every label on the border, so it never covers typed text. */
+    @supports not selector(:has(*)) {
+        .float-field .float-label {
+            top: 0;
+            left: 0.625rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            font-weight: 600;
+            background: var(--float-bg);
+        }
+
+        .float-field .field-input::placeholder {
+            color: var(--rt-fg-subtle);
+        }
     }
 
     .btn {

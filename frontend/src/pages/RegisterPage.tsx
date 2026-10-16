@@ -66,7 +66,7 @@ export default function RegisterPage() {
                     <TextField label="Full name" id="fullName" name="fullName" value={form.fullName}
                                onChange={handleChange} required autoComplete="name" enterKeyHint="next"
                                error={errors.fullName}/>
-                    <TextField label="Contact phone" optional id="contactPhone" name="contactPhone" type="tel"
+                    <TextField label="Contact phone" id="contactPhone" name="contactPhone" type="tel"
                                inputMode="tel" value={form.contactPhone} onChange={handleChange} autoComplete="tel"
                                enterKeyHint="next"/>
                 </div>

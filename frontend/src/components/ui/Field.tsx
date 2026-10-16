@@ -12,29 +12,42 @@ interface FieldProps {
     hint?: ReactNode;
     /** Shown under the control in red and announced with it; also marks the control `aria-invalid`. */
     error?: ReactNode;
-    optional?: boolean;
     id?: string;
     className?: string;
     /** Keep the label for screen readers only (the context already says what the field is). */
     labelHidden?: boolean;
+    /** The control always shows something (a select, a read-only value), so the label stays on the border. */
+    floated?: boolean;
+    /** An icon is drawn inside the left edge of the control; the resting label starts after it. */
+    leadingIcon?: boolean;
     children: (control: FieldControlProps) => ReactNode;
 }
 
-/** Label + control + error + hint, wired together for assistive technology. */
-export default function Field({label, hint, error, optional, id, className, labelHidden, children}: FieldProps) {
+/**
+ * Outlined field: the label rests inside the box and floats onto the top-left border when the field is
+ * focused or filled. Label, control, error and hint are wired together for assistive technology.
+ */
+export default function Field({label, hint, error, id, className, labelHidden, floated, leadingIcon, children}: FieldProps) {
     const autoId = useId();
     const controlId = id ?? autoId;
     const hintId = `${controlId}-hint`;
     const errorId = `${controlId}-error`;
     const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
+    const control = {id: controlId, "aria-describedby": describedBy, "aria-invalid": error ? true as const : undefined};
 
     return (
         <div className={className}>
-            <label htmlFor={controlId} className={labelHidden ? "sr-only" : "field-label"}>
-                {label}
-                {optional && <span className="font-normal text-subtle"> (optional)</span>}
-            </label>
-            {children({id: controlId, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined})}
+            {labelHidden ? (
+                <>
+                    <label htmlFor={controlId} className="sr-only">{label}</label>
+                    {children(control)}
+                </>
+            ) : (
+                <div className={`float-field ${floated ? "is-floated" : ""} ${leadingIcon ? "float-field--icon" : ""}`}>
+                    {children(control)}
+                    <label htmlFor={controlId} className="float-label">{label}</label>
+                </div>
+            )}
             {error && (
                 <p id={errorId} className="field-error">
                     <AlertCircleIcon className="mt-0.5"/>
@@ -46,27 +59,28 @@ export default function Field({label, hint, error, optional, id, className, labe
     );
 }
 
-type BaseFieldProps = Omit<FieldProps, "children" | "id">;
+type BaseFieldProps = Omit<FieldProps, "children" | "id" | "floated" | "leadingIcon">;
 
-export function TextField({label, hint, error, optional, labelHidden, className, id, ...input}: BaseFieldProps & ComponentPropsWithRef<"input">) {
+// A placeholder is what tells CSS the field is empty (:placeholder-shown), so every control gets one.
+export function TextField({label, hint, error, labelHidden, className, id, ...input}: BaseFieldProps & ComponentPropsWithRef<"input">) {
     return (
-        <Field label={label} hint={hint} error={error} optional={optional} labelHidden={labelHidden} className={className} id={id}>
-            {(control) => <input className="field-input" {...input} {...control}/>}
+        <Field label={label} hint={hint} error={error} labelHidden={labelHidden} className={className} id={id}>
+            {(control) => <input className="field-input" {...input} placeholder={input.placeholder || " "} {...control}/>}
         </Field>
     );
 }
 
-export function TextAreaField({label, hint, error, optional, labelHidden, className, id, ...textarea}: BaseFieldProps & ComponentPropsWithRef<"textarea">) {
+export function TextAreaField({label, hint, error, labelHidden, className, id, ...textarea}: BaseFieldProps & ComponentPropsWithRef<"textarea">) {
     return (
-        <Field label={label} hint={hint} error={error} optional={optional} labelHidden={labelHidden} className={className} id={id}>
-            {(control) => <textarea className="field-input" {...textarea} {...control}/>}
+        <Field label={label} hint={hint} error={error} labelHidden={labelHidden} className={className} id={id}>
+            {(control) => <textarea className="field-input" {...textarea} placeholder={textarea.placeholder || " "} {...control}/>}
         </Field>
     );
 }
 
-export function SelectField({label, hint, error, optional, labelHidden, className, id, children, ...select}: BaseFieldProps & ComponentPropsWithRef<"select">) {
+export function SelectField({label, hint, error, labelHidden, className, id, children, ...select}: BaseFieldProps & ComponentPropsWithRef<"select">) {
     return (
-        <Field label={label} hint={hint} error={error} optional={optional} labelHidden={labelHidden} className={className} id={id}>
+        <Field label={label} hint={hint} error={error} labelHidden={labelHidden} className={className} id={id} floated>
             {(control) => (
                 <div className="relative">
                     <select className="field-input appearance-none pr-11" {...select} {...control}>

@@ -4,20 +4,6 @@ import PageHeader from "../components/ui/PageHeader";
 import Callout from "../components/ui/Callout";
 import {useReturnTo} from "../lib/useReturnTo";
 
-/*
- * Screenshots live in frontend/public/help/ and are served as /help/<file>. Add a file with one of these names
- * and it shows in its step; a step without its file simply has no picture (during `npm run dev` a dashed box
- * names the missing file).
- *
- *   booking-1-sync-calendars.png   Booking.com: Rates & Availability > Sync calendars
- *   booking-2-export-copy.png      Booking.com: the link Booking.com gives you, to copy
- *   booking-3-export-paste.png     Booking.com: Import calendar, with the RoomTrack link pasted
- *   booking-4-decide-export.png    Booking.com: "Decide what to export" > "Booked dates only"
- *   airbnb-1-sync-calendars.png    Airbnb: Availability settings > Connect calendars
- *   airbnb-2-import-paste.png      Airbnb: Import calendar, with the RoomTrack link pasted
- *   airbnb-3-export-copy.png       Airbnb: Export calendar, the link to copy
- */
-
 interface Picture {
     file: string;
     alt: string;
@@ -128,7 +114,6 @@ export default function ConnectCalendarsHelpPage() {
                     title="Connect Booking.com and Airbnb"
                     back={{
                         to: backTo,
-                        label: backTo.startsWith("/dashboard/calendar") ? "Calendar" : backTo.includes("/units/") ? "Room" : "Properties",
                         onClick: (e) => {
                             e.preventDefault();
                             goBack();

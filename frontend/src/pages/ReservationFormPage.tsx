@@ -1,7 +1,7 @@
 import {repriceForm, type PricingField} from "../lib/pricing.ts";
 import axios from "axios";
 import {apiErrorMessage} from "../lib/api/client";
-import {Navigate, useNavigate, useParams, useSearchParams} from "react-router-dom";
+import {Navigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     createReservation, deleteReservation, getReservation, restoreReservation,
@@ -17,20 +17,20 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import {useToast} from "../lib/toast";
 import {formatStay} from "../lib/dates";
 import StayDatesPicker from "../components/StayDatesPicker";
-import {AlertCircleIcon, CheckIcon, InfoIcon} from "../components/icons";
-import {SectionCard} from "../components/ui/Card";
+import {AlertCircleIcon, CheckIcon} from "../components/icons";
+import Card from "../components/ui/Card";
 import {TextAreaField, TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
 import Button from "../components/ui/Button";
 import {Stepper} from "../components/ui/Controls";
 import {SegmentedControl} from "../components/ui/Segmented";
 import {FormSkeleton} from "../components/ui/States";
-import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+import {useReturnTo} from "../lib/useReturnTo";
 
 
 const STATUS_OPTIONS = [
-    {value: "CONFIRMED", label: "Confirmed"},
+    {value: "CONFIRMED", label: "Confirm"},
     {value: "PAID", label: "Paid"},
     {value: "BLOCK", label: "Blocked"},
 ] as const;
@@ -45,10 +45,6 @@ const MESSAGES: ValidationMessages = {
     guestEmail: {typeMismatch: "Enter an email address like name@example.com, or leave it empty."},
 };
 
-// The direct-booking notice, in the owner's own words. The first sentence stays visible; the rest folds out.
-const DIRECT_NOTICE_TITLE = "Direct bookings sync within 3 hours.";
-const DIRECT_NOTICE_BODY = "Dates you block in RoomTrack are automatically closed on Booking.com and Airbnb, but the update can take up to 3 hours to appear. To avoid double bookings, block the same dates directly on those platforms right away.";
-
 export default function ReservationFormPage() {
     const {id} = useParams();
     const isEditing = Boolean(id);
@@ -56,7 +52,8 @@ export default function ReservationFormPage() {
     const toast = useToast();
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [datesMissing, setDatesMissing] = useState(false);
-    const navigate = useNavigate();
+    // Back, Save and Cancel return to the page you came from (the calendar, the conflicts page, ...).
+    const {goBack} = useReturnTo("/dashboard/calendar");
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const prefillUnitId = searchParams.get("unitId");
@@ -129,7 +126,7 @@ export default function ReservationFormPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({queryKey: ["reservations"]});
             toast.show(isEditing ? "Booking saved." : "Booking added to the calendar.");
-            navigate("/dashboard/calendar")
+            goBack();
         },
         onError: (error) => {
             if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -158,7 +155,7 @@ export default function ReservationFormPage() {
                     },
                 } : undefined,
             });
-            navigate("/dashboard/calendar");
+            goBack();
         },
     });
     const isCancelled = existing?.status === "CANCELLED";
@@ -198,11 +195,10 @@ export default function ReservationFormPage() {
     }
 
     const title = isEditing
-        ? `Edit${unitForTitle ? ` ${unitForTitle.name}` : " reservation"}`
+        ? `Edit ${unitForTitle ? ` ${unitForTitle.name}` : " reservation"}`
         : unitForTitle ? `Reservation ${unitForTitle.name}` : "New reservation";
     const isDirty = initialSnapshot !== null && JSON.stringify(form) !== JSON.stringify(initialSnapshot);
     const pricesLocked = !form.checkIn || !form.checkOut;
-    const showDirectNotice = !isEditing || existing?.source === "DIRECT";
 
     function updateGuests(delta: number) {
         setForm((f) => {
@@ -216,7 +212,7 @@ export default function ReservationFormPage() {
     // A new reservation needs a room, which comes from the calendar cell that was clicked.
     if (!isEditing && !prefillUnitId) return <Navigate to="/dashboard/calendar" replace/>;
 
-    const back = {to: "/dashboard/calendar", label: "Calendar"};
+    const back = {to: "/dashboard/calendar"};
 
     if (isEditing && isLoadingExisting) {
         return (
@@ -261,6 +257,9 @@ export default function ReservationFormPage() {
         />
     );
 
+    const canCancel = Boolean(isEditing && existing && !isCancelled);
+    const section = "space-y-4 p-4 sm:p-5";
+
     return (
         <div className="mx-auto max-w-2xl">
             <FormTopBar
@@ -270,17 +269,14 @@ export default function ReservationFormPage() {
                 subtitle={existing?.guestName?.trim() || undefined}
                 isDirty={isDirty}
                 back={back}
+                onDelete={canCancel ? () => {
+                    cancelMutation.reset();
+                    setConfirmCancel(true);
+                } : undefined}
+                deleteLabel="Cancel this booking"
             />
 
             <div className="space-y-4">
-                {existing && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <SourceBadge source={existing.source}/>
-                        <StatusBadge status={existing.status}/>
-                        <span className="num text-body-sm text-muted">{formatStay(existing.checkIn, existing.checkOut)}</span>
-                    </div>
-                )}
-
                 {conflictMessage && (
                     <Callout tone="danger" role="alert">{conflictMessage}</Callout>
                 )}
@@ -301,105 +297,85 @@ export default function ReservationFormPage() {
                     </Callout>
                 )}
 
-                {showDirectNotice && (
-                    <details className="group rounded-2xl border border-info-line bg-info-soft text-body-sm text-fg">
-                        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-3.5 py-3 font-semibold select-none [&::-webkit-details-marker]:hidden">
-                            <InfoIcon className="shrink-0 text-info"/>
-                            <span className="min-w-0 flex-1">{DIRECT_NOTICE_TITLE}</span>
-                            <span className="shrink-0 text-caption font-semibold text-info group-open:hidden">More</span>
-                            <span className="hidden shrink-0 text-caption font-semibold text-info group-open:inline">Less</span>
-                        </summary>
-                        <p className="px-3.5 pb-3 pl-11">{DIRECT_NOTICE_BODY}</p>
-                    </details>
-                )}
-
-                <form id="reservation-form" onSubmit={handleSubmit} noValidate className="space-y-4">
-                    <SectionCard id="stay-heading" title="Stay">
-                        <div>
-                            <StayDatesPicker
-                                checkIn={form.checkIn}
-                                checkOut={form.checkOut}
-                                bookedRanges={bookedRanges}
-                                invalid={datesMissing}
-                                describedBy={datesErrorId}
-                                onChange={(checkIn, checkOut) => {
-                                    setForm((f) => ({...f, checkIn, checkOut}));
-                                    setLastEdited("nightlyRate");
-                                    setDatesMissing(false);
-                                    showRecalculatedNotice(checkIn, checkOut);
-                                }}
+                {/* One card; the sections are separated by divider lines. */}
+                <form id="reservation-form" onSubmit={handleSubmit} noValidate>
+                    <Card padding="none" className="divide-y divide-subtle">
+                        <section aria-labelledby="stay-heading" className={section}>
+                            <h2 id="stay-heading" className="text-title-3 text-fg">Stay</h2>
+                            <div>
+                                <StayDatesPicker
+                                    checkIn={form.checkIn}
+                                    checkOut={form.checkOut}
+                                    bookedRanges={bookedRanges}
+                                    invalid={datesMissing}
+                                    describedBy={datesErrorId}
+                                    onChange={(checkIn, checkOut) => {
+                                        setForm((f) => ({...f, checkIn, checkOut}));
+                                        setLastEdited("nightlyRate");
+                                        setDatesMissing(false);
+                                        showRecalculatedNotice(checkIn, checkOut);
+                                    }}
+                                />
+                                {datesMissing && (
+                                    <p id={datesErrorId} role="alert" className="field-error">
+                                        <AlertCircleIcon className="mt-0.5"/>
+                                        Pick a check-in and a check-out date.
+                                    </p>
+                                )}
+                            </div>
+                            <Stepper
+                                label="Guests"
+                                value={form.guestsCount}
+                                onDecrement={() => updateGuests(-1)}
+                                onIncrement={() => updateGuests(1)}
+                                decrementDisabled={form.guestsCount <= 1}
+                                decrementLabel="Decrease guests"
+                                incrementLabel="Increase guests"
                             />
-                            {datesMissing && (
-                                <p id={datesErrorId} role="alert" className="field-error">
-                                    <AlertCircleIcon className="mt-0.5"/>
-                                    Pick a check-in and a check-out date.
-                                </p>
-                            )}
-                        </div>
-                        <Stepper
-                            label="Guests"
-                            value={form.guestsCount}
-                            onDecrement={() => updateGuests(-1)}
-                            onIncrement={() => updateGuests(1)}
-                            decrementDisabled={form.guestsCount <= 1}
-                            decrementLabel="Decrease guests"
-                            incrementLabel="Increase guests"
-                        />
-                    </SectionCard>
+                        </section>
 
-                    <SectionCard id="status-heading" title="Status">
-                        <SegmentedControl<EditableStatus>
-                            name="status"
-                            label="Status"
-                            labelId="status-heading"
-                            value={form.status as EditableStatus}
-                            options={statusOptions.map((o) => ({
-                                ...o,
-                                icon: form.status === o.value ? <CheckIcon size={16} strokeWidth={2.5}/> : undefined,
-                            }))}
-                            onChange={(status) => setForm({...form, status})}
-                        />
-                    </SectionCard>
+                        <section aria-labelledby="status-heading" className={section}>
+                            <h2 id="status-heading" className="text-title-3 text-fg">Status</h2>
+                            <SegmentedControl<EditableStatus>
+                                name="status"
+                                label="Status"
+                                labelId="status-heading"
+                                value={form.status as EditableStatus}
+                                options={statusOptions.map((o) => ({
+                                    ...o,
+                                    icon: form.status === o.value ? <CheckIcon size={16} strokeWidth={2.5}/> : undefined,
+                                }))}
+                                onChange={(status) => setForm({...form, status})}
+                            />
+                        </section>
 
-                    <SectionCard
-                        id="price-heading"
-                        title="Price"
-                        description="Enter any one field — the others calculate automatically."
-                    >
-                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                            {priceField("pricePerGuest", "Per guest")}
-                            {priceField("nightlyRate", "Per night")}
-                            {priceField("totalAmount", "Total")}
-                        </div>
-                    </SectionCard>
+                        <section aria-labelledby="price-heading" className={section}>
+                            <div>
+                                <h2 id="price-heading" className="text-title-3 text-fg">Price</h2>
+                                <p className="mt-0.5 text-body-sm text-muted">Enter any one field — the others calculate automatically.</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                                {priceField("pricePerGuest", "Per guest")}
+                                {priceField("nightlyRate", "Per night")}
+                                {priceField("totalAmount", "Total")}
+                            </div>
+                        </section>
 
-                    <SectionCard id="guest-heading" title="Guest">
-                        <TextField label="Guest name" optional id="guestName" name="guestName" value={form.guestName} onChange={onChange}
-                                   autoComplete="off" autoCapitalize="words" enterKeyHint="next"/>
-                        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
-                            <TextField label="Phone" optional type="tel" inputMode="tel" id="guestPhone" name="guestPhone"
-                                       value={form.guestPhone} onChange={onChange} autoComplete="off" enterKeyHint="next"/>
-                            <TextField label="Email" optional type="email" inputMode="email" id="guestEmail" name="guestEmail"
-                                       value={form.guestEmail} onChange={onChange} autoComplete="off" autoCapitalize="none"
-                                       spellCheck={false} enterKeyHint="next" error={errors.guestEmail}/>
-                        </div>
-                        <TextAreaField label="Notes" optional id="notes" name="notes" value={form.notes} onChange={onChange} rows={3}/>
-                    </SectionCard>
+                        <section aria-labelledby="guest-heading" className={section}>
+                            <h2 id="guest-heading" className="text-title-3 text-fg">Guest</h2>
+                            <TextField label="Guest name" id="guestName" name="guestName" value={form.guestName} onChange={onChange}
+                                       autoComplete="off" autoCapitalize="words" enterKeyHint="next"/>
+                            <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                                <TextField label="Phone" type="tel" inputMode="tel" id="guestPhone" name="guestPhone"
+                                           value={form.guestPhone} onChange={onChange} autoComplete="off" enterKeyHint="next"/>
+                                <TextField label="Email" type="email" inputMode="email" id="guestEmail" name="guestEmail"
+                                           value={form.guestEmail} onChange={onChange} autoComplete="off" autoCapitalize="none"
+                                           spellCheck={false} enterKeyHint="next" error={errors.guestEmail}/>
+                            </div>
+                            <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3}/>
+                        </section>
+                    </Card>
                 </form>
-
-                {isEditing && existing && !isCancelled && (
-                    <div className="flex justify-center pt-2 sm:justify-start">
-                        <Button
-                            variant="danger-ghost"
-                            onClick={() => {
-                                cancelMutation.reset();
-                                setConfirmCancel(true);
-                            }}
-                        >
-                            Cancel this booking
-                        </Button>
-                    </div>
-                )}
             </div>
 
             <ConfirmDialog
@@ -423,4 +399,3 @@ export default function ReservationFormPage() {
         </div>
     )
 }
-

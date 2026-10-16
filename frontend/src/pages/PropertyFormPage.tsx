@@ -20,6 +20,7 @@ import {TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
 import {FormSkeleton} from "../components/ui/States";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+import {useReturnTo} from "../lib/useReturnTo";
 
 const MAX_ROOMS = 200;
 
@@ -41,6 +42,9 @@ export default function PropertyFormPage() {
     const isWelcome = !isEditing && searchParams.get("welcome") === "1";
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    // Back (and Save on an edit) return to the page you came from, e.g. the calendar or the property page.
+    const backFallback = isEditing ? `/dashboard/properties/${id}` : "/dashboard/properties";
+    const {goBack} = useReturnTo(backFallback);
 
     const [form, setForm] = useState<PropertyRequest>({
         name: "",
@@ -69,7 +73,7 @@ export default function PropertyFormPage() {
         onSuccess: async ()=>{
             await queryClient.invalidateQueries({queryKey: ["properties"]});
             if (isEditing) {
-                navigate(`/dashboard/properties/${id}`);
+                goBack();
                 return;
             }
             // New rooms were created alongside the property. Load them *before*
@@ -116,7 +120,7 @@ export default function PropertyFormPage() {
         return (
             <div className="mx-auto max-w-2xl">
                 <FormTopBar formId="property-form" saving={false} title="Edit property"
-                            back={{to: `/dashboard/properties/${id}`, label: "Property"}}/>
+                            back={{to: backFallback}}/>
                 <FormSkeleton label="Loading property..." sections={1}/>
             </div>
         );
@@ -134,10 +138,7 @@ export default function PropertyFormPage() {
                 saving={mutation.isPending}
                 title={title}
                 isDirty={isDirty}
-                back={isWelcome ? undefined : {
-                    to: isEditing ? `/dashboard/properties/${id}` : "/dashboard/properties",
-                    label: isEditing ? (existing?.name ?? "Property") : "Properties",
-                }}
+                back={isWelcome ? undefined : {to: backFallback}}
                 onDelete={isEditing ? () => {
                     deleteMutation.reset();
                     setConfirmDelete(true);
@@ -170,7 +171,6 @@ export default function PropertyFormPage() {
                     />
                     <TextField
                         label="Address"
-                        optional
                         id="address"
                         name="address"
                         value={form.address}

@@ -1,5 +1,5 @@
 // src/components/DashboardLayout.tsx
-import {useState, type ComponentType, type ReactNode} from "react";
+import {useEffect, useState, type ComponentType, type ReactNode} from "react";
 import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
@@ -22,6 +22,8 @@ import {
 } from "./icons";
 import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
+import ThemeToggle from "./ThemeToggle";
+import {applyAccountTheme} from "../lib/theme";
 import AppLogo from "./AppLogo";
 import Sheet from "./ui/Sheet";
 import {CountBubble} from "./ui/Badge";
@@ -55,6 +57,10 @@ export default function DashboardLayout() {
     const queryClient = useQueryClient();
     const activeProperty = useActiveProperty();
     const {data: me} = useQuery({queryKey: ["me"], queryFn: getMe, staleTime: Infinity});
+    // Each account keeps its own light/dark choice (light until it picks dark).
+    useEffect(() => {
+        if (me?.email) applyAccountTheme(me.email);
+    }, [me?.email]);
     const {conflictCount, failingCount, total: alertCount} = useSyncAlerts();
     const stripVisible = useAlertStripVisible();
     const fromHere = useFromHere();
@@ -76,7 +82,6 @@ export default function DashboardLayout() {
     const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/help");
     const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
         {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
-        {key: "properties", to: "/dashboard/properties", label: "Properties", icon: HouseIcon, active: pathname.startsWith("/dashboard/properties")},
         {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: SyncIcon, active: isChannels(pathname), count: alertCount},
     ];
 
@@ -89,7 +94,7 @@ export default function DashboardLayout() {
             {/* Desktop: sidebar with everything in view. */}
             <aside aria-label="Main menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
                 <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-                    <span className="shrink-0 rounded-xl bg-white p-1 ring-1 ring-black/5"><AppLogo size={28}/></span>
+                    <span className="shrink-0 rounded-xl p-1"><AppLogo size={28}/></span>
                     <p className="min-w-0 truncate text-title-3 text-fg">{businessName}</p>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-4">
@@ -122,6 +127,7 @@ export default function DashboardLayout() {
                     <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon} active={pathname.startsWith("/dashboard/help")}>
                         Channel setup guide
                     </SidebarLink>
+                    <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
                     <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
                         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
@@ -156,7 +162,7 @@ export default function DashboardLayout() {
                     isCalendar
                         ? "pb-[calc(4rem+1px+env(safe-area-inset-bottom))] sm:py-6 sm:pr-6 sm:pb-6 sm:pl-[6.5rem] lg:py-8 lg:pr-8 lg:pl-72"
                         : `px-4 sm:px-6 sm:py-6 sm:pl-[6.5rem] lg:px-8 lg:py-8 lg:pl-72 ${
-                            chrome === "form" ? "pb-[calc(6rem+env(safe-area-inset-bottom))]" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+                            chrome === "form" ? "pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-28 lg:pb-28" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
                         }`
                 }`}
             >
@@ -174,7 +180,7 @@ export default function DashboardLayout() {
 
             {/* Phones: bottom tab bar (forms replace it with their Save bar). */}
             {chrome === "tabs" && (
-                <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+                <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
                     {destinations.map((d) => (
                         <TabItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
                     ))}
@@ -210,6 +216,7 @@ export default function DashboardLayout() {
                     </SheetGroup>
                     <SheetGroup>
                         <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com &amp; Airbnb</SheetLink>
+                        <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
                     </SheetGroup>
                     <SheetGroup>

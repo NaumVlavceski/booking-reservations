@@ -55,12 +55,11 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
 
     const fieldClass = (active: boolean, empty: boolean) =>
         `field-input flex items-center justify-between gap-2 text-left ${empty ? "text-subtle" : "text-fg"} ${
-            active ? "border-primary ring-3 ring-focus/30" : invalid && empty ? "border-danger ring-1 ring-danger" : ""
+            active ? "border-primary ring-1 ring-primary" : invalid && empty ? "border-danger ring-1 ring-danger" : ""
         }`;
 
     const field = (which: Step, label: string, date: Date | undefined) => (
-        <div>
-            <span id={`${ids}-${which}-label`} className="field-label">{label}</span>
+        <div className={`float-field is-floated ${step === which ? "is-active" : ""}`}>
             <button
                 type="button"
                 className={fieldClass(step === which, !date)}
@@ -76,6 +75,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
                 </span>
                 <CalendarIcon size={18} className="shrink-0 text-subtle"/>
             </button>
+            <span id={`${ids}-${which}-label`} className="float-label">{label}</span>
         </div>
     );
 
@@ -88,7 +88,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
 
             {nights > 0 && !step && (
                 <p className="field-hint num">
-                    {nights} {nights === 1 ? "night" : "nights"} · {format(from!, "d MMM")} – {format(to!, "d MMM yyyy")}
+                    {nights} {nights === 1 ? "night" : "nights"}
                 </p>
             )}
 

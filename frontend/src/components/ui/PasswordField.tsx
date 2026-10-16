@@ -21,6 +21,7 @@ export default function PasswordField({label, hint, error, id, className, ...inp
                         autoCorrect="off"
                         spellCheck={false}
                         {...input}
+                        placeholder={input.placeholder || " "}
                         {...control}
                     />
                     <button

@@ -86,24 +86,30 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     return (
         <Card as="section" aria-labelledby={`import-title-${unitId}`} className="space-y-4">
             <div className="flex items-start gap-3">
-                <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-on-primary-soft">
+                <span aria-hidden="true"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-on-primary-soft">
                     <SyncIcon size={20}/>
                 </span>
                 <div className="min-w-0">
-                    <h2 id={`import-title-${unitId}`} className="text-title-3 text-fg">Bring in bookings from other channels</h2>
+                    <h2 id={`import-title-${unitId}`} className="text-title-3 text-fg">Bring in bookings from other
+                        channels</h2>
                     <p className="mt-0.5 text-body-sm text-muted">
-                        Paste the calendar export link from Booking.com or Airbnb. Their bookings then appear on your calendar
+                        Paste the calendar export link from Booking.com or Airbnb. Their bookings then appear on your
+                        calendar
                         automatically. Not sure where to find the link? See how it works on{" "}
-                        <Link to="/dashboard/help/connect-calendars#airbnb" state={fromHere} className="link underline">Airbnb</Link>
+                        <Link to="/dashboard/help/connect-calendars#airbnb" state={fromHere}
+                              className="link underline">Airbnb</Link>
                         {" "}or{" "}
-                        <Link to="/dashboard/help/connect-calendars#booking" state={fromHere} className="link underline">Booking.com</Link>.
+                        <Link to="/dashboard/help/connect-calendars#booking" state={fromHere}
+                              className="link underline">Booking.com</Link>.
                     </p>
                 </div>
             </div>
 
             {isLoading && <p role="status" className="text-body-sm text-muted">Loading…</p>}
             {isError && (
-                <Callout tone="danger" role="alert" action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Try again</Button>}>
+                <Callout tone="danger" role="alert"
+                         action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Try again</Button>}>
                     Couldn't load the connected channels.
                 </Callout>
             )}
@@ -151,8 +157,8 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
 
             {availablePlatforms.length > 0 ? (
                 <form onSubmit={handleAdd} className="space-y-2">
-                    <label className="field-label" htmlFor={`ics-${unitId}`}>Calendar export link</label>
                     <div className="flex flex-col gap-2 sm:flex-row">
+                        <div className="float-field min-w-0 flex-1">
                         <input
                             id={`ics-${unitId}`}
                             type="url"
@@ -171,9 +177,12 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                             aria-describedby={`ics-hint-${unitId}`}
                             aria-invalid={formError ? true : undefined}
                             required
-                            className="field-input min-w-0 flex-1"
+                            className="field-input"
                         />
-                        <Button type="submit" disabled={!canConnect} loading={addMutation.isPending} loadingLabel="Connecting…"
+                        <label className="float-label" htmlFor={`ics-${unitId}`}>Calendar export link</label>
+                        </div>
+                        <Button type="submit" disabled={!canConnect} loading={addMutation.isPending}
+                                loadingLabel="Connecting…"
                                 className="min-h-12 shrink-0">
                             Connect
                         </Button>

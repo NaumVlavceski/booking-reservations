@@ -110,7 +110,7 @@ export default function CancelledReservationsPage() {
             {showFilters && (
                 <Card className="mb-4 space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Guest name starts with" id="cancelled-name">
+                        <Field label="Guest name" id="cancelled-name" leadingIcon>
                             {(control) => (
                                 <div className="relative">
                                     <SearchIcon size={18} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-subtle"/>
