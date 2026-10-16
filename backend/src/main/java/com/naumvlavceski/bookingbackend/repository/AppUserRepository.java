@@ -2,6 +2,9 @@ package com.naumvlavceski.bookingbackend.repository;
 
 import com.naumvlavceski.bookingbackend.model.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,4 +17,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     boolean existsByEmail(String email);
     Optional<AppUser> findFirstByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
+    @Modifying
+    @Query("update AppUser u set u.tokenVersion = u.tokenVersion + 1 where u.id = :userId")
+    int incrementTokenVersion(@Param("userId") UUID userId);
 }

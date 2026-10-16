@@ -1,0 +1,201 @@
+/*
+ * RoomTrack design tokens.
+ *
+ * Light values on :root (the default); dark values on :root[data-theme="dark"], set by the theme switch.
+ * Components never use these directly as hex: index.css maps them into the Tailwind theme as semantic
+ * names (bg-surface, text-muted, border-subtle, bg-primary, ...). Contrast of every text/background pair
+ * keeps at least WCAG 2.2 AA contrast (4.5:1 text, 3:1 controls) in both themes.
+ */
+
+:root {
+    color-scheme: light;
+
+    /* Surfaces */
+    --rt-canvas: #F4F6F9;          /* app background behind cards */
+    --rt-surface: #FFFFFF;         /* cards, bars, sheets */
+    --rt-surface-raised: #FFFFFF;  /* popovers, menus, dialogs (lighter than surface in dark mode) */
+    --rt-surface-sunken: #F4F6F9;  /* wells inside a card: read-only fields, grouped details */
+    --rt-surface-hover: #EEF1F5;
+    --rt-surface-pressed: #E3E8EE;
+    --rt-scrim: rgb(11 20 36 / 0.48);
+
+    /* Lines */
+    --rt-border-subtle: #E3E8EE;   /* dividers, card outlines (decorative) */
+    --rt-border: #D3DAE3;          /* stronger dividers, table rules */
+    --rt-border-strong: #77859A;   /* input and control outlines: ≥ 3:1 on surface and canvas */
+
+    /* Text */
+    --rt-fg: #142035;              /* navy ink from the logo */
+    --rt-fg-muted: #4D5B6F;
+    --rt-fg-subtle: #5E6D82;       /* captions, meta: still ≥ 4.5:1 on canvas */
+    --rt-fg-disabled: #9AA6B6;     /* disabled controls only (exempt from contrast rules) */
+    --rt-fg-inverse: #FFFFFF;
+
+    /* Brand: the logo's lagoon teal, deepened until white text passes AA */
+    --rt-primary: #0E7379;
+    --rt-primary-hover: #0B5F64;
+    --rt-primary-pressed: #094E52;
+    --rt-on-primary: #FFFFFF;
+    --rt-primary-soft: #E6F4F4;
+    --rt-on-primary-soft: #0B5D62;
+    --rt-primary-line: #9ED3D5;
+    --rt-focus: #1C8D93;           /* focus ring: ≥ 3:1 against surface and canvas */
+    --rt-brand-navy: #13233D;
+
+    /* Status */
+    --rt-success: #166534;
+    --rt-success-soft: #EAF6EE;
+    --rt-success-line: #9ED3B0;
+    --rt-success-solid: #15803D;
+    --rt-on-success-solid: #FFFFFF;
+
+    --rt-warning: #8A4B06;
+    --rt-warning-soft: #FFF5E5;
+    --rt-warning-line: #F1C27D;
+    --rt-warning-solid: #B45309;
+    --rt-on-warning-solid: #FFFFFF;
+
+    --rt-danger: #B42318;
+    --rt-danger-soft: #FDEDEB;
+    --rt-danger-line: #F2B8B2;
+    --rt-danger-solid: #C42B1C;
+    --rt-on-danger-solid: #FFFFFF;
+
+    --rt-info: #1E4FAF;
+    --rt-info-soft: #EBF1FD;
+    --rt-info-line: #AFC6F3;
+    --rt-info-solid: #2558C5;
+    --rt-on-info-solid: #FFFFFF;
+
+    /* Reservation sources and statuses (calendar bars, badges). Paid and Blocked win over the source. */
+    --rt-src-booking-fill: #DBEAFE;
+    --rt-src-booking-line: #3B82F6;
+    --rt-src-booking-fg: #1E40AF;
+    --rt-src-airbnb-fill: #FFE1E6;
+    --rt-src-airbnb-line: #E8476A;
+    --rt-src-airbnb-fg: #9F1239;
+    --rt-src-airbnb-texture: rgb(232 71 106 / 0.28);
+    --rt-src-direct-fill: #FDECC8;
+    --rt-src-direct-line: #B45309;
+    --rt-src-direct-fg: #78350F;
+    --rt-src-paid-fill: #D1FAE5;
+    --rt-src-paid-line: #059669;
+    --rt-src-paid-fg: #065F46;
+    --rt-src-blocked-fill: #E5E7EB;
+    --rt-src-blocked-line: #6B7280;
+    --rt-src-blocked-fg: #374151;
+    --rt-src-blocked-texture: #C3C9D2;
+    --rt-amount-missing: #DC2626;
+
+    /* Calendar grid */
+    --rt-cal-line: #E3E8EE;
+    --rt-cal-row-line: #ECEFF3;
+    --rt-cal-weekend: #F3F5F8;
+    --rt-cal-today: #E3F3F3;
+    --rt-cal-group: #F7F9FB;
+
+    /* Elevation */
+    --rt-shadow-1: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.06);
+    --rt-shadow-2: 0 2px 4px -2px rgb(16 24 40 / 0.06), 0 10px 20px -6px rgb(16 24 40 / 0.12);
+    --rt-shadow-3: 0 8px 12px -6px rgb(16 24 40 / 0.10), 0 24px 48px -12px rgb(16 24 40 / 0.24);
+
+    /* Motion */
+    --rt-ease: cubic-bezier(0.2, 0, 0, 1);
+    --rt-ease-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --rt-dur-fast: 120ms;
+    --rt-dur-base: 200ms;
+    --rt-dur-slow: 280ms;
+}
+
+/* Dark theme: switched on with the toggle in the menu (saved per account, see lib/theme.ts). */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --rt-canvas: #0B121D;
+    --rt-surface: #111A27;
+    --rt-surface-raised: #172231;
+    --rt-surface-sunken: #0D1520;
+    --rt-surface-hover: #1B2737;
+    --rt-surface-pressed: #223042;
+    --rt-scrim: rgb(2 6 12 / 0.64);
+
+    --rt-border-subtle: #1F2B3B;
+    --rt-border: #2A384B;
+    --rt-border-strong: #607189;
+
+    --rt-fg: #E8EDF4;
+    --rt-fg-muted: #AFBACA;
+    --rt-fg-subtle: #95A2B5;
+    --rt-fg-disabled: #5A677A;
+    --rt-fg-inverse: #0B121D;
+
+    --rt-primary: #45B8BE;
+    --rt-primary-hover: #63C7CC;
+    --rt-primary-pressed: #82D4D8;
+    --rt-on-primary: #05282B;
+    --rt-primary-soft: #0F2D31;
+    --rt-on-primary-soft: #93E0E3;
+    --rt-primary-line: #1F5A5E;
+    --rt-focus: #63C7CC;
+    --rt-brand-navy: #E8EDF4;
+
+    --rt-success: #5BD69C;
+    --rt-success-soft: #0E2A1F;
+    --rt-success-line: #22563F;
+    --rt-success-solid: #3DBF84;
+    --rt-on-success-solid: #052016;
+
+    --rt-warning: #F3C35C;
+    --rt-warning-soft: #2B200C;
+    --rt-warning-line: #6A4D16;
+    --rt-warning-solid: #E9AE3A;
+    --rt-on-warning-solid: #2B1A00;
+
+    --rt-danger: #FF928A;
+    --rt-danger-soft: #321618;
+    --rt-danger-line: #7B2C2C;
+    --rt-danger-solid: #D33B40;
+    --rt-on-danger-solid: #FFFFFF;
+
+    --rt-info: #93B9FF;
+    --rt-info-soft: #12213D;
+    --rt-info-line: #2C4A7E;
+    --rt-info-solid: #6EA0FF;
+    --rt-on-info-solid: #061733;
+
+    --rt-src-booking-fill: #1A2F55;
+    --rt-src-booking-line: #5B95F5;
+    --rt-src-booking-fg: #CFE0FF;
+    --rt-src-airbnb-fill: #4A1A2A;
+    --rt-src-airbnb-line: #F06A88;
+    --rt-src-airbnb-fg: #FFD3DD;
+    --rt-src-airbnb-texture: rgb(240 106 136 / 0.30);
+    --rt-src-direct-fill: #44300F;
+    --rt-src-direct-line: #E5A23A;
+    --rt-src-direct-fg: #FBE3B5;
+    --rt-src-paid-fill: #0F3B2C;
+    --rt-src-paid-line: #3FBF8A;
+    --rt-src-paid-fg: #C7F2DD;
+    --rt-src-blocked-fill: #26303D;
+    --rt-src-blocked-line: #7C899B;
+    --rt-src-blocked-fg: #D5DCE5;
+    --rt-src-blocked-texture: #36414F;
+    --rt-amount-missing: #DC2626;
+
+    --rt-cal-line: #1F2B3B;
+    --rt-cal-row-line: #1A2533;
+    --rt-cal-weekend: #0E1724;
+    --rt-cal-today: #0F2A2E;
+    --rt-cal-group: #142030;
+
+    --rt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.40);
+    --rt-shadow-2: 0 2px 4px -2px rgb(0 0 0 / 0.40), 0 10px 20px -6px rgb(0 0 0 / 0.50);
+    --rt-shadow-3: 0 8px 12px -6px rgb(0 0 0 / 0.50), 0 24px 48px -12px rgb(0 0 0 / 0.70);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --rt-dur-fast: 1ms;
+        --rt-dur-base: 1ms;
+        --rt-dur-slow: 1ms;
+    }
+}

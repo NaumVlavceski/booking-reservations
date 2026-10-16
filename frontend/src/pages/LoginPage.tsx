@@ -1,21 +1,35 @@
 import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
-import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useNavigate, Link, Navigate } from "react-router-dom";
-import { login, resendCode } from "../lib/api/auth";
-import { tokenStorage } from "../lib/auth/tokenStorage";
-import AppLogo from "../components/AppLogo";
+import {useEffect, useRef, useState} from "react";
+import {useMutation} from "@tanstack/react-query";
+import {useNavigate, Link, Navigate} from "react-router-dom";
+import {login, resendCode} from "../lib/api/auth";
+import {tokenStorage} from "../lib/auth/tokenStorage";
+import {clearSessionExpired, takeReturnTo, wasSessionExpired} from "../lib/auth/session";
+import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+import AuthLayout from "../components/AuthLayout";
+import {TextField} from "../components/ui/Field";
+import PasswordField from "../components/ui/PasswordField";
+import Button from "../components/ui/Button";
+import Callout from "../components/ui/Callout";
+
+const MESSAGES: ValidationMessages = {
+    email: {valueMissing: "Enter your email address.", typeMismatch: "Enter an email address like name@example.com."},
+    password: {valueMissing: "Enter your password."},
+};
 
 export default function LoginPage() {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ email: "", password: "" });
+    const [form, setForm] = useState({email: "", password: ""});
     const passwordRef = useRef<HTMLInputElement>(null);
+    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
+    const [sessionExpired] = useState(wasSessionExpired);
+    useEffect(clearSessionExpired, []);
 
     const mutation = useMutation({
         mutationFn: login,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
-            navigate("/dashboard/calendar", { replace: true });
+            navigate(takeReturnTo("/dashboard/calendar"), {replace: true});
         },
         onError: (error) => {
             if (apiErrorCode(error) === "EMAIL_NOT_VERIFIED") {
@@ -26,74 +40,75 @@ export default function LoginPage() {
                 return;
             }
             // Start the next attempt with an empty password, cursor already in it.
-            setForm((f) => ({ ...f, password: "" }));
+            setForm((f) => ({...f, password: ""}));
             passwordRef.current?.focus();
         },
     });
-    function handleSubmit(e: React.FormEvent) {
+
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        if (!validate(e.currentTarget)) return;
         mutation.mutate(form);
     }
 
+    function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+        setForm({...form, [e.target.name]: e.target.value});
+        recheck(e.target);
+    }
+
     if (tokenStorage.get()) {
-        return <Navigate to="/dashboard/calendar" replace />;
+        return <Navigate to="/dashboard/calendar" replace/>;
     }
 
     return (
-        <div className="flex min-h-dvh items-center justify-center px-5 py-10">
-            <form
-                onSubmit={handleSubmit}
-                className="w-full max-w-md space-y-5 sm:rounded-3xl sm:border sm:border-slate-200 sm:bg-white sm:p-10 sm:shadow-sm"
-            >
-                <div className="mb-8 flex flex-col items-center gap-3 text-center">
-                    <AppLogo />
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">RoomTrack</h1>
-                        <p className="mt-1 text-sm text-slate-500">Manage every booking in one place</p>
-                    </div>
-                </div>
-
-                <h2 className="hidden text-center text-xl font-bold text-slate-900 sm:block">Log in</h2>
-
-                <div>
-                    <label className="field-label" htmlFor="email">Email</label>
-                    <input
-                        id="email"
-                        type="email"
-                        autoFocus
-                        autoComplete="email"
-                        value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value })}
-                        required
-                        className="field-input"
-                    />
-                </div>
-                <div>
-                    <label className="field-label" htmlFor="password">Password</label>
-                    <input
-                        id="password"
-                        type="password"
-                        ref={passwordRef}
-                        autoComplete="current-password"
-                        value={form.password}
-                        onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        required
-                        className="field-input"
-                    />
-                </div>
+        <AuthLayout
+            title="Log in"
+            subtitle="Manage every booking in one place"
+            footer={<p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>}
+        >
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                {sessionExpired && !mutation.isError && (
+                    <Callout tone="info" role="status">Your session expired, please log in again.</Callout>
+                )}
+                <TextField
+                    label="Email"
+                    id="email"
+                    name="email"
+                    type="email"
+                    inputMode="email"
+                    autoFocus
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    enterKeyHint="next"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                    error={errors.email}
+                />
+                <PasswordField
+                    label="Password"
+                    id="password"
+                    name="password"
+                    ref={passwordRef}
+                    autoComplete="current-password"
+                    enterKeyHint="go"
+                    value={form.password}
+                    onChange={handleChange}
+                    required
+                    error={errors.password}
+                />
 
                 {mutation.isError && (
-                    <p className="alert-error">{apiErrorMessage(mutation.error, "Invalid email or password.")}</p>
+                    <Callout tone="danger" role="alert">
+                        {apiErrorMessage(mutation.error, "Invalid email or password.")}
+                    </Callout>
                 )}
 
-                <button type="submit" disabled={mutation.isPending} className="btn btn-primary w-full py-3">
-                    {mutation.isPending ? "Logging in..." : "Log in"}
-                </button>
-
-                <p className="text-center text-sm text-slate-500">
-                    Don't have an account? <Link to="/register" className="font-semibold text-teal-700">Register</Link>
-                </p>
+                <Button type="submit" size="lg" block loading={mutation.isPending} loadingLabel="Logging in...">
+                    Log in
+                </Button>
             </form>
-        </div>
+        </AuthLayout>
     );
 }

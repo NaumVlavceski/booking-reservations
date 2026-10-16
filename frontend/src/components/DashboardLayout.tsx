@@ -1,238 +1,361 @@
 // src/components/DashboardLayout.tsx
-import {useEffect, useRef, useState} from "react";
-import {NavLink, Outlet, useLocation, useNavigate} from "react-router-dom";
+import {useEffect, useState, type ComponentType, type ReactNode} from "react";
+import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {getMe} from "../lib/api/me";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
-import {useMediaQuery} from "../lib/useMediaQuery";
-import {useSyncAlerts} from "../lib/useSyncAlerts";
+import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
+import {bottomChrome} from "../lib/shellRoutes";
 import {
     AlertIcon,
     CalendarIcon,
     CalendarXIcon,
-    CloseIcon,
+    ChevronRightIcon,
+    HelpIcon,
     HouseIcon,
     LogoutIcon,
-    MenuIcon,
+    MoreHorizontalIcon,
     PlusIcon,
-    SyncIcon
+    SyncIcon,
 } from "./icons";
-import SyncAlerts from "./SyncAlerts.tsx";
+import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
+import ThemeToggle from "./ThemeToggle";
+import {applyAccountTheme} from "../lib/theme";
+import {useOnlineStatus} from "../lib/useOnlineStatus";
+import {useApiReachable} from "../lib/apiReachability";
+import AppLogo from "./AppLogo";
+import OfflineScreen from "./OfflineScreen";
+import InstallAppButton, {IosInstallSheet} from "./InstallApp";
+import Sheet from "./ui/Sheet";
+import {CountBubble} from "./ui/Badge";
 
-const navItems = [
-    {to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon},
-    {to: "/dashboard/properties", label: "Properties", icon: HouseIcon},
-];
+type IconType = ComponentType<{ size?: number; className?: string }>;
 
-const navLinkBase = "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400";
-const navLinkIdle = "text-slate-300 hover:bg-white/5 hover:text-white";
-const navLinkClass = ({isActive}: { isActive: boolean }) =>
-    `${navLinkBase} ${isActive ? "bg-white/10 font-semibold text-white" : navLinkIdle}`;
+const HELP_PATH = "/dashboard/help/connect-calendars";
 
-function CountBadge({count, tone}: { count: number; tone: "red" | "amber" }) {
-    if (count === 0) return null;
-    return (
-        <span className={`ml-auto min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-bold ${
-            tone === "red" ? "bg-red-500 text-white" : "bg-amber-400 text-amber-950"
-        }`}>
-            {count}
-        </span>
-    );
+function isChannels(pathname: string) {
+    return pathname.startsWith("/dashboard/conflicts") || pathname.startsWith("/dashboard/sync-health");
+}
+
+function isCalendarArea(pathname: string) {
+    return pathname.startsWith("/dashboard/calendar") || pathname.startsWith("/dashboard/reservations");
+}
+
+function initials(name: string | undefined) {
+    const words = (name ?? "RoomTrack").trim().split(/\s+/);
+    return (words[0][0] + (words[1]?.[0] ?? "")).toUpperCase();
+}
+
+/** "4 warnings" for screen readers; the visible bubble is decorative. */
+function warnings(count: number) {
+    return count > 0 ? <span className="sr-only">, {count} {count === 1 ? "warning" : "warnings"}</span> : null;
 }
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
     const location = useLocation();
-    // Phones/tablets get a slide-in drawer; wide screens a permanent sidebar.
-    const isWide = useMediaQuery("(min-width: 1024px)");
-    const [drawerOpenedAt, setDrawerOpenedAt] = useState<string | null>(null);
-    const isDrawerOpen = !isWide && drawerOpenedAt === location.key;
-    const setIsDrawerOpen = (open: boolean) => setDrawerOpenedAt(open ? location.key : null);
+    const {pathname} = location;
     const queryClient = useQueryClient();
     const activeProperty = useActiveProperty();
     const {data: me} = useQuery({queryKey: ["me"], queryFn: getMe, staleTime: Infinity});
-    const {conflictCount, failingCount, total: alertCount} = useSyncAlerts();
-    const fromHere = useFromHere();
-    const isCalendar = location.pathname.startsWith("/dashboard/calendar");
-    const closeButtonRef = useRef<HTMLButtonElement>(null);
-
+    // Each account keeps its own light/dark choice (light until it picks dark).
     useEffect(() => {
-        if (!isDrawerOpen) return;
-        // Move focus into the drawer so keyboard and screen-reader users land in it.
-        closeButtonRef.current?.focus();
-
-        function onKeyDown(e: KeyboardEvent) {
-            if (e.key === "Escape") setDrawerOpenedAt(null);
-        }
-
-        window.addEventListener("keydown", onKeyDown);
-        return () => window.removeEventListener("keydown", onKeyDown);
-    }, [isDrawerOpen]);
-
-    function closeDrawer() {
-        setIsDrawerOpen(false);
-    }
+        if (me?.email) applyAccountTheme(me.email);
+    }, [me?.email]);
+    const {conflictCount, failingCount, total: alertCount} = useSyncAlerts();
+    const stripVisible = useAlertStripVisible();
+    const fromHere = useFromHere();
+    // The More sheet (phones and tablets) closes by itself when you navigate somewhere.
+    const [moreOpenedAt, setMoreOpenedAt] = useState<string | null>(null);
+    const isMoreOpen = moreOpenedAt === location.key;
+    const closeMore = () => setMoreOpenedAt(null);
+    const isCalendar = pathname.startsWith("/dashboard/calendar");
+    const chrome = bottomChrome(pathname);
+    const businessName = me?.businessName ?? "RoomTrack";
+    const [iosStepsOpen, setIosStepsOpen] = useState(false);
+    // No connection or no answer from the server: pages make way for the offline screen (never old data).
+    // Forms stay, so nothing typed is lost; their Save is disabled while offline.
+    const online = useOnlineStatus();
+    const apiReachable = useApiReachable();
+    const showOffline = (!online || !apiReachable) && chrome !== "form";
+    const page = showOffline ? <OfflineScreen offline={!online}/> : <Outlet/>;
 
     function handleLogout() {
         tokenStorage.clear();
         queryClient.clear();
-        setIsDrawerOpen(false);
+        closeMore();
         navigate("/login", {replace: true});
     }
 
-    const panelVisible = isWide || isDrawerOpen;
+    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/help");
+    const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
+        {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
+        {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: SyncIcon, active: isChannels(pathname), count: alertCount},
+    ];
 
     return (
         <div className="min-h-dvh">
-            {/* Tablets: floating menu button. Phones use the bottom tab bar; wide screens the sidebar. */}
-            <button
-                type="button"
-                onClick={() => setIsDrawerOpen(true)}
-                aria-label="Open menu"
-                className="fixed top-4 left-4 z-30 hidden h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:flex lg:hidden"
-            >
-                <MenuIcon size={20}/>
-                {alertCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white bg-red-500"/>
-                )}
-            </button>
+            <a href="#main" className="sr-only z-[80] rounded-xl bg-surface-raised px-4 py-3 font-semibold text-fg shadow-popover focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
+                Skip to content
+            </a>
 
-            <div
-                className={`fixed inset-0 z-40 bg-slate-900/40 transition-opacity duration-200 lg:hidden ${
-                    isDrawerOpen ? "opacity-100" : "pointer-events-none opacity-0"
-                }`}
-                onClick={closeDrawer}
-            />
-
-            <aside
-                inert={!panelVisible}
-                aria-label="Main menu"
-                className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-slate-900 text-white shadow-2xl transition-transform duration-200 ease-out lg:z-30 lg:w-64 lg:shadow-none ${
-                    panelVisible ? "translate-x-0" : "-translate-x-full"
-                }`}
-            >
-                <div className="flex items-start justify-between gap-3 border-b border-white/10 px-5 pt-[calc(env(safe-area-inset-top)_+_1.25rem)] pb-5">
-                    <p className="min-w-0 truncate text-lg font-bold">{me?.businessName ?? "RoomTrack"}</p>
-                    <button
-                        ref={closeButtonRef}
-                        type="button"
-                        onClick={closeDrawer}
-                        aria-label="Close menu"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
-                    >
-                        <CloseIcon size={18}/>
-                    </button>
+            {/* Desktop: sidebar with everything in view. */}
+            <aside aria-label="Main menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
+                <div className="flex items-center gap-3 px-5 pt-6 pb-5">
+                    <span className="shrink-0 rounded-xl p-1"><AppLogo size={28}/></span>
+                    <p className="min-w-0 truncate text-title-3 text-fg">{businessName}</p>
                 </div>
-
-                <nav className="space-y-1 border-b border-white/10 px-3 py-4">
-                    {navItems.map((item) => (
-                        <NavLink key={item.to} to={item.to} onClick={closeDrawer} className={navLinkClass}>
-                            <item.icon/>
-                            {item.label}
-                        </NavLink>
-                    ))}
-                    <NavLink to="/dashboard/cancelled" onClick={closeDrawer} className={navLinkClass}>
-                        <CalendarXIcon/>
-                        Cancelled bookings
-                    </NavLink>
-                </nav>
-
-                <div className="px-3 py-4">
-                    <p className="px-3 pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">Channels</p>
-                    <NavLink to="/dashboard/conflicts" end onClick={closeDrawer} className={navLinkClass}>
-                        <AlertIcon size={16}/>
-                        Booking conflicts
-                        <CountBadge count={conflictCount} tone="red"/>
-                    </NavLink>
-                    <NavLink to="/dashboard/sync-health" onClick={closeDrawer} className={navLinkClass}>
-                        <SyncIcon size={16}/>
-                        Sync status
-                        <CountBadge count={failingCount} tone="amber"/>
-                    </NavLink>
+                <div className="flex-1 overflow-y-auto px-3 pb-4">
+                    <nav aria-label="Main" className="space-y-0.5">
+                        <SidebarLink to="/dashboard/calendar" icon={CalendarIcon} active={isCalendarArea(pathname)}>Calendar</SidebarLink>
+                        <SidebarLink to="/dashboard/properties" icon={HouseIcon} active={pathname.startsWith("/dashboard/properties")}>Properties</SidebarLink>
+                        <SidebarLink to="/dashboard/cancelled" icon={CalendarXIcon} active={pathname.startsWith("/dashboard/cancelled")}>Cancelled bookings</SidebarLink>
+                    </nav>
+                    <SidebarGroup label="Channels">
+                        <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}
+                                     trailing={<CountBubble count={conflictCount} className="ml-auto"/>}>
+                            Booking conflicts{warnings(conflictCount)}
+                        </SidebarLink>
+                        <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}
+                                     trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>
+                            Sync status{warnings(failingCount)}
+                        </SidebarLink>
+                    </SidebarGroup>
+                    <SidebarGroup label="Quick add">
+                        <SidebarLink to="/dashboard/properties/new" icon={PlusIcon} active={false}>Add property</SidebarLink>
+                        <SidebarLink to={addUnitPath(activeProperty)} state={fromHere} icon={PlusIcon} active={false}>
+                            <span className="min-w-0">
+                                Add room
+                                {activeProperty && <span className="block truncate text-caption font-normal text-subtle">to {activeProperty.name}</span>}
+                            </span>
+                        </SidebarLink>
+                    </SidebarGroup>
                 </div>
-
-                <div className="px-3 py-4">
-                    <p className="px-3 pb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">Quick add</p>
-                    <NavLink to="/dashboard/properties/new" end onClick={closeDrawer}
-                             className={`${navLinkBase} ${navLinkIdle}`}>
-                        <PlusIcon size={16}/>
-                        Add property
-                    </NavLink>
-                    <NavLink to={addUnitPath(activeProperty)} state={fromHere} onClick={closeDrawer}
-                             className={`${navLinkBase} ${navLinkIdle}`}>
-                        <PlusIcon size={16}/>
-                        <span className="min-w-0">
-                            Add room
-                            {activeProperty && (
-                                <span className="block truncate text-xs font-normal text-slate-400">
-                                    to {activeProperty.name}
-                                </span>
-                            )}
+                <div className="space-y-0.5 border-t border-subtle px-3 pt-3 pb-4">
+                    <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon} active={pathname.startsWith("/dashboard/help")}>
+                        Channel setup guide
+                    </SidebarLink>
+                    <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
+                    <ThemeToggle email={me?.email} compact/>
+                    <NotificationToggle compact/>
+                    <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
+                        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
+                            {initials(me?.fullName ?? me?.businessName)}
                         </span>
-                    </NavLink>
-                </div>
-
-                <div className="mt-auto border-t border-white/10 px-3 pt-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
-                    <NotificationToggle/>
-                    <button onClick={handleLogout} className={`w-full ${navLinkBase} ${navLinkIdle}`}>
-                        <LogoutIcon size={16}/>
-                        Log out
-                    </button>
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-body-sm font-semibold text-fg">{me?.fullName ?? businessName}</p>
+                            {me?.email && <p className="truncate text-caption text-subtle">{me.email}</p>}
+                        </div>
+                        <button type="button" onClick={handleLogout} className="icon-btn text-muted" aria-label="Log out" title="Log out">
+                            <LogoutIcon size={20}/>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
+            {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */}
+            <nav aria-label="Main" className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
+                <Link to="/dashboard/calendar" className="mb-4 rounded-xl p-1" aria-label={`${businessName}, calendar`}>
+                    <span className="block rounded-xl bg-white p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
+                </Link>
+                {destinations.map((d) => (
+                    <RailItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
+                ))}
+                <RailItem label="More" icon={MoreHorizontalIcon} active={moreActive} expanded={isMoreOpen} onClick={() => setMoreOpenedAt(location.key)}/>
+            </nav>
+
             <main
-                className={
+                id="main"
+                tabIndex={-1}
+                className={`outline-none ${stripVisible && isCalendar ? "has-alert-strip" : ""} ${
                     isCalendar
-                        ? "pb-[calc(4rem_+_env(safe-area-inset-bottom))] sm:px-6 sm:pt-20 sm:pb-8 lg:pt-8 lg:pl-70"
-                        : "mx-auto max-w-3xl px-4 pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:px-6 sm:pt-20 sm:pb-12 lg:max-w-none lg:pt-8 lg:pl-70"
-                }
+                        ? "pb-[calc(4rem+1px+env(safe-area-inset-bottom))] sm:py-6 sm:pr-6 sm:pb-6 sm:pl-[6.5rem] lg:py-8 lg:pr-8 lg:pl-72"
+                        : `px-4 sm:px-6 sm:py-6 sm:pl-[6.5rem] lg:px-8 lg:py-8 lg:pl-72 ${
+                            chrome === "form" ? "pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-28 lg:pb-28" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+                        }`
+                }`}
             >
-                <div className={isCalendar ? "" : "lg:mx-auto lg:max-w-3xl"}>
-                    <SyncAlerts/>
-                    <Outlet/>
-                </div>
+                {isCalendar && !showOffline ? (
+                    <>
+                        <SyncAlerts className="px-4 pt-[env(safe-area-inset-top)] box-content sm:px-0 sm:pt-0"/>
+                        <Outlet/>
+                    </>
+                ) : isCalendar ? (
+                    <div className="px-4 sm:px-0">{page}</div>
+                ) : (
+                    <div className="mx-auto w-full max-w-5xl">
+                        {page}
+                    </div>
+                )}
             </main>
 
-            {/* Phones: bottom tab bar. */}
-            <nav
-                className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.to}
-                        to={item.to}
-                        className={({isActive}) =>
-                            `flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
-                                isActive ? "text-teal-700" : "text-slate-500"
-                            }`
-                        }
-                    >
-                        <item.icon size={22}/>
-                        {item.label}
-                    </NavLink>
-                ))}
-                <button
-                    type="button"
-                    onClick={() => setIsDrawerOpen(true)}
-                    aria-label={alertCount > 0 ? `Menu, ${alertCount} ${alertCount === 1 ? "warning" : "warnings"}` : "Menu"}
-                    className={`relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
-                        isDrawerOpen ? "text-teal-700" : "text-slate-500"
-                    }`}
-                >
-                    <span className="relative">
-                        <MenuIcon size={22}/>
-                        {alertCount > 0 && (
-                            <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 font-bold text-white">
-                                {alertCount}
-                            </span>
-                        )}
+            {/* Phones: bottom tab bar (forms replace it with their Save bar). */}
+            {chrome === "tabs" && (
+                <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+                    {destinations.map((d) => (
+                        <TabItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
+                    ))}
+                    <TabItem label="More" icon={MoreHorizontalIcon} active={moreActive} expanded={isMoreOpen} onClick={() => setMoreOpenedAt(location.key)}/>
+                </nav>
+            )}
+
+            <Sheet open={isMoreOpen} onClose={closeMore} title="More" titleHidden showClose closeLabel="Close menu">
+                <div className="flex items-center gap-3 pr-10 pb-4">
+                    <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-body-sm font-bold text-on-primary-soft">
+                        {initials(me?.businessName)}
                     </span>
-                    Menu
-                </button>
-            </nav>
+                    <div className="min-w-0">
+                        <p className="truncate text-title-3 text-fg">{businessName}</p>
+                        {me?.email && <p className="truncate text-body-sm text-muted">{me.email}</p>}
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    <SheetGroup>
+                        <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled bookings</SheetLink>
+                        <SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}
+                                   trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>
+                        <SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}
+                                   trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>
+                    </SheetGroup>
+                    <SheetGroup>
+                        <SheetLink to="/dashboard/properties/new" icon={PlusIcon} onClick={closeMore}>Add property</SheetLink>
+                        <SheetLink to={addUnitPath(activeProperty)} state={fromHere} icon={PlusIcon} onClick={closeMore}>
+                            <span className="min-w-0 truncate">
+                                Add room{activeProperty && <span className="font-normal text-subtle"> to {activeProperty.name}</span>}
+                            </span>
+                        </SheetLink>
+                    </SheetGroup>
+                    <SheetGroup>
+                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com &amp; Airbnb</SheetLink>
+                        <InstallAppButton onShowIosSteps={() => {
+                            closeMore();
+                            setIosStepsOpen(true);
+                        }}/>
+                        <ThemeToggle email={me?.email}/>
+                        <NotificationToggle/>
+                    </SheetGroup>
+                    <SheetGroup>
+                        <button type="button" onClick={handleLogout} className={sheetRow}>
+                            <LogoutIcon size={20} className="text-muted"/>
+                            Log out
+                        </button>
+                    </SheetGroup>
+                </div>
+            </Sheet>
+            <IosInstallSheet open={iosStepsOpen} onClose={() => setIosStepsOpen(false)}/>
         </div>
+    );
+}
+
+const sheetRow = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
+
+function SheetGroup({children}: { children: ReactNode }) {
+    return <div className="rounded-2xl bg-surface-sunken p-1">{children}</div>;
+}
+
+function SheetLink({to, state, icon: Icon, onClick, chevron, trailing, children}: {
+    to: string;
+    state?: unknown;
+    icon: IconType;
+    onClick: () => void;
+    chevron?: boolean;
+    trailing?: ReactNode;
+    children: ReactNode;
+}) {
+    return (
+        <Link to={to} state={state} onClick={onClick} className={sheetRow}>
+            <Icon size={20} className="shrink-0 text-muted"/>
+            <span className="flex min-w-0 flex-1 items-center">{children}</span>
+            {trailing}
+            {chevron && <ChevronRightIcon size={18} className="text-subtle"/>}
+        </Link>
+    );
+}
+
+function SidebarGroup({label, children}: { label: string; children: ReactNode }) {
+    return (
+        <div className="mt-6">
+            <p className="px-3 pb-2 text-overline text-subtle uppercase">{label}</p>
+            <div className="space-y-0.5">{children}</div>
+        </div>
+    );
+}
+
+function SidebarLink({to, state, icon: Icon, active, trailing, children}: {
+    to: string;
+    state?: unknown;
+    icon: IconType;
+    active: boolean;
+    trailing?: ReactNode;
+    children: ReactNode;
+}) {
+    return (
+        <Link
+            to={to}
+            state={state}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-body-sm font-medium transition-colors ${
+                active ? "bg-primary-soft font-semibold text-on-primary-soft" : "text-muted hover:bg-surface-hover hover:text-fg"
+            }`}
+        >
+            <Icon size={18} className="shrink-0"/>
+            {children}
+            {trailing}
+        </Link>
+    );
+}
+
+interface DestinationProps {
+    label: string;
+    icon: IconType;
+    active: boolean;
+    count?: number;
+    to?: string;
+    onClick?: () => void;
+    /** For the More button: whether its sheet is open. */
+    expanded?: boolean;
+}
+
+function Destination({to, onClick, active, expanded, className, children}: Omit<DestinationProps, "label" | "icon" | "count"> & {
+    className: string;
+    children: ReactNode;
+}) {
+    return to ? (
+        <Link to={to} aria-current={active ? "page" : undefined} className={className}>{children}</Link>
+    ) : (
+        <button type="button" onClick={onClick} aria-haspopup="dialog" aria-expanded={expanded} className={className}>{children}</button>
+    );
+}
+
+function TabItem({to, onClick, label, icon: Icon, active, expanded, count = 0}: DestinationProps) {
+    return (
+        <Destination to={to} onClick={onClick} active={active} expanded={expanded}
+                     className="relative flex h-16 flex-col items-center justify-center gap-1 text-[0.6875rem] leading-3.5 font-semibold">
+            <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+                active ? "bg-primary-soft text-on-primary-soft" : "text-subtle"
+            }`}>
+                <Icon size={22}/>
+            </span>
+            <span className={active ? "text-on-primary-soft" : "text-subtle"}>{label}{warnings(count)}</span>
+            <CountBubble count={count} className="absolute top-1.5 left-1/2 ml-2.5"/>
+        </Destination>
+    );
+}
+
+function RailItem({to, onClick, label, icon: Icon, active, expanded, count = 0}: DestinationProps) {
+    return (
+        <Destination to={to} onClick={onClick} active={active} expanded={expanded}
+                     className="relative flex w-16 flex-col items-center gap-1 rounded-2xl py-2 text-caption font-semibold">
+            <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+                active ? "bg-primary-soft text-on-primary-soft" : "text-subtle hover:bg-surface-hover"
+            }`}>
+                <Icon size={22}/>
+            </span>
+            <span className={active ? "text-on-primary-soft" : "text-subtle"}>{label}{warnings(count)}</span>
+            <CountBubble count={count} className="absolute top-1 left-1/2 ml-2.5"/>
+        </Destination>
     );
 }

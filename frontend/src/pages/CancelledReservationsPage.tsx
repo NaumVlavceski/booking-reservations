@@ -9,10 +9,15 @@ import {apiErrorMessage} from "../lib/api/client";
 import {formatStay, formatWhen} from "../lib/dates";
 import {useDebouncedValue} from "../lib/useDebouncedValue";
 import {useToast} from "../lib/toast";
-import {CalendarXIcon, ChevronLeftIcon, ChevronRightIcon} from "../components/icons";
+import {CalendarXIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon} from "../components/icons";
 import DateFilter from "../components/DateFilter";
+import PageHeader from "../components/ui/PageHeader";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Field from "../components/ui/Field";
+import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import {SourceBadge} from "../components/ReservationBadges";
 
-const SOURCE_LABEL: Record<string, string> = {DIRECT: "Direct", BOOKING: "Booking.com", AIRBNB: "Airbnb"};
 const PAGE_SIZE = 20;
 
 export default function CancelledReservationsPage() {
@@ -24,7 +29,7 @@ export default function CancelledReservationsPage() {
     // Wait for a pause in typing before asking the server
     const searchName = useDebouncedValue(name.trim());
 
-    const {data, isLoading, isFetching} = useQuery({
+    const {data, isLoading, isFetching, isError, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "cancelled", {page, name: searchName, checkInFrom}],
         queryFn: () => getCancelledReservations({page, size: PAGE_SIZE, name: searchName, checkInFrom}),
         placeholderData: keepPreviousData, // keep showing the old page while the next one loads
@@ -82,117 +87,158 @@ export default function CancelledReservationsPage() {
 
     const summary = `${totalElements} ${filtering ? "matching" : "cancelled"} ${totalElements === 1 ? "booking" : "bookings"}`;
 
+    function restoreButton(r: ReservationResponse) {
+        const restoring = restoreMutation.isPending && restoreMutation.variables?.id === r.id;
+        return (
+            <Button variant="secondary" size="sm" className="min-h-11 shrink-0"
+                    onClick={() => restoreMutation.mutate(r)}
+                    disabled={restoreMutation.isPending && !restoring}
+                    loading={restoring} loadingLabel="Restoring…"
+                    aria-label={`Restore ${r.guestName || "booking"}`}>
+                Restore
+            </Button>
+        );
+    }
+
     return (
         <div>
-            <h1 className="page-title">Cancelled bookings</h1>
-            <p className="page-subtitle mb-6">
-                Cancelled bookings free up their dates. Restore one to put it back on the calendar — as long as
-                those dates are still free.
-            </p>
+            <PageHeader
+                title="Cancelled bookings"
+                description="Cancelled bookings free up their dates. Restore one to put it back on the calendar — as long as those dates are still free."
+            />
 
             {showFilters && (
-                <div className="surface mb-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="field-label" htmlFor="cancelled-name">Guest name starts with</label>
-                            <input
-                                id="cancelled-name"
-                                type="search"
-                                value={name}
-                                onChange={(e) => changeName(e.target.value)}
-                                placeholder="e.g. Ana"
-                                autoComplete="off"
-                                className="field-input"
-                            />
-                        </div>
+                <Card className="mb-4 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Guest name" id="cancelled-name" leadingIcon>
+                            {(control) => (
+                                <div className="relative">
+                                    <SearchIcon size={18} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-subtle"/>
+                                    <input
+                                        {...control}
+                                        type="search"
+                                        value={name}
+                                        onChange={(e) => changeName(e.target.value)}
+                                        placeholder="e.g. Ana"
+                                        autoComplete="off"
+                                        enterKeyHint="search"
+                                        className="field-input pl-10"
+                                    />
+                                </div>
+                            )}
+                        </Field>
                         <DateFilter label="Check-in from" value={checkInFrom} onChange={changeDate}/>
                     </div>
-                    <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
-                        <p aria-live="polite">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-body-sm text-muted">
+                        <p aria-live="polite" className="num">
                             {summary} · {checkInFrom ? "latest check-in first" : "most recently cancelled first"}
                         </p>
                         {(name !== "" || checkInFrom !== "") && (
-                            <button type="button" onClick={clearFilters} className="btn btn-ghost min-h-11">
+                            <Button variant="ghost" size="sm" className="min-h-11" onClick={clearFilters}>
                                 Clear filters
-                            </button>
+                            </Button>
                         )}
                     </div>
-                </div>
+                </Card>
             )}
 
             {isLoading ? (
-                <p className="text-sm text-slate-500">Loading…</p>
+                <ListSkeleton rows={4} label="Loading…"/>
+            ) : isError && !data ? (
+                <ErrorState title="Couldn't load cancelled bookings" onRetry={() => refetch()} retrying={isRefetching}>
+                    Check your connection and try again.
+                </ErrorState>
             ) : items.length === 0 ? (
-                <div className="surface flex flex-col items-center gap-2 py-10 text-center">
-                    <CalendarXIcon size={28} className="text-slate-300"/>
-                    {filtering ? (
-                        <>
-                            <p className="font-semibold text-slate-700">No cancelled bookings match</p>
-                            <p className="text-sm text-slate-500">Try a different name or an earlier date.</p>
-                        </>
-                    ) : (
-                        <>
-                            <p className="font-semibold text-slate-700">No cancelled bookings</p>
-                            <p className="text-sm text-slate-500">When you cancel a booking, it shows up here.</p>
-                        </>
-                    )}
-                </div>
+                <EmptyState
+                    icon={<CalendarXIcon size={24}/>}
+                    title={filtering ? "No cancelled bookings match" : "No cancelled bookings"}
+                    action={filtering ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined}
+                >
+                    {filtering ? "Try a different name or an earlier date." : "When you cancel a booking, it shows up here."}
+                </EmptyState>
             ) : (
                 <>
-                    <ul className={`stack-list transition-opacity ${isFetching ? "opacity-60" : ""}`}>
+                    {/* Phones and tablets: cards. */}
+                    <ul className={`stack-list transition-opacity lg:hidden ${isFetching ? "opacity-60" : ""}`}>
                         {items.map((r) => {
                             const unit = unitById.get(r.unitId);
                             const property = unit ? propertyById.get(unit.propertyId) : undefined;
-                            const restoring = restoreMutation.isPending && restoreMutation.variables?.id === r.id;
                             return (
-                                <li key={r.id} className="stack-row flex items-center gap-3">
+                                <li key={r.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                     <Link to={`/dashboard/reservations/${r.id}`} className="min-w-0 flex-1">
-                                        <p className="truncate font-semibold text-slate-900">{r.guestName || "No guest name"}</p>
-                                        <p className="truncate text-sm text-slate-600">
+                                        <span className="block truncate text-title-3 text-fg">{r.guestName || "No guest name"}</span>
+                                        <span className="num block truncate text-body-sm text-muted">
                                             {formatStay(r.checkIn, r.checkOut)}
                                             {unit && ` · ${unit.name}`}
-                                        </p>
-                                        <p className="truncate text-xs text-slate-500">
-                                            {[property?.name, SOURCE_LABEL[r.source], r.totalAmount ? `Total ${r.totalAmount}` : null, r.cancelledAt ? `Cancelled ${formatWhen(r.cancelledAt)}` : null]
-                                                .filter(Boolean).join(" · ")}
-                                        </p>
+                                        </span>
+                                        <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-subtle">
+                                            <SourceBadge source={r.source}/>
+                                            <span className="num truncate">
+                                                {[property?.name, r.totalAmount ? `Total ${r.totalAmount}` : null, r.cancelledAt ? `Cancelled ${formatWhen(r.cancelledAt)}` : null]
+                                                    .filter(Boolean).join(" · ")}
+                                            </span>
+                                        </span>
                                     </Link>
-                                    <button
-                                        type="button"
-                                        onClick={() => restoreMutation.mutate(r)}
-                                        disabled={restoreMutation.isPending}
-                                        className="btn btn-secondary min-h-11 shrink-0"
-                                    >
-                                        {restoring ? "Restoring…" : "Restore"}
-                                    </button>
+                                    {restoreButton(r)}
                                 </li>
                             );
                         })}
                     </ul>
 
+                    {/* Desktop: a table, easier to scan across columns. */}
+                    <Card padding="none" className={`hidden transition-opacity lg:block ${isFetching ? "opacity-60" : ""}`}>
+                        <table className="w-full text-left text-body-sm">
+                            <caption className="sr-only">{summary}</caption>
+                            <thead className="border-b border-subtle bg-surface-sunken text-caption text-subtle uppercase">
+                                <tr>
+                                    <th scope="col" className="px-5 py-3 font-semibold tracking-wide">Guest</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Stay</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Room</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Source</th>
+                                    <th scope="col" className="px-3 py-3 text-right font-semibold tracking-wide">Total</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Cancelled</th>
+                                    <th scope="col" className="px-5 py-3"><span className="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-subtle">
+                                {items.map((r) => {
+                                    const unit = unitById.get(r.unitId);
+                                    const property = unit ? propertyById.get(unit.propertyId) : undefined;
+                                    return (
+                                        <tr key={r.id} className="transition-colors hover:bg-surface-hover">
+                                            <td className="max-w-56 px-5 py-3">
+                                                <Link to={`/dashboard/reservations/${r.id}`} className="block truncate font-semibold text-fg hover:text-primary hover:underline">
+                                                    {r.guestName || "No guest name"}
+                                                </Link>
+                                            </td>
+                                            <td className="num px-3 py-3 whitespace-nowrap text-fg">{formatStay(r.checkIn, r.checkOut)}</td>
+                                            <td className="max-w-52 px-3 py-3">
+                                                <span className="block truncate text-fg">{unit?.name ?? "—"}</span>
+                                                {property && <span className="block truncate text-caption text-subtle">{property.name}</span>}
+                                            </td>
+                                            <td className="px-3 py-3"><SourceBadge source={r.source}/></td>
+                                            <td className="num px-3 py-3 text-right text-fg">{r.totalAmount ? `${r.totalAmount}` : "—"}</td>
+                                            <td className="num px-3 py-3 whitespace-nowrap text-muted">{r.cancelledAt ? formatWhen(r.cancelledAt) : "—"}</td>
+                                            <td className="px-5 py-2 text-right">{restoreButton(r)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </Card>
+
                     {totalPages > 1 && (
                         <nav aria-label="Cancelled bookings pages" className="mt-4 flex items-center justify-between gap-3">
-                            <button
-                                type="button"
-                                onClick={() => goTo(page - 1)}
-                                disabled={page === 0}
-                                className="btn btn-secondary min-h-11"
-                            >
-                                <ChevronLeftIcon size={16}/>
+                            <Button variant="secondary" onClick={() => goTo(page - 1)} disabled={page === 0} icon={<ChevronLeftIcon size={16}/>}>
                                 Previous
-                            </button>
-                            <p className="text-sm text-slate-600" aria-live="polite">
+                            </Button>
+                            <p className="num text-body-sm text-muted" aria-live="polite">
                                 Page {page + 1} of {totalPages}
                             </p>
-                            <button
-                                type="button"
-                                onClick={() => goTo(page + 1)}
-                                disabled={page >= totalPages - 1}
-                                className="btn btn-secondary min-h-11"
-                            >
+                            <Button variant="secondary" onClick={() => goTo(page + 1)} disabled={page >= totalPages - 1}>
                                 Next
                                 <ChevronRightIcon size={16}/>
-                            </button>
+                            </Button>
                         </nav>
                     )}
                 </>

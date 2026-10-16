@@ -50,11 +50,6 @@ const FLING_MIN_SPEED = 0.4;
 const FLING_WATCH_MS = 3000;
 const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
 
-/**
- * iOS before 16 ignores `overscroll-behavior`, so the grid would still bounce the page (and start
- * pull-to-refresh) when dragged past its top or bottom. For those browsers only, swallow a mostly
- * vertical touch that would scroll past an edge. Everything else keeps native scrolling.
- */
 function guardEdgeBounce(el: HTMLElement): () => void {
     if (typeof CSS !== "undefined" && CSS.supports?.("overscroll-behavior", "none")) return () => {};
 
@@ -96,8 +91,6 @@ function readCollapsed(): Set<string> {
 }
 
 
-// Creation order keeps auto-created "Room 1..N" in sequence and doesn't move
-// a row when it's renamed; numeric name compare breaks same-timestamp ties.
 function compareUnits(a: UnitResponse, b: UnitResponse) {
     return (a.createdAt ?? "").localeCompare(b.createdAt ?? "")
         || a.name.localeCompare(b.name, undefined, {numeric: true})

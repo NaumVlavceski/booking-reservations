@@ -1,38 +1,43 @@
 import {Link, useLocation} from "react-router-dom";
 import {useSyncAlerts} from "../lib/useSyncAlerts";
-import {AlertIcon, ChevronRightIcon, SyncIcon} from "./icons";
+import {useOnlineStatus} from "../lib/useOnlineStatus";
+import {AlertIcon, ChevronRightIcon, SyncIcon, WifiOffIcon} from "./icons";
+
+const chip = "relative inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border py-1 pr-2 pl-3 text-body-sm font-semibold whitespace-nowrap transition-colors before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-['']";
 
 /**
- * One compact strip of warnings at the top of the dashboard. Each chip links
- * to the page that explains it, and is hidden while you're already on that page.
+ * One compact strip of warnings: being offline, booking conflicts, sync problems. Each chip links to the
+ * page that explains it, and is hidden while you're already on that page. Always one line (scrolls sideways
+ * if it must), so pages can reserve its height.
  */
-export default function SyncAlerts() {
+export default function SyncAlerts({className = ""}: { className?: string }) {
     const {conflictCount, failingCount} = useSyncAlerts();
+    const online = useOnlineStatus();
     const {pathname} = useLocation();
     const showConflicts = conflictCount > 0 && pathname !== "/dashboard/conflicts";
     const showFailing = failingCount > 0 && pathname !== "/dashboard/sync-health";
-    if (!showConflicts && !showFailing) return null;
+    if (online && !showConflicts && !showFailing) return null;
 
     return (
-        <div className="flex gap-2 px-4 pt-3 pb-1 sm:px-0 sm:pt-0 sm:pb-4">
+        <div className={`flex h-12 items-center gap-2 overflow-x-auto [scrollbar-width:none] ${className}`}>
+            {!online && (
+                <p role="status" className={`${chip} border-default bg-surface-sunken pr-3 text-fg`}>
+                    <WifiOffIcon size={15}/>
+                    Offline — changes can't be saved
+                </p>
+            )}
             {showConflicts && (
-                <Link
-                    to="/dashboard/conflicts"
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-1.5 pr-2 pl-3 text-sm font-semibold text-red-800 transition-colors hover:bg-red-100"
-                >
+                <Link to="/dashboard/conflicts" className={`${chip} border-danger-line bg-danger-soft text-danger hover:brightness-95`}>
                     <AlertIcon size={15}/>
                     {conflictCount} {conflictCount === 1 ? "conflict" : "conflicts"}
-                    <ChevronRightIcon size={15} className="text-red-400"/>
+                    <ChevronRightIcon size={15}/>
                 </Link>
             )}
             {showFailing && (
-                <Link
-                    to="/dashboard/sync-health"
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 py-1.5 pr-2 pl-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-                >
+                <Link to="/dashboard/sync-health" className={`${chip} border-warning-line bg-warning-soft text-warning hover:brightness-95`}>
                     <SyncIcon size={15}/>
                     {failingCount} {failingCount === 1 ? "sync problem" : "sync problems"}
-                    <ChevronRightIcon size={15} className="text-amber-500"/>
+                    <ChevronRightIcon size={15}/>
                 </Link>
             )}
         </div>

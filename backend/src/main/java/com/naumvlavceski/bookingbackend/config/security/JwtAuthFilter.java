@@ -2,6 +2,7 @@ package com.naumvlavceski.bookingbackend.config.security;
 
 import com.naumvlavceski.bookingbackend.model.AppUser;
 import com.naumvlavceski.bookingbackend.repository.AppUserRepository;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    public static final String REFRESHED_TOKEN_HEADER = "X-Refreshed-Token";
+    public static final String BACKGROUND_HEADER = "X-Background";
+
     private final JwtService jwtService;
     private final AppUserRepository appUserRepository;
 
@@ -39,19 +43,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = header.substring(7);
-
-        if (!jwtService.isTokenValid(token)) {
+        Optional<Claims> claimsOpt = jwtService.parse(header.substring(7));
+        if (claimsOpt.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String email = jwtService.extractEmail(token);
+        Claims claims = claimsOpt.get();
+        String email = claims.getSubject();
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             Optional<AppUser> userOpt = appUserRepository.findByEmail(email);
 
-            if (userOpt.isPresent() && userOpt.get().isActive() && userOpt.get().getEmailVerifiedAt() != null) {
+            if (userOpt.isPresent() && userOpt.get().isActive() && userOpt.get().getEmailVerifiedAt() != null
+                    && jwtService.isSessionValid(claims, userOpt.get())) {
                 AppUser user = userOpt.get();
 
                 CurrentUser currentUser = new CurrentUser(
@@ -64,10 +69,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
                 var authToken = new UsernamePasswordAuthenticationToken(currentUser, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                if (!"true".equalsIgnoreCase(request.getHeader(BACKGROUND_HEADER))) {
+                    jwtService.renewIfDue(claims, user)
+                            .ifPresent(renewed -> response.setHeader(REFRESHED_TOKEN_HEADER, renewed));
+                }
             }
         }
-
-
 
         filterChain.doFilter(request, response);
     }

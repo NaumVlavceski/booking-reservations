@@ -2,15 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/webp" href="/logo.webp" />
+    <!-- The manifest link is added at build time (vite-plugin-pwa). -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <!-- Home-screen app on iPhone: own window, dark status bar text on the light top bar, short name under the icon. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RoomTrack" />
+    <script>
+      // Show the last chosen theme before the first paint (no light flash for dark-mode users). Default: light.
+      try {
+        if (localStorage.getItem("roomtrack.theme") === "dark") {
+          document.documentElement.dataset.theme = "dark";
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111A27");
+        }
+      } catch (e) {}
+    </script>
+    <meta name="description" content="RoomTrack: one calendar for every booking from Booking.com, Airbnb and your own guests." />
     <title>RoomTrack</title>
   </head>
   <body>
+    <!-- Calendar bar textures (see CalendarPage.css): Airbnb dots, blocked hatching. Colours come from the theme tokens. -->
+    <svg aria-hidden="true" focusable="false" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <defs>
+        <pattern id="rt-tex-airbnb" width="6" height="6" patternUnits="userSpaceOnUse">
+          <rect width="6" height="6" style="fill: var(--rt-src-airbnb-fill)" />
+          <circle cx="3" cy="3" r="1.1" style="fill: var(--rt-src-airbnb-texture)" />
+        </pattern>
+        <pattern id="rt-tex-blocked" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="6" height="6" style="fill: var(--rt-src-blocked-fill)" />
+          <rect width="2" height="6" style="fill: var(--rt-src-blocked-texture)" />
+        </pattern>
+      </defs>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

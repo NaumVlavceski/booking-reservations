@@ -89,6 +89,13 @@ public class AuthService {
         return signIn(user);
     }
 
+    @Transactional
+    public void incrementTokenVersion(UUID userId) {
+        if (appUserRepository.incrementTokenVersion(userId) == 0) {
+            throw new NoSuchElementException("User not found");
+        }
+    }
+
     private AuthResponse signIn(AppUser user) {
         String token = jwtService.generateToken(user);
         user.setLastLoginAt(LocalDateTime.now());
