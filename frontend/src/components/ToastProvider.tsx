@@ -23,8 +23,11 @@ const OFFSET = {
     none: "bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:bottom-6",
 } as const;
 
-/** Holds one toast at a time — a newer message replaces the older one. */
-export default function ToastProvider({children}: { children: ReactNode }) {
+/**
+ * Holds one toast at a time — a newer message replaces the older one. `notices` are cards that stay until
+ * dismissed (new version, install the app); they sit just above the toast.
+ */
+export default function ToastProvider({children, notices}: { children: ReactNode; notices?: ReactNode }) {
     const [toast, setToast] = useState<ActiveToast | null>(null);
     const timerRef = useRef<number | undefined>(undefined);
     const nextId = useRef(0);
@@ -83,7 +86,8 @@ export default function ToastProvider({children}: { children: ReactNode }) {
     return (
         <ToastContext.Provider value={api}>
             {children}
-            <div className={`pointer-events-none fixed inset-x-0 z-[70] flex justify-center px-4 ${OFFSET[bottomChrome(pathname)]}`}>
+            <div className={`pointer-events-none fixed inset-x-0 z-[70] flex flex-col items-center gap-2 px-4 ${OFFSET[bottomChrome(pathname)]}`}>
+                <div role="status" aria-live="polite" className="contents">{notices}</div>
                 <div role="status" aria-live="polite" className="contents">{!isError && card}</div>
                 <div role="alert" className="contents">{isError && card}</div>
             </div>

@@ -263,3 +263,31 @@ export const MoonIcon = (p: IconProps) => (
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </Icon>
 );
+
+/** Install the app: an arrow down onto a phone. */
+export const InstallIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <rect x="6" y="2" width="12" height="20" rx="2"/>
+        <path d="M12 7v7"/>
+        <path d="m9 11 3 3 3-3"/>
+        <line x1="11" y1="18" x2="13" y2="18"/>
+    </Icon>
+);
+
+/** Safari's Share button: a box with an arrow up. */
+export const ShareIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M8 10H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2"/>
+        <path d="M12 15V2"/>
+        <path d="m8 6 4-4 4 4"/>
+    </Icon>
+);
+
+/** Safari's "Add to Home Screen": a plus in a rounded square. */
+export const AddSquareIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <rect x="3" y="3" width="18" height="18" rx="4"/>
+        <line x1="12" y1="8" x2="12" y2="16"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
+    </Icon>
+);

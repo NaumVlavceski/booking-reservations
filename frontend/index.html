@@ -2,10 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/webp" href="/logo.png" />
+    <!-- The manifest link is added at build time (vite-plugin-pwa). -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- Browser bar colour = the app's top bar (tokens.css --rt-surface); lib/theme.ts updates it. -->
     <meta name="theme-color" content="#FFFFFF" />
+    <!-- Home-screen app on iPhone: own window, dark status bar text on the light top bar, short name under the icon. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RoomTrack" />
     <script>
       // Show the last chosen theme before the first paint (no light flash for dark-mode users). Default: light.
       try {

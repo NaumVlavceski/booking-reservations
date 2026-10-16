@@ -24,7 +24,11 @@ import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
 import ThemeToggle from "./ThemeToggle";
 import {applyAccountTheme} from "../lib/theme";
+import {useOnlineStatus} from "../lib/useOnlineStatus";
+import {useApiReachable} from "../lib/apiReachability";
 import AppLogo from "./AppLogo";
+import OfflineScreen from "./OfflineScreen";
+import InstallAppButton, {IosInstallSheet} from "./InstallApp";
 import Sheet from "./ui/Sheet";
 import {CountBubble} from "./ui/Badge";
 
@@ -71,6 +75,13 @@ export default function DashboardLayout() {
     const isCalendar = pathname.startsWith("/dashboard/calendar");
     const chrome = bottomChrome(pathname);
     const businessName = me?.businessName ?? "RoomTrack";
+    const [iosStepsOpen, setIosStepsOpen] = useState(false);
+    // No connection or no answer from the server: pages make way for the offline screen (never old data).
+    // Forms stay, so nothing typed is lost; their Save is disabled while offline.
+    const online = useOnlineStatus();
+    const apiReachable = useApiReachable();
+    const showOffline = (!online || !apiReachable) && chrome !== "form";
+    const page = showOffline ? <OfflineScreen offline={!online}/> : <Outlet/>;
 
     function handleLogout() {
         tokenStorage.clear();
@@ -127,6 +138,7 @@ export default function DashboardLayout() {
                     <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon} active={pathname.startsWith("/dashboard/help")}>
                         Channel setup guide
                     </SidebarLink>
+                    <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
                     <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
                     <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
@@ -166,14 +178,16 @@ export default function DashboardLayout() {
                         }`
                 }`}
             >
-                {isCalendar ? (
+                {isCalendar && !showOffline ? (
                     <>
                         <SyncAlerts className="px-4 pt-[env(safe-area-inset-top)] box-content sm:px-0 sm:pt-0"/>
                         <Outlet/>
                     </>
+                ) : isCalendar ? (
+                    <div className="px-4 sm:px-0">{page}</div>
                 ) : (
                     <div className="mx-auto w-full max-w-5xl">
-                        <Outlet/>
+                        {page}
                     </div>
                 )}
             </main>
@@ -216,6 +230,10 @@ export default function DashboardLayout() {
                     </SheetGroup>
                     <SheetGroup>
                         <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com &amp; Airbnb</SheetLink>
+                        <InstallAppButton onShowIosSteps={() => {
+                            closeMore();
+                            setIosStepsOpen(true);
+                        }}/>
                         <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
                     </SheetGroup>
@@ -227,6 +245,7 @@ export default function DashboardLayout() {
                     </SheetGroup>
                 </div>
             </Sheet>
+            <IosInstallSheet open={iosStepsOpen} onClose={() => setIosStepsOpen(false)}/>
         </div>
     );
 }
