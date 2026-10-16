@@ -15,8 +15,25 @@ import {apiErrorMessage} from "../lib/api/client.ts";
 import {propertyDeleteMessage} from "../lib/plural";
 import FormTopBar from "../components/FormTopBar";
 import ConfirmDialog from "../components/ConfirmDialog";
+import {SectionCard} from "../components/ui/Card";
+import {TextField} from "../components/ui/Field";
+import Callout from "../components/ui/Callout";
+import {FormSkeleton} from "../components/ui/States";
+import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+import {useReturnTo} from "../lib/useReturnTo";
 
 const MAX_ROOMS = 200;
+
+const MESSAGES: ValidationMessages = {
+    name: {valueMissing: "Enter a name for the property."},
+    unitCount: {
+        valueMissing: `Enter how many rooms it has (0 to ${MAX_ROOMS}).`,
+        badInput: "Enter a whole number.",
+        rangeUnderflow: "Enter 0 or more rooms.",
+        rangeOverflow: `Enter at most ${MAX_ROOMS} rooms.`,
+        stepMismatch: "Enter a whole number.",
+    },
+};
 
 export default function PropertyFormPage() {
     const {id} = useParams();
@@ -25,12 +42,16 @@ export default function PropertyFormPage() {
     const isWelcome = !isEditing && searchParams.get("welcome") === "1";
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    // Back (and Save on an edit) return to the page you came from, e.g. the calendar or the property page.
+    const backFallback = isEditing ? `/dashboard/properties/${id}` : "/dashboard/properties";
+    const {goBack} = useReturnTo(backFallback);
 
     const [form, setForm] = useState<PropertyRequest>({
         name: "",
         address: "",
     })
     const [unitCount, setUnitCount] = useState("1");
+    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
     const {data: existing, isLoading: isLoadingExisting} = useQuery({
         queryKey: ["properties", id],
         queryFn: () => getProperty(id!),
@@ -52,7 +73,7 @@ export default function PropertyFormPage() {
         onSuccess: async ()=>{
             await queryClient.invalidateQueries({queryKey: ["properties"]});
             if (isEditing) {
-                navigate(`/dashboard/properties/${id}`);
+                goBack();
                 return;
             }
             // New rooms were created alongside the property. Load them *before*
@@ -90,12 +111,19 @@ export default function PropertyFormPage() {
     });
     const closeConfirm = useCallback(() => setConfirmDelete(false), []);
 
-    function handleSubmit(e: React.FormEvent) {
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        if (!validate(e.currentTarget)) return;
         mutation.mutate(isEditing ? form : {...form, unitCount: Number(unitCount) || 0});
     }
     if (isEditing && isLoadingExisting) {
-        return <div className="text-slate-500">Loading property...</div>;
+        return (
+            <div className="mx-auto max-w-2xl">
+                <FormTopBar formId="property-form" saving={false} title="Edit property"
+                            back={{to: backFallback}}/>
+                <FormSkeleton label="Loading property..." sections={1}/>
+            </div>
+        );
     }
 
     const title = isEditing ? `Edit ${existing?.name ?? "property"}` : isWelcome ? "Set up your first property" : "Add a property";
@@ -104,16 +132,13 @@ export default function PropertyFormPage() {
         : Boolean(form.name || form.address || unitCount !== "1");
 
     return (
-        <div className="mx-auto max-w-xl">
+        <div className="mx-auto max-w-2xl">
             <FormTopBar
                 formId="property-form"
                 saving={mutation.isPending}
                 title={title}
                 isDirty={isDirty}
-                back={isWelcome ? undefined : {
-                    to: isEditing ? `/dashboard/properties/${id}` : "/dashboard/properties",
-                    label: isEditing ? (existing?.name ?? "Property") : "Properties",
-                }}
+                back={isWelcome ? undefined : {to: backFallback}}
                 onDelete={isEditing ? () => {
                     deleteMutation.reset();
                     setConfirmDelete(true);
@@ -121,60 +146,66 @@ export default function PropertyFormPage() {
                 deleteLabel="Delete property"
             />
             {isWelcome && (
-                <p className="page-subtitle mb-6 mt-2">
+                <Callout tone="info" className="mb-4" title="Welcome to RoomTrack">
                     Tell us about your place and how many rooms it has — we'll create them for you.
-                </p>
+                </Callout>
             )}
 
-            <form id="property-form" onSubmit={handleSubmit} className="surface space-y-5">
-                <div>
-                    <label className="field-label" htmlFor="name">Name</label>
-                    <input
+            <form id="property-form" onSubmit={handleSubmit} noValidate className="space-y-4">
+                <SectionCard id="property-details" title="Property details">
+                    <TextField
+                        label="Name"
                         id="name"
+                        name="name"
                         value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        onChange={(e) => {
+                            setForm({...form, name: e.target.value});
+                            recheck(e.target);
+                        }}
                         required
+                        autoComplete="off"
+                        autoCapitalize="words"
+                        enterKeyHint="next"
                         placeholder="Property Name"
-                        className="field-input"
+                        error={errors.name}
                     />
-                </div>
-
-                <div>
-                    <label className="field-label" htmlFor="address">Address</label>
-                    <input
+                    <TextField
+                        label="Address"
                         id="address"
+                        name="address"
                         value={form.address}
-                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        onChange={(e) => setForm({...form, address: e.target.value})}
+                        autoComplete="street-address"
+                        enterKeyHint={isEditing ? "done" : "next"}
                         placeholder="Address ..."
-                        className="field-input"
                     />
-                </div>
-
-                {!isEditing && (
-                    <div>
-                        <label className="field-label" htmlFor="unitCount">Number of rooms</label>
-                        <input
+                    {!isEditing && (
+                        <TextField
+                            label="Number of rooms"
                             id="unitCount"
+                            name="unitCount"
                             type="number"
                             inputMode="numeric"
                             min={0}
                             max={MAX_ROOMS}
+                            step={1}
                             value={unitCount}
-                            onChange={(e) => setUnitCount(e.target.value)}
+                            onChange={(e) => {
+                                setUnitCount(e.target.value);
+                                recheck(e.target);
+                            }}
                             required
-                            className="field-input max-w-[10rem]"
+                            enterKeyHint="done"
+                            hint="Named Room 1, Room 2, … with space for 2 guests each. You can rename them anytime."
+                            error={errors.unitCount}
                         />
-                        <p className="field-hint">
-                            Named Room 1, Room 2, … with space for 2 guests each. You can rename them anytime.
-                        </p>
-                    </div>
-                )}
-
+                    )}
+                </SectionCard>
 
                 {mutation.isError && (
-                    <p className="alert-error">
+                    <Callout tone="danger" role="alert">
                         {apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}
-                    </p>
+                    </Callout>
                 )}
             </form>
 

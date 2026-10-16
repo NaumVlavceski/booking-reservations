@@ -16,6 +16,11 @@ import {describeSyncError, PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
 import ConfirmDialog from "./ConfirmDialog";
 import SyncProblem from "./SyncProblem";
+import Card from "./ui/Card";
+import Button from "./ui/Button";
+import Badge from "./ui/Badge";
+import Callout from "./ui/Callout";
+import {AlertIcon, CheckIcon, SyncIcon} from "./icons";
 
 export default function ExternalCalendars({unitId}: { unitId: string }) {
     const queryClient = useQueryClient();
@@ -25,7 +30,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     const [formError, setFormError] = useState<string | null>(null);
     const [removing, setRemoving] = useState<ExternalCalendar | null>(null);
 
-    const {data: calendars, isLoading} = useQuery({
+    const {data: calendars, isLoading, isError, refetch} = useQuery({
         queryKey: ["calendars", unitId],
         queryFn: () => getUnitCalendars(unitId),
     });
@@ -79,56 +84,69 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     }
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h2 className="text-sm font-semibold text-slate-900">Bring in bookings from other channels</h2>
-            <p className="mt-0.5 mb-3 text-sm text-slate-600">
-                Paste the calendar export link from Booking.com or Airbnb. Their bookings then appear on your calendar
-                automatically. Not sure where to find the link? See how it works on{" "}
-                <Link to="/dashboard/help/connect-calendars#airbnb" state={fromHere} className="font-medium text-teal-700 underline">Airbnb</Link>
-                {" "}or{" "}
-                <Link to="/dashboard/help/connect-calendars#booking" state={fromHere} className="font-medium text-teal-700 underline">Booking.com</Link>.
-            </p>
+        <Card as="section" aria-labelledby={`import-title-${unitId}`} className="space-y-4">
+            <div className="flex items-start gap-3">
+                <span aria-hidden="true"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-on-primary-soft">
+                    <SyncIcon size={20}/>
+                </span>
+                <div className="min-w-0">
+                    <h2 id={`import-title-${unitId}`} className="text-title-3 text-fg">Bring in bookings from other
+                        channels</h2>
+                    <p className="mt-0.5 text-body-sm text-muted">
+                        Paste the calendar export link from Booking.com or Airbnb. Their bookings then appear on your
+                        calendar
+                        automatically. Not sure where to find the link? See how it works on{" "}
+                        <Link to="/dashboard/help/connect-calendars#airbnb" state={fromHere}
+                              className="link underline">Airbnb</Link>
+                        {" "}or{" "}
+                        <Link to="/dashboard/help/connect-calendars#booking" state={fromHere}
+                              className="link underline">Booking.com</Link>.
+                    </p>
+                </div>
+            </div>
 
-            {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+            {isLoading && <p role="status" className="text-body-sm text-muted">Loading…</p>}
+            {isError && (
+                <Callout tone="danger" role="alert"
+                         action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Try again</Button>}>
+                    Couldn't load the connected channels.
+                </Callout>
+            )}
 
             {calendars && calendars.length > 0 && (
-                <ul className="mb-4 space-y-2">
+                <ul className="space-y-2">
                     {calendars.map((c) => {
                         const syncing = syncMutation.isPending && syncMutation.variables?.id === c.id;
                         return (
-                            <li key={c.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-slate-900">{PLATFORM_NAME[c.platform]}</span>
+                            <li key={c.id} className="rounded-xl border border-subtle bg-surface-sunken p-3 sm:p-4">
+                                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <span className="text-title-3 text-fg">{PLATFORM_NAME[c.platform]}</span>
                                         <StatusPill calendar={c}/>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => syncMutation.mutate(c)}
-                                            disabled={syncMutation.isPending}
-                                            className="btn btn-secondary min-h-11 px-3"
-                                        >
-                                            {syncing ? "Syncing…" : "Sync now"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                deleteMutation.reset();
-                                                setRemoving(c);
-                                            }}
-                                            className="btn btn-danger-ghost min-h-11 px-3"
-                                        >
+                                    <div className="flex gap-1">
+                                        <Button variant="secondary" size="sm" className="min-h-11"
+                                                onClick={() => syncMutation.mutate(c)}
+                                                disabled={syncMutation.isPending && !syncing}
+                                                loading={syncing} loadingLabel="Syncing…">
+                                            Sync now
+                                        </Button>
+                                        <Button variant="danger-ghost" size="sm" className="min-h-11"
+                                                onClick={() => {
+                                                    deleteMutation.reset();
+                                                    setRemoving(c);
+                                                }}>
                                             Remove
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                                 {c.lastError && (
-                                    <div className="mt-2">
+                                    <div className="mt-3">
                                         <SyncProblem error={c.lastError} platform={c.platform}/>
                                     </div>
                                 )}
-                                <p className="mt-2 text-xs text-slate-500">
+                                <p className="mt-2 text-caption text-subtle">
                                     Last synced successfully: {formatWhen(c.lastSuccessAt)}
                                 </p>
                             </li>
@@ -140,11 +158,16 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
             {availablePlatforms.length > 0 ? (
                 <form onSubmit={handleAdd} className="space-y-2">
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        <label className="sr-only" htmlFor={`ics-${unitId}`}>Calendar export link</label>
+                        <div className="float-field min-w-0 flex-1">
                         <input
                             id={`ics-${unitId}`}
                             type="url"
                             inputMode="url"
+                            autoComplete="off"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="go"
                             value={icsUrl}
                             onChange={(e) => {
                                 setIcsUrl(e.target.value);
@@ -152,31 +175,42 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                             }}
                             placeholder="Paste the Booking.com or Airbnb link"
                             aria-describedby={`ics-hint-${unitId}`}
+                            aria-invalid={formError ? true : undefined}
                             required
-                            className="field-input min-w-0 flex-1"
+                            className="field-input"
                         />
-                        <button type="submit" disabled={addMutation.isPending || !canConnect}
-                                className="btn btn-primary min-h-11 shrink-0">
-                            {addMutation.isPending ? "Connecting…" : "Connect"}
-                        </button>
+                        <label className="float-label" htmlFor={`ics-${unitId}`}>Calendar export link</label>
+                        </div>
+                        <Button type="submit" disabled={!canConnect} loading={addMutation.isPending}
+                                loadingLabel="Connecting…"
+                                className="min-h-12 shrink-0">
+                            Connect
+                        </Button>
                     </div>
-                    <p id={`ics-hint-${unitId}`} aria-live="polite" className="min-h-5 text-sm">
+                    <p id={`ics-hint-${unitId}`} aria-live="polite" className="min-h-5 text-body-sm">
                         {icsUrl.trim() === "" ? null : alreadyConnected ? (
-                            <span className="text-amber-700">
+                            <span className="inline-flex items-center gap-1.5 font-medium text-warning">
+                                <AlertIcon size={15}/>
                                 This room already has {detected === "AIRBNB" ? "an" : "a"} {PLATFORM_NAME[detected]} calendar.
                             </span>
                         ) : detected ? (
-                            <span className="font-medium text-teal-700">{PLATFORM_NAME[detected]} link detected</span>
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-success">
+                                <CheckIcon size={15}/>
+                                {PLATFORM_NAME[detected]} link detected
+                            </span>
                         ) : (
-                            <span className="text-slate-600">
+                            <span className="text-muted">
                                 Only Booking.com and Airbnb calendar links are supported.
                             </span>
                         )}
                     </p>
-                    {formError && <p className="alert-error">{formError}</p>}
+                    {formError && <Callout tone="danger" role="alert">{formError}</Callout>}
                 </form>
             ) : (
-                <p className="text-sm text-slate-500">Booking.com and Airbnb are both connected for this room.</p>
+                <p className="flex items-center gap-2 text-body-sm text-muted">
+                    <CheckIcon size={16} className="text-success"/>
+                    Booking.com and Airbnb are both connected for this room.
+                </p>
             )}
 
             <ConfirmDialog
@@ -196,16 +230,16 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                 onConfirm={() => removing && deleteMutation.mutate(removing)}
                 onCancel={() => setRemoving(null)}
             />
-        </section>
+        </Card>
     );
 }
 
 function StatusPill({calendar}: { calendar: ExternalCalendar }) {
     if (calendar.lastError) {
-        return <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Not syncing</span>;
+        return <Badge tone="danger" icon={<AlertIcon size={13}/>}>Not syncing</Badge>;
     }
     if (calendar.lastSuccessAt) {
-        return <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">Syncing</span>;
+        return <Badge tone="success" icon={<CheckIcon size={13} strokeWidth={2.5}/>}>Syncing</Badge>;
     }
-    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Not synced yet</span>;
+    return <Badge tone="neutral">Not synced yet</Badge>;
 }

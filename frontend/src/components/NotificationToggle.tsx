@@ -3,11 +3,12 @@ import {getNotificationSettings, setNotificationsEnabled, type NotificationSetti
 import {apiErrorMessage} from "../lib/api/client";
 import {useToast} from "../lib/toast";
 import {BellIcon} from "./icons";
+import {Switch} from "./ui/Controls";
 
 const KEY = ["notifications", "settings"];
 
 /** On/off switch for booking emails (new, changed, cancelled reservations, sync problems). */
-export default function NotificationToggle({className = ""}: { className?: string }) {
+export default function NotificationToggle({compact = false, className = ""}: { compact?: boolean; className?: string }) {
     const queryClient = useQueryClient();
     const toast = useToast();
     const {data} = useQuery({queryKey: KEY, queryFn: getNotificationSettings, staleTime: Infinity});
@@ -30,25 +31,15 @@ export default function NotificationToggle({className = ""}: { className?: strin
         },
     });
 
-    const enabled = data?.enabled ?? false;
-
     return (
-        <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
+        <Switch
+            checked={data?.enabled ?? false}
+            onChange={(enabled) => mutation.mutate(enabled)}
             disabled={data === undefined || mutation.isPending}
-            onClick={() => mutation.mutate(!enabled)}
-            className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 disabled:opacity-60 ${className}`}
-        >
-            <BellIcon size={16}/>
-            <span className="min-w-0 flex-1 text-left">Email notifications</span>
-            <span
-                aria-hidden="true"
-                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${enabled ? "bg-teal-500" : "bg-slate-600"}`}
-            >
-                <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-4" : ""}`}/>
-            </span>
-        </button>
+            icon={<BellIcon size={compact ? 18 : 20}/>}
+            compact={compact}
+            label="Email notifications"
+            className={className}
+        />
     );
 }

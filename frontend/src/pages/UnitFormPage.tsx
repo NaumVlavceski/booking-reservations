@@ -12,6 +12,21 @@ import {unitDeleteMessage} from "../lib/plural";
 import CalendarSyncLink from "../components/CalendarSyncLink.tsx";
 import ExternalCalendars from "../components/ExternalCalendar.tsx";
 import {ChevronRightIcon, HelpIcon} from "../components/icons";
+import {SectionCard} from "../components/ui/Card";
+import {TextField} from "../components/ui/Field";
+import Callout from "../components/ui/Callout";
+import {FormSkeleton} from "../components/ui/States";
+import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+
+const MESSAGES: ValidationMessages = {
+    name: {valueMissing: "Enter a name for the room, e.g. Room 1."},
+    capacity: {
+        valueMissing: "Enter how many guests the room sleeps.",
+        badInput: "Enter a whole number.",
+        rangeUnderflow: "A room sleeps at least 1 guest.",
+        stepMismatch: "Enter a whole number.",
+    },
+};
 
 export default function UnitFormPage() {
     const {propertyId, unitId} = useParams();
@@ -51,6 +66,7 @@ export default function UnitFormPage() {
         }
     })
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
     const {data: reservations} = useQuery({...allReservationsQuery, enabled: isEditing});
     const deleteMutation = useMutation({
         mutationFn: () => deleteUnit(unitId!),
@@ -70,8 +86,9 @@ export default function UnitFormPage() {
             goBack();
         },
     });
-    function handleSubmit(e: React.FormEvent) {
+    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        if (!validate(e.currentTarget)) return;
         mutation.mutate(form);
     }
     const closeConfirm = useCallback(() => setConfirmDelete(false), []);
@@ -80,81 +97,97 @@ export default function UnitFormPage() {
         goBack();
     }
     if (isEditing && isLoadingExisting) {
-        return <div className="text-slate-500">Loading unit...</div>;
+        return (
+            <div className="mx-auto max-w-2xl">
+                <FormTopBar formId="unit-form" saving={false} title="Edit room" back={{to: backTo, onClick: handleBack}}/>
+                <FormSkeleton label="Loading unit..." sections={2}/>
+            </div>
+        );
     }
 
-    const backLabel = backTo.startsWith("/dashboard/calendar") ? "Calendar" : (property?.name ?? "Property");
     const title = isEditing ? `Edit ${existing?.name ?? "room"}` : "Add a room";
     const isDirty = isEditing
         ? existing != null && (form.name !== existing.name || form.capacity !== existing.capacity)
         : Boolean(form.name || form.capacity !== 2);
 
     return (
-        <div className="mx-auto max-w-xl">
+        <div className="mx-auto max-w-2xl">
             <FormTopBar
                 formId="unit-form"
                 saving={mutation.isPending}
                 title={title}
+                subtitle={property?.name}
                 isDirty={isDirty}
-                back={{to: backTo, label: backLabel, onClick: handleBack}}
+                back={{to: backTo, onClick: handleBack}}
                 onDelete={isEditing ? () => {
                     deleteMutation.reset();
                     setConfirmDelete(true);
                 } : undefined}
                 deleteLabel="Delete room"
             />
-            {property && <p className="page-subtitle mt-2">{property.name}</p>}
-            <div className="surface mt-6 space-y-5">
-            <form id="unit-form" onSubmit={handleSubmit} >
-                <div>
-                    <label className="field-label" htmlFor="name">Name</label>
-                    <input
-                        id="name"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        required
-                        placeholder="Room 1"
-                        className="field-input"
-                    />
-                </div>
 
-                <div>
-                    <label className="field-label" htmlFor="capacity">Capacity</label>
-                    <input
-                        id="capacity"
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={form.capacity}
-                        onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
-                        required
-                        className="field-input max-w-[10rem]"
-                    />
-                </div>
+            <div className="space-y-4">
+                <form id="unit-form" onSubmit={handleSubmit} noValidate className="space-y-4">
+                    <SectionCard id="room-details" title="Room details">
+                        <TextField
+                            label="Name"
+                            id="name"
+                            name="name"
+                            value={form.name}
+                            onChange={(e) => {
+                                setForm({...form, name: e.target.value});
+                                recheck(e.target);
+                            }}
+                            required
+                            autoComplete="off"
+                            autoCapitalize="words"
+                            enterKeyHint="next"
+                            placeholder="Room 1"
+                            error={errors.name}
+                        />
+                        <TextField
+                            label="Capacity"
+                            id="capacity"
+                            name="capacity"
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            step={1}
+                            value={form.capacity}
+                            onChange={(e) => {
+                                setForm({...form, capacity: Number(e.target.value)});
+                                recheck(e.target);
+                            }}
+                            required
+                            enterKeyHint="done"
+                            hint="How many guests the room sleeps."
+                            error={errors.capacity}
+                        />
+                    </SectionCard>
 
-                {mutation.isError && (
-                    <p className="alert-error">{apiErrorMessage(mutation.error, "Something went wrong. Try again.")}</p>
+                    {mutation.isError && (
+                        <Callout tone="danger" role="alert">{apiErrorMessage(mutation.error, "Something went wrong. Try again.")}</Callout>
+                    )}
+                </form>
+
+                {isEditing && existing?.token && (
+                    <section aria-labelledby="channels-heading" className="space-y-3 pt-2">
+                        <h2 id="channels-heading" className="px-1 text-overline text-subtle uppercase">Channels</h2>
+                        <Link
+                            to="/dashboard/help/connect-calendars"
+                            state={fromHere}
+                            className="flex min-h-14 items-center gap-3 rounded-2xl border border-primary-line bg-primary-soft px-4 py-3 text-body-sm font-semibold text-on-primary-soft transition-colors hover:border-primary"
+                        >
+                            <HelpIcon size={20} className="shrink-0"/>
+                            <span className="min-w-0 flex-1">Step-by-step guide: connect Airbnb and Booking.com</span>
+                            <ChevronRightIcon size={18} className="shrink-0"/>
+                        </Link>
+                        <CalendarSyncLink token={existing.token}/>
+                        <ExternalCalendars unitId={existing.id}/>
+                    </section>
                 )}
-
-            </form>
-            <div>
-            {isEditing && existing?.token && (
-                <>
-                    <Link
-                        to="/dashboard/help/connect-calendars"
-                        state={fromHere}
-                        className="mb-4 flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
-                    >
-                        <HelpIcon size={20} className="shrink-0"/>
-                        <span className="min-w-0 flex-1">Step-by-step guide: connect Airbnb and Booking.com</span>
-                        <ChevronRightIcon size={18} className="shrink-0"/>
-                    </Link>
-                    <CalendarSyncLink token={existing.token} />
-                    <br/>
-                    <ExternalCalendars unitId={existing.id} />
-                </>
-            )}
             </div>
+
             <ConfirmDialog
                 open={confirmDelete}
                 title={`Delete ${existing?.name ?? "this room"}?`}
@@ -167,7 +200,6 @@ export default function UnitFormPage() {
                 onConfirm={() => deleteMutation.mutate()}
                 onCancel={closeConfirm}
             />
-        </div>
         </div>
     );
 }

@@ -1,6 +1,5 @@
 import {useState} from "react";
 import {useMutation, useQueries, useQuery, useQueryClient} from "@tanstack/react-query";
-import {Link} from "react-router-dom";
 import {differenceInCalendarDays} from "date-fns";
 import {dismissConflict, getOpenConflicts, type SyncConflict} from "../lib/api/conflicts";
 import {getReservation, type ReservationResponse} from "../lib/api/reservations";
@@ -12,6 +11,11 @@ import {PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {AlertIcon, CheckIcon} from "../components/icons";
+import PageHeader from "../components/ui/PageHeader";
+import ChannelsNav from "../components/ChannelsNav";
+import Card from "../components/ui/Card";
+import Button, {ButtonLink} from "../components/ui/Button";
+import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
 
 // What channels put in SUMMARY when they don't share guest details — not worth showing.
 const GENERIC_SUMMARY = /^(closed\s*-\s*)?not available$|^reserved$|^blocked$|^airbnb \(not available\)$/i;
@@ -26,7 +30,7 @@ export default function ConflictsPage() {
     const toast = useToast();
     const [confirming, setConfirming] = useState<SyncConflict | null>(null);
 
-    const {data: conflicts, isLoading} = useQuery({queryKey: ["conflicts"], queryFn: getOpenConflicts});
+    const {data: conflicts, isLoading, isError, refetch, isRefetching} = useQuery({queryKey: ["conflicts"], queryFn: getOpenConflicts});
     const {data: units} = useQuery(allUnitsQuery);
     const {data: properties} = useQuery(propertiesQuery);
     const reservationIds = [...new Set((conflicts ?? []).map((c) => c.conflictingReservationId).filter(Boolean))];
@@ -53,22 +57,22 @@ export default function ConflictsPage() {
 
     return (
         <div>
-            <h1 className="page-title">Booking conflicts</h1>
-            <p className="page-subtitle mb-6">
-                Booking.com or Airbnb reported a stay on dates you already have booked. Nothing was changed
-                automatically — decide which booking is right for each one.
-            </p>
+            <PageHeader
+                title="Booking conflicts"
+                description="Booking.com or Airbnb reported a stay on dates you already have booked. Nothing was changed automatically — decide which booking is right for each one."
+            />
+            <ChannelsNav/>
 
             {isLoading ? (
-                <p className="text-sm text-slate-500">Loading…</p>
+                <ListSkeleton rows={2} label="Loading…"/>
+            ) : isError ? (
+                <ErrorState title="Couldn't load conflicts" onRetry={() => refetch()} retrying={isRefetching}>
+                    Check your connection and try again.
+                </ErrorState>
             ) : !conflicts || conflicts.length === 0 ? (
-                <div className="surface flex flex-col items-center gap-2 py-10 text-center">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-                        <CheckIcon size={22}/>
-                    </span>
-                    <p className="font-semibold text-slate-700">No conflicts</p>
-                    <p className="text-sm text-slate-500">Your channels agree with your calendar.</p>
-                </div>
+                <EmptyState icon={<CheckIcon size={24}/>} title="No conflicts">
+                    Your channels agree with your calendar.
+                </EmptyState>
             ) : (
                 <ul className="space-y-4">
                     {conflicts.map((c) => {
@@ -82,17 +86,17 @@ export default function ConflictsPage() {
                             ? c.incomingSummary : null;
 
                         return (
-                            <li key={c.id} className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm sm:p-5">
+                            <Card as="li" key={c.id} className="border-danger-line">
                                 <div className="flex items-start gap-3">
-                                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
-                                        <AlertIcon size={16}/>
+                                    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft text-danger">
+                                        <AlertIcon size={18}/>
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                        <p className="font-semibold text-slate-900">
+                                        <h2 className="text-title-3 text-fg">
                                             {c.unitName}
-                                            {property && <span className="font-normal text-slate-500"> · {property.name}</span>}
-                                        </p>
-                                        <p className="mt-0.5 text-sm text-slate-600">
+                                            {property && <span className="font-normal text-muted"> · {property.name}</span>}
+                                        </h2>
+                                        <p className="mt-0.5 text-body-sm text-muted">
                                             {c.kind === "NEW_OVERLAP"
                                                 ? `${platform} has a new booking that overlaps a stay already on your calendar.`
                                                 : `A ${platform} booking moved to dates that overlap a stay already on your calendar. It still shows its old dates for now.`}
@@ -100,21 +104,21 @@ export default function ConflictsPage() {
                                     </div>
                                 </div>
 
-                                <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                                    <div className="rounded-xl bg-red-50 px-3.5 py-2.5">
-                                        <dt className="text-xs font-semibold text-red-700">{platform} says</dt>
-                                        <dd className="mt-0.5 font-semibold text-slate-900">
-                                            {incoming} <span className="font-normal text-slate-500">· {nights(c.incomingStart, c.incomingEnd)}</span>
+                                <dl className="mt-4 grid gap-2 text-body-sm sm:grid-cols-2">
+                                    <div className="rounded-xl border border-danger-line bg-danger-soft px-3.5 py-3">
+                                        <dt className="text-caption font-semibold text-danger">{platform} says</dt>
+                                        <dd className="num mt-0.5 font-semibold text-fg">
+                                            {incoming} <span className="font-normal text-muted">· {nights(c.incomingStart, c.incomingEnd)}</span>
                                         </dd>
-                                        {note && <dd className="mt-0.5 text-slate-600">“{note}”</dd>}
+                                        {note && <dd className="mt-0.5 text-muted">“{note}”</dd>}
                                     </div>
-                                    <div className="rounded-xl bg-slate-50 px-3.5 py-2.5">
-                                        <dt className="text-xs font-semibold text-slate-600">Your calendar has</dt>
-                                        <dd className="mt-0.5 font-semibold text-slate-900">
+                                    <div className="rounded-xl border border-subtle bg-surface-sunken px-3.5 py-3">
+                                        <dt className="text-caption font-semibold text-muted">Your calendar has</dt>
+                                        <dd className="mt-0.5 font-semibold text-fg">
                                             {existing ? (
                                                 <>
                                                     {existingName}{" "}
-                                                    <span className="block font-normal text-slate-600">{formatStayDays(existing.checkIn, existing.checkOut)}</span>
+                                                    <span className="num block font-normal text-muted">{formatStayDays(existing.checkIn, existing.checkOut)}</span>
                                                 </>
                                             ) : "A booking on these dates"}
                                         </dd>
@@ -122,30 +126,27 @@ export default function ConflictsPage() {
                                 </dl>
 
                                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <Link
-                                        to={`/dashboard/reservations/${c.conflictingReservationId}`}
-                                        className="btn btn-primary min-h-11"
-                                    >
+                                    <ButtonLink to={`/dashboard/reservations/${c.conflictingReservationId}`} className="min-h-12 sm:min-h-11">
                                         Change {existing ? `${existingName}’s` : "my"} booking
-                                    </Link>
-                                    <button
-                                        type="button"
+                                    </ButtonLink>
+                                    <Button
+                                        variant="secondary"
+                                        className="min-h-12 sm:min-h-11"
                                         onClick={() => {
                                             dismissMutation.reset();
                                             setConfirming(c);
                                         }}
-                                        className="btn btn-secondary min-h-11"
                                     >
                                         Keep my booking
-                                    </button>
+                                    </Button>
                                 </div>
-                                <p className="mt-2 text-xs text-slate-500">
+                                <p className="mt-3 text-caption text-subtle">
                                     “Keep my booking” hides this warning. Your reservation is not changed.
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-caption text-subtle">
                                     Reported {formatWhen(c.createdAt)}
                                 </p>
-                            </li>
+                            </Card>
                         );
                     })}
                 </ul>

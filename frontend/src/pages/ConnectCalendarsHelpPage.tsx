@@ -1,21 +1,8 @@
 import {useEffect, useState, type ReactNode} from "react";
-import {Link, useLocation} from "react-router-dom";
-import {ChevronLeftIcon} from "../components/icons";
+import {useLocation} from "react-router-dom";
+import PageHeader from "../components/ui/PageHeader";
+import Callout from "../components/ui/Callout";
 import {useReturnTo} from "../lib/useReturnTo";
-
-/*
- * Screenshots live in frontend/public/help/ and are served as /help/<file>. Add a file with one of these names
- * and it shows in its step; a step without its file simply has no picture (during `npm run dev` a dashed box
- * names the missing file).
- *
- *   booking-1-sync-calendars.png   Booking.com: Rates & Availability > Sync calendars
- *   booking-2-export-copy.png      Booking.com: the link Booking.com gives you, to copy
- *   booking-3-export-paste.png     Booking.com: Import calendar, with the RoomTrack link pasted
- *   booking-4-decide-export.png    Booking.com: "Decide what to export" > "Booked dates only"
- *   airbnb-1-sync-calendars.png    Airbnb: Availability settings > Connect calendars
- *   airbnb-2-import-paste.png      Airbnb: Import calendar, with the RoomTrack link pasted
- *   airbnb-3-export-copy.png       Airbnb: Export calendar, the link to copy
- */
 
 interface Picture {
     file: string;
@@ -28,7 +15,7 @@ function HelpImage({file, alt}: Picture) {
     if (missing) {
         // Only while developing: show which picture is still to be added. Visitors just see no picture.
         return import.meta.env.DEV ? (
-            <p className="max-w-full rounded-xl border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400">
+            <p className="max-w-full rounded-xl border border-dashed border-default px-3 py-6 text-center text-caption text-subtle">
                 Picture to add: public/help/{file}
             </p>
         ) : null;
@@ -43,7 +30,7 @@ function HelpImage({file, alt}: Picture) {
                     alt={alt}
                     loading="lazy"
                     onError={() => setMissing(true)}
-                    className="block h-auto max-h-64 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
+                    className="block h-auto max-h-64 w-auto max-w-full rounded-xl border border-subtle shadow-card"
                 />
             </a>
         </figure>
@@ -65,23 +52,23 @@ function Step({n, title, important = false, images = [], children}: {
         <li className="flex gap-3">
             <span
                 aria-hidden="true"
-                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${
-                    important ? "bg-amber-600" : "bg-teal-700"
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-body-sm font-semibold ${
+                    important ? "bg-warning-solid text-on-warning-solid" : "bg-primary text-on-primary"
                 }`}
             >
                 {n}
             </span>
             <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-slate-900">
+                <h3 className="font-semibold text-fg">
                     <span className="sr-only">Step {n}: </span>
                     {important && (
-                        <span className="mr-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold tracking-wide text-amber-800 uppercase">
+                        <span className="mr-2 rounded border border-warning-line bg-warning-soft px-1.5 py-0.5 text-overline text-warning uppercase">
                             Important
                         </span>
                     )}
                     {title}
                 </h3>
-                {children && <div className="mt-1 space-y-2 text-sm leading-6 text-slate-600">{children}</div>}
+                {children && <div className="mt-1 space-y-2 text-body-sm leading-6 text-muted">{children}</div>}
                 {images.length > 0 && (
                     // Pictures of one step sit side by side when they fit, and wrap onto the next line when they don't
                     <div className="mt-3 flex flex-wrap items-start gap-3">
@@ -95,8 +82,8 @@ function Step({n, title, important = false, images = [], children}: {
 
 function Section({id, title, children}: { id?: string; title: string; children: ReactNode }) {
     return (
-        <section id={id} className="scroll-mt-20 space-y-3 border-t border-slate-200 pt-8">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>
+        <section id={id} className="scroll-mt-20 space-y-3 border-t border-subtle pt-8">
+            <h2 className="text-title-2 text-fg">{title}</h2>
             {children}
         </section>
     );
@@ -121,29 +108,26 @@ export default function ConnectCalendarsHelpPage() {
     }, [hash]);
 
     return (
-        <div className="space-y-8 pt-4">
+        <div className="space-y-8">
             <div>
-                <Link
-                    to={backTo}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        goBack();
+                <PageHeader
+                    title="Connect Booking.com and Airbnb"
+                    back={{
+                        to: backTo,
+                        onClick: (e) => {
+                            e.preventDefault();
+                            goBack();
+                        },
                     }}
-                    className="back-link"
-                >
-                    <ChevronLeftIcon size={16}/>
-                </Link>
-                <h1 className="page-title">Connect Booking.com and Airbnb</h1>
-                <p className="page-subtitle">
-                    Keep all your channels on a single calendar, so that a booking on one platform automatically
-                    blocks those dates on the others. It takes about 5 minutes per room.
-                </p>
-                <nav aria-label="On this page" className="mt-4 flex flex-wrap gap-2">
+                    description="Keep all your channels on a single calendar, so that a booking on one platform automatically blocks those dates on the others. It takes about 5 minutes per room."
+                    alerts={false}
+                />
+                <nav aria-label="On this page" className="-mt-1 flex flex-wrap gap-2">
                     {jumpLinks.map((link) => (
                         <a
                             key={link.id}
                             href={`#${link.id}`}
-                            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:border-teal-600 hover:text-teal-700"
+                            className="inline-flex min-h-11 items-center rounded-full border border-default bg-surface px-4 text-body-sm font-semibold text-fg transition-colors hover:border-primary hover:text-primary"
                         >
                             {link.label}
                         </a>
@@ -152,30 +136,29 @@ export default function ConnectCalendarsHelpPage() {
             </div>
 
             <Section title="How it works">
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-body-sm leading-6 text-muted">
                     Airbnb and Booking.com share their calendars through a calendar link. Nothing needs to be
                     installed, and no passwords are shared. There are two links to connect for each channel.
                 </p>
-                <p className="text-sm leading-6 text-slate-600">
+                <p className="text-body-sm leading-6 text-muted">
                     Each room has its own links. Set up the two-way connection for every channel the room is listed
                     on, and repeat it for each room.
                 </p>
             </Section>
 
             <Section title="Things to know before you start">
-                <ul className="list-disc space-y-3 pl-5 text-sm leading-6 text-slate-600">
-                    <li>
-                        When a booking is made on Booking.com or Airbnb, it appears on your calendar within<span className="text-red-700 font-bold"> 10
-                        minutes</span>, or right away if you press the refresh button on the calendar. You also get an email
-                        when it arrives.
-                    </li>
-                    <li>
-                        Direct bookings sync within <span className="text-red-700 font-bold">3 hours</span>. Dates you
-                        block in RoomTrack are automatically closed on
-                        Booking.com and Airbnb, but the update can take up to 3 hours to appear.
-                        To avoid double bookings, block the same dates directly on those platforms right away.
-                    </li>
-                </ul>
+                <div className="space-y-3">
+                    <Callout tone="info" title="Channel bookings arrive within 10 minutes.">
+                        When a booking is made on Booking.com or Airbnb, it appears on your calendar within 10 minutes,
+                        or right away if you press the refresh button on the calendar. You also get an email when it
+                        arrives.
+                    </Callout>
+                    <Callout tone="warning" title="Direct bookings sync within 3 hours.">
+                        Dates you block in RoomTrack are automatically closed on Booking.com and Airbnb, but the update
+                        can take up to 3 hours to appear. To avoid double bookings, block the same dates directly on
+                        those platforms right away.
+                    </Callout>
+                </div>
             </Section>
 
             <Section id="booking" title="Booking.com">
@@ -297,9 +280,9 @@ export default function ConnectCalendarsHelpPage() {
             </Section>
 
             <Section id="good-to-know" title="Good to know">
-                <div className="space-y-5 text-sm leading-6 text-slate-600">
+                <div className="space-y-5 text-body-sm leading-6 text-muted">
                     <div>
-                        <h3 className="font-semibold text-slate-900">RoomTrack only sends out the bookings you create in RoomTrack</h3>
+                        <h3 className="font-semibold text-fg">RoomTrack only sends out the bookings you create in RoomTrack</h3>
                         <p>
                             A booking that comes from Airbnb appears on your RoomTrack calendar but is not forwarded to
                             Booking.com, and the other way round. If a room is listed on both platforms, keep an eye on{" "}
@@ -308,7 +291,7 @@ export default function ConnectCalendarsHelpPage() {
                         </p>
                     </div>
                     <div>
-                        <h3 className="font-semibold text-slate-900">Cancel on the platform, not just in RoomTrack</h3>
+                        <h3 className="font-semibold text-fg">Cancel on the platform, not just in RoomTrack</h3>
                         <p>
                             If you cancel an Airbnb or Booking.com booking only in RoomTrack, it reappears at the next
                             sync because it still exists on the platform. Cancel it there as well. RoomTrack then cancels
@@ -316,14 +299,14 @@ export default function ConnectCalendarsHelpPage() {
                         </p>
                     </div>
                     <div>
-                        <h3 className="font-semibold text-slate-900">Keep RoomTrack's link private</h3>
+                        <h3 className="font-semibold text-fg">Keep RoomTrack's link private</h3>
                         <p>
                             It lists your booked dates and guest names. Anyone who has the link can read them, so only
                             paste it into Airbnb and Booking.com.
                         </p>
                     </div>
                     <div>
-                        <h3 className="font-semibold text-slate-900">Changing or removing a connection</h3>
+                        <h3 className="font-semibold text-fg">Changing or removing a connection</h3>
                         <p>
                             <strong>Remove</strong> in the room disconnects a channel. Bookings already imported stay on
                             the calendar but stop updating. To use a new link, for example after resetting it on the
@@ -334,34 +317,34 @@ export default function ConnectCalendarsHelpPage() {
             </Section>
 
             <Section id="problems" title="Something is not working">
-                <dl className="space-y-5 text-sm leading-6">
+                <dl className="space-y-5 text-body-sm leading-6">
                     <div>
-                        <dt className="font-semibold text-slate-900">
+                        <dt className="font-semibold text-fg">
                             “Only Booking.com and Airbnb calendar links are supported.”
                         </dt>
-                        <dd className="text-slate-600">
+                        <dd className="text-muted">
                             The link you pasted is not an export link from those two. Check that you copied the link the
                             platform gives you, not the page address and not the box where you paste RoomTrack's link.
-                            Links that start with <code className="rounded bg-slate-100 px-1">webcal://</code> work too.
+                            Links that start with <code className="rounded bg-surface-sunken px-1">webcal://</code> work too.
                         </dd>
                     </div>
                     <div>
-                        <dt className="font-semibold text-slate-900">“This room already has an Airbnb calendar.”</dt>
-                        <dd className="text-slate-600">
+                        <dt className="font-semibold text-fg">“This room already has an Airbnb calendar.”</dt>
+                        <dd className="text-muted">
                             A room can have one link per channel. Remove the old one first, or use the other room.
                         </dd>
                     </div>
                     <div>
-                        <dt className="font-semibold text-slate-900">A red “Not syncing” label</dt>
-                        <dd className="text-slate-600">
+                        <dt className="font-semibold text-fg">A red “Not syncing” label</dt>
+                        <dd className="text-muted">
                             The platform refused the link or could not be reached. This often happens when the link was
                             reset on the platform. Copy a fresh link, remove the old connection in RoomTrack and connect
                             again. If a calendar keeps failing, RoomTrack emails you (as long as notifications are on).
                         </dd>
                     </div>
                     <div>
-                        <dt className="font-semibold text-slate-900">Bookings are missing</dt>
-                        <dd className="text-slate-600">
+                        <dt className="font-semibold text-fg">Bookings are missing</dt>
+                        <dd className="text-muted">
                             Press <strong>Sync now</strong>. Then check that the link comes from the right listing on
                             Airbnb, or the right room type on Booking.com.
                         </dd>
