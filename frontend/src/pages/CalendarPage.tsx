@@ -801,13 +801,21 @@ export default function CalendarPage() {
                         </button>
                         {openMenu === "more" && (
                             <div className="cal-popover cal-menu" role="menu">
-                                <Link to={addUnitPath(activeProperty)} state={fromHere} className="cal-menu-item"
-                                      role="menuitem">
-                                    Add room
-                                </Link>
-                                <Link to="/dashboard/properties/new" className="cal-menu-item" role="menuitem">
-                                    Add property
-                                </Link>
+                                {/* One property: add a room to it. Several: pick one on the Properties page. None: add one. */}
+                                {properties?.length === 1 ? (
+                                    <Link to={addUnitPath(properties[0])} state={fromHere} className="cal-menu-item"
+                                          role="menuitem">
+                                        Add room
+                                    </Link>
+                                ) : (properties?.length ?? 0) > 1 ? (
+                                    <Link to="/dashboard/properties" className="cal-menu-item" role="menuitem">
+                                        Properties
+                                    </Link>
+                                ) : (
+                                    <Link to="/dashboard/properties/new" className="cal-menu-item" role="menuitem">
+                                        Add property
+                                    </Link>
+                                )}
                                 <div className="cal-menu-divider"/>
                                 <Link to="/dashboard/cancelled" className="cal-menu-item" role="menuitem">
                                     Cancelled bookings

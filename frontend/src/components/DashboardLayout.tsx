@@ -4,7 +4,6 @@ import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {getMe} from "../lib/api/me";
-import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
 import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
@@ -17,7 +16,6 @@ import {
     HouseIcon,
     LogoutIcon,
     MoreHorizontalIcon,
-    PlusIcon,
     SyncIcon,
 } from "./icons";
 import SyncAlerts from "./SyncAlerts";
@@ -59,7 +57,6 @@ export default function DashboardLayout() {
     const location = useLocation();
     const {pathname} = location;
     const queryClient = useQueryClient();
-    const activeProperty = useActiveProperty();
     const {data: me} = useQuery({queryKey: ["me"], queryFn: getMe, staleTime: Infinity});
     // Each account keeps its own light/dark choice (light until it picks dark).
     useEffect(() => {
@@ -122,15 +119,6 @@ export default function DashboardLayout() {
                         <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}
                                      trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>
                             Sync status{warnings(failingCount)}
-                        </SidebarLink>
-                    </SidebarGroup>
-                    <SidebarGroup label="Quick add">
-                        <SidebarLink to="/dashboard/properties/new" icon={PlusIcon} active={false}>Add property</SidebarLink>
-                        <SidebarLink to={addUnitPath(activeProperty)} state={fromHere} icon={PlusIcon} active={false}>
-                            <span className="min-w-0">
-                                Add room
-                                {activeProperty && <span className="block truncate text-caption font-normal text-subtle">to {activeProperty.name}</span>}
-                            </span>
                         </SidebarLink>
                     </SidebarGroup>
                 </div>
@@ -214,19 +202,12 @@ export default function DashboardLayout() {
                 </div>
                 <div className="space-y-3">
                     <SheetGroup>
+                        <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore} chevron>Properties</SheetLink>
                         <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled bookings</SheetLink>
                         <SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}
                                    trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>
                         <SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}
                                    trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>
-                    </SheetGroup>
-                    <SheetGroup>
-                        <SheetLink to="/dashboard/properties/new" icon={PlusIcon} onClick={closeMore}>Add property</SheetLink>
-                        <SheetLink to={addUnitPath(activeProperty)} state={fromHere} icon={PlusIcon} onClick={closeMore}>
-                            <span className="min-w-0 truncate">
-                                Add room{activeProperty && <span className="font-normal text-subtle"> to {activeProperty.name}</span>}
-                            </span>
-                        </SheetLink>
                     </SheetGroup>
                     <SheetGroup>
                         <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com &amp; Airbnb</SheetLink>
