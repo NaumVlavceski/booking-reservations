@@ -1,7 +1,8 @@
 import type {MouseEvent} from "react";
 import {useState} from "react";
 import {Link} from "react-router-dom";
-import {CheckIcon, ChevronLeftIcon, TrashIcon, WifiOffIcon} from "./icons";
+import {CheckIcon, ChevronLeftIcon, MoreVerticalIcon, MoveIcon, TrashIcon, WifiOffIcon} from "./icons";
+import Menu from "./ui/Menu";
 import ConfirmDialog from "./ConfirmDialog";
 import Button from "./ui/Button";
 import {useOnlineStatus} from "../lib/useOnlineStatus";
@@ -19,6 +20,10 @@ interface FormTopBarProps {
     /** Shows a bin button in the top-right corner (edit mode): delete, or cancel for a booking. */
     onDelete?: () => void;
     deleteLabel?: string;
+    /** With onDelete: the top-right button becomes a ⋮ menu with "Move" and the delete action. */
+    onMove?: () => void;
+    /** Hides the Save bar, e.g. while a required choice has not been made yet. */
+    hideSave?: boolean;
     /** The page's heading, centred, e.g. "Edit Room 1". */
     title?: string;
     /** Second line under the title, e.g. the property a room belongs to. */
@@ -31,7 +36,7 @@ interface FormTopBarProps {
  * Header for forms: back (top left), centred title, bin (top right). Save sits in a bar pinned to the
  * bottom of the screen, where the thumb is on a phone.
  */
-export default function FormTopBar({formId, saving, back, onDelete, deleteLabel = "Delete", title, subtitle, isDirty = false}: FormTopBarProps) {
+export default function FormTopBar({formId, saving, back, onDelete, deleteLabel = "Delete", onMove, hideSave = false, title, subtitle, isDirty = false}: FormTopBarProps) {
     const online = useOnlineStatus();
     const {goBack} = useReturnTo(back?.to ?? "/dashboard/calendar");
     const [confirmExit, setConfirmExit] = useState(false);
@@ -73,7 +78,18 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                         {title && <h1 className="truncate text-title-3 text-fg sm:text-title-2">{title}</h1>}
                         {subtitle && <p className="truncate text-caption text-subtle sm:text-body-sm">{subtitle}</p>}
                     </div>
-                    {onDelete ? (
+                    {onDelete && onMove ? (
+                        <div className="justify-self-end">
+                            <Menu
+                                label="Booking actions"
+                                trigger={<MoreVerticalIcon size={20}/>}
+                                items={[
+                                    {kind: "button", label: "Move", icon: <MoveIcon size={18}/>, onSelect: onMove, disabled: saving},
+                                    {kind: "button", label: deleteLabel, icon: <TrashIcon size={18}/>, onSelect: onDelete, danger: true, disabled: saving},
+                                ]}
+                            />
+                        </div>
+                    ) : onDelete ? (
                         <button
                             type="button"
                             onClick={onDelete}
@@ -91,7 +107,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
             </header>
 
             {/* Save, pinned to the bottom of the screen (next to the sidebar/rail from sm up). */}
-            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
+            {!hideSave && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
                 <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
                     {!online && (
                         <p role="status" className="flex items-center justify-center gap-2 text-body-sm font-medium text-muted">
@@ -103,7 +119,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                         Save
                     </Button>
                 </div>
-            </div>
+            </div>}
 
             <ConfirmDialog
                 open={confirmExit}

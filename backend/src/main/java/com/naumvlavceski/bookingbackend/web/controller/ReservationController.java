@@ -1,6 +1,8 @@
 package com.naumvlavceski.bookingbackend.web.controller;
 
 import com.naumvlavceski.bookingbackend.config.security.CurrentUserId;
+import com.naumvlavceski.bookingbackend.dto.MoveOptionResponse;
+import com.naumvlavceski.bookingbackend.dto.MoveReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.PageResponse;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
@@ -67,6 +69,20 @@ public class ReservationController {
         }
         return ResponseEntity.ok(reservationService.update(ownerId, id, request));
     }
+    @GetMapping("/{id}/move-options")
+    public List<MoveOptionResponse> moveOptions(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
+        return reservationService.moveOptions(ownerId, id);
+    }
+
+    @PostMapping("/{id}/move")
+    public ReservationResponse move(
+            @CurrentUserId UUID ownerId,
+            @PathVariable UUID id,
+            @Valid @RequestBody MoveReservationRequest request
+    ) {
+        return reservationService.move(ownerId, id, request.unitId());
+    }
+
     @GetMapping("/{unitId}/unit")
     public ResponseEntity<List<ReservationResponse>> getAllByUnitId(@CurrentUserId UUID ownerId, @PathVariable UUID unitId) {
         return ResponseEntity.ok(reservationService.listByUnit(ownerId,unitId));

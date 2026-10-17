@@ -13,6 +13,7 @@ import {getUnit} from "../lib/api/units.ts";
 import {useId, useState} from "react";
 
 import FormTopBar from "../components/FormTopBar";
+import MoveReservationDialog from "../components/MoveReservationDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {useToast} from "../lib/toast";
 import {formatStay} from "../lib/dates";
@@ -51,6 +52,7 @@ export default function ReservationFormPage() {
     const statusOptions = STATUS_OPTIONS;
     const toast = useToast();
     const [confirmCancel, setConfirmCancel] = useState(false);
+    const [moveOpen, setMoveOpen] = useState(false);
     const [datesMissing, setDatesMissing] = useState(false);
     // Back, Save and Cancel return to the page you came from (the calendar, the conflicts page, ...).
     const {goBack} = useReturnTo("/dashboard/calendar");
@@ -273,7 +275,9 @@ export default function ReservationFormPage() {
                     cancelMutation.reset();
                     setConfirmCancel(true);
                 } : undefined}
-                deleteLabel="Cancel this booking"
+                deleteLabel="Cancel"
+                onMove={canCancel ? () => setMoveOpen(true) : undefined}
+                hideSave={form.status === "CANCELLED"}
             />
 
             <div className="space-y-4">
@@ -377,6 +381,21 @@ export default function ReservationFormPage() {
                     </Card>
                 </form>
             </div>
+
+            {existing && (
+                <MoveReservationDialog
+                    open={moveOpen}
+                    reservationId={existing.id}
+                    currentRoom={unitForTitle?.name}
+                    hasUnsavedChanges={isDirty}
+                    onClose={() => setMoveOpen(false)}
+                    onMoved={(room) => {
+                        setMoveOpen(false);
+                        toast.show(`Booking moved to ${room}.`);
+                        goBack();
+                    }}
+                />
+            )}
 
             <ConfirmDialog
                 open={confirmCancel}

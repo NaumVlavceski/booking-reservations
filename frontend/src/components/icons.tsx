@@ -291,3 +291,12 @@ export const AddSquareIcon = (p: IconProps) => (
         <line x1="8" y1="12" x2="16" y2="12"/>
     </Icon>
 );
+
+export const MoveIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M8 3 4 7l4 4"/>
+        <path d="M4 7h16"/>
+        <path d="m16 21 4-4-4-4"/>
+        <path d="M20 17H4"/>
+    </Icon>
+);

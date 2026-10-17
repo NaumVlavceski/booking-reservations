@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.dto.MoveOptionResponse;
 import com.naumvlavceski.bookingbackend.dto.PageResponse;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
@@ -11,10 +12,14 @@ import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import io.hypersistence.utils.hibernate.type.range.Range;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -51,7 +56,6 @@ public class ReservationService {
     public PageResponse<ReservationResponse> listCancelled(UUID ownerId, String name, LocalDate checkInFrom,
                                                            int page, int size) {
         String trimmed = name == null ? "" : name.trim();
-        // "Starts with", ignoring case; %, _ and ! typed by the user must match themselves, not act as wildcards
         String prefix = trimmed.isEmpty() ? null
                 : trimmed.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
@@ -118,6 +122,43 @@ public class ReservationService {
         reservation.setPriceNeedsReview(false);
         Reservation saved = reservationRepository.save(reservation);
         return toResponse(saved);
+    }
+
+    public List<MoveOptionResponse> moveOptions(UUID ownerId, UUID reservationId) {
+        Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId)
+                .orElseThrow(() -> new NoSuchElementException("Reservation not found"));
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) return List.of();
+        LocalDate start = reservation.getStayRange().lower();
+        LocalDate end = reservation.getStayRange().upper();
+        UUID propertyId = reservation.getUnit().getProperty().getId();
+        return unitRepository.findAllByPropertyIdAndOwnerId(propertyId, ownerId).stream()
+                .filter(u -> !u.getId().equals(reservation.getUnit().getId()))
+                .filter(u -> reservationRepository.findOverlapping(u.getId(), start, end, reservationId).isEmpty())
+                .map(u -> new MoveOptionResponse(u.getId(), u.getName()))
+                .toList();
+    }
+
+    public ReservationResponse move(UUID ownerId, UUID reservationId, UUID targetUnitId) {
+        Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId)
+                .orElseThrow(() -> new NoSuchElementException("Reservation not found"));
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new IllegalArgumentException("A cancelled booking can't be moved");
+        }
+        Unit target = unitRepository.findByIdAndOwnerId(targetUnitId, ownerId)
+                .orElseThrow(() -> new NoSuchElementException("Room not found"));
+        if (target.getId().equals(reservation.getUnit().getId())) {
+            throw new IllegalArgumentException("The booking is already in this room");
+        }
+        if (!target.getProperty().getId().equals(reservation.getUnit().getProperty().getId())) {
+            throw new IllegalArgumentException("A booking can only be moved to a room in the same property");
+        }
+        List<Reservation> overlaps = reservationRepository.findOverlapping(
+                target.getId(), reservation.getStayRange().lower(), reservation.getStayRange().upper(), reservationId);
+        if (!overlaps.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "That room is taken on these dates.");
+        }
+        reservation.setUnit(target);
+        return toResponse(reservationRepository.save(reservation));
     }
 
     public void delete(UUID ownerId, UUID reservationId) {
