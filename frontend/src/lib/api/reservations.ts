@@ -113,17 +113,21 @@ export async function updateReservation(id: string, data: ReservationRequest): P
     return res.status === 204 ? null : res.data;
 }
 
-export interface MoveOption {
+export interface AvailableOption {
     unitId: string;
     name: string;
 }
 
-export async function getMoveOptions(id: string): Promise<MoveOption[]> {
-    const res = await apiClient.get<MoveOption[]>(`/api/reservations/${id}/move-options`);
+export async function getAvailableOptions(id: string): Promise<AvailableOption[]> {
+    const res = await apiClient.get<AvailableOption[]>(`/api/reservations/${id}/available-options`);
     return res.data;
 }
 
 export async function moveReservation(id: string, unitId: string): Promise<ReservationResponse> {
     const res = await apiClient.post<ReservationResponse>(`/api/reservations/${id}/move`, {unitId});
+    return res.data;
+}
+export async function copyReservation(id: string, unitIds: string[]): Promise<ReservationResponse[]> {
+    const res = await apiClient.post<ReservationResponse[]>(`/api/reservations/${id}/copy`, {unitIds});
     return res.data;
 }

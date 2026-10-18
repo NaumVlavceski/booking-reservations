@@ -147,7 +147,7 @@ export default function DashboardLayout() {
             {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */}
             <nav aria-label="Main" className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
                 <Link to="/dashboard/calendar" className="mb-4 rounded-xl p-1" aria-label={`${businessName}, calendar`}>
-                    <span className="block rounded-xl bg-white p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
+                    <span className="block rounded-xl  p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
                 </Link>
                 {destinations.map((d) => (
                     <RailItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>

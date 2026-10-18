@@ -53,6 +53,7 @@ export default function ReservationFormPage() {
     const toast = useToast();
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [moveOpen, setMoveOpen] = useState(false);
+    const [copyOpen, setCopyOpen] = useState(false);
     const [datesMissing, setDatesMissing] = useState(false);
     // Back, Save and Cancel return to the page you came from (the calendar, the conflicts page, ...).
     const {goBack} = useReturnTo("/dashboard/calendar");
@@ -138,6 +139,29 @@ export default function ReservationFormPage() {
             }
         },
     });
+    // Saves the form without leaving the page, for Move and Copy (they only use what is saved).
+    const saveInPlaceMutation = useMutation({
+        mutationFn: (data: ReservationRequest) => updateReservation(id!, data),
+        onSuccess: async (_saved, data) => {
+            setInitialSnapshot(data);
+            await queryClient.invalidateQueries({queryKey: ["reservations"]});
+            toast.show("Changes saved.");
+        },
+    });
+
+    async function saveBeforeMoveOrCopy() {
+        const formEl = document.getElementById("reservation-form") as HTMLFormElement | null;
+        const datesOk = Boolean(form.checkIn && form.checkOut);
+        if (!datesOk) setDatesMissing(true);
+        // Invalid fields: close the dialog so the form shows what to fix.
+        if (!formEl || !validate(formEl) || !datesOk) {
+            setMoveOpen(false);
+            setCopyOpen(false);
+            return;
+        }
+        await saveInPlaceMutation.mutateAsync(form);
+    }
+
     const cancelMutation = useMutation({
         mutationFn: () => deleteReservation(id!),
         onSuccess: async () => {
@@ -277,6 +301,7 @@ export default function ReservationFormPage() {
                 } : undefined}
                 deleteLabel="Cancel"
                 onMove={canCancel ? () => setMoveOpen(true) : undefined}
+                onCopy={canCancel ? () => setCopyOpen(true) : undefined}
                 hideSave={form.status === "CANCELLED"}
             />
 
@@ -388,10 +413,27 @@ export default function ReservationFormPage() {
                     reservationId={existing.id}
                     currentRoom={unitForTitle?.name}
                     hasUnsavedChanges={isDirty}
+                    onSaveChanges={saveBeforeMoveOrCopy}
                     onClose={() => setMoveOpen(false)}
-                    onMoved={(room) => {
+                    onDone={(rooms) => {
                         setMoveOpen(false);
-                        toast.show(`Booking moved to ${room}.`);
+                        toast.show(`Booking moved to ${rooms[0]}.`);
+                        goBack();
+                    }}
+                />
+            )}
+            {existing && (
+                <MoveReservationDialog
+                    mode="copy"
+                    open={copyOpen}
+                    reservationId={existing.id}
+                    currentRoom={unitForTitle?.name}
+                    hasUnsavedChanges={isDirty}
+                    onSaveChanges={saveBeforeMoveOrCopy}
+                    onClose={() => setCopyOpen(false)}
+                    onDone={(rooms) => {
+                        setCopyOpen(false);
+                        toast.show(`Booking copied to ${rooms.join(", ")}.`);
                         goBack();
                     }}
                 />

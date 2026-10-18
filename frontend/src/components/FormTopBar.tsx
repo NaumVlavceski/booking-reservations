@@ -1,7 +1,7 @@
 import type {MouseEvent} from "react";
 import {useState} from "react";
 import {Link} from "react-router-dom";
-import {CheckIcon, ChevronLeftIcon, MoreVerticalIcon, MoveIcon, TrashIcon, WifiOffIcon} from "./icons";
+import {CheckIcon, ChevronLeftIcon, CopyIcon, MoreVerticalIcon, MoveIcon, TrashIcon, WifiOffIcon} from "./icons";
 import Menu from "./ui/Menu";
 import ConfirmDialog from "./ConfirmDialog";
 import Button from "./ui/Button";
@@ -22,6 +22,7 @@ interface FormTopBarProps {
     deleteLabel?: string;
     /** With onDelete: the top-right button becomes a ⋮ menu with "Move" and the delete action. */
     onMove?: () => void;
+    onCopy?: () => void;
     /** Hides the Save bar, e.g. while a required choice has not been made yet. */
     hideSave?: boolean;
     /** The page's heading, centred, e.g. "Edit Room 1". */
@@ -36,7 +37,7 @@ interface FormTopBarProps {
  * Header for forms: back (top left), centred title, bin (top right). Save sits in a bar pinned to the
  * bottom of the screen, where the thumb is on a phone.
  */
-export default function FormTopBar({formId, saving, back, onDelete, deleteLabel = "Delete", onMove, hideSave = false, title, subtitle, isDirty = false}: FormTopBarProps) {
+export default function FormTopBar({formId, saving, back, onDelete, deleteLabel = "Delete", onMove, onCopy, hideSave = false, title, subtitle, isDirty = false}: FormTopBarProps) {
     const online = useOnlineStatus();
     const {goBack} = useReturnTo(back?.to ?? "/dashboard/calendar");
     const [confirmExit, setConfirmExit] = useState(false);
@@ -85,6 +86,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                                 trigger={<MoreVerticalIcon size={20}/>}
                                 items={[
                                     {kind: "button", label: "Move", icon: <MoveIcon size={18}/>, onSelect: onMove, disabled: saving},
+                                    ...(onCopy ? [{kind: "button" as const, label: "Copy", icon: <CopyIcon size={18}/>, onSelect: onCopy, disabled: saving}] : []),
                                     {kind: "button", label: deleteLabel, icon: <TrashIcon size={18}/>, onSelect: onDelete, danger: true, disabled: saving},
                                 ]}
                             />
