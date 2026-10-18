@@ -91,7 +91,7 @@
     --rt-cal-line: #E3E8EE;
     --rt-cal-row-line: #ECEFF3;
     --rt-cal-weekend: #F3F5F8;
-    --rt-cal-today: #E3F3F3;
+    --rt-cal-today: #baecef;
     --rt-cal-group: #F7F9FB;
 
     /* Elevation */
@@ -184,7 +184,7 @@
     --rt-cal-line: #1F2B3B;
     --rt-cal-row-line: #1A2533;
     --rt-cal-weekend: #0E1724;
-    --rt-cal-today: #0F2A2E;
+    --rt-cal-today: #19515a;
     --rt-cal-group: #142030;
 
     --rt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.40);
