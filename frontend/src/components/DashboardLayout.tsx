@@ -210,7 +210,7 @@ export default function DashboardLayout() {
                                    trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>
                     </SheetGroup>
                     <SheetGroup>
-                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com &amp; Airbnb</SheetLink>
+                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com</SheetLink>
                         <InstallAppButton onShowIosSteps={() => {
                             closeMore();
                             setIosStepsOpen(true);

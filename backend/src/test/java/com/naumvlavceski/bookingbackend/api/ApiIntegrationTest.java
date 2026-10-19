@@ -363,7 +363,7 @@ class ApiIntegrationTest {
         String token = registerAndGetToken();
         String unit = unitWithToken(token);
         String path = "/api/units/" + unit + "/calendars";
-        // Not https, or not a Booking.com / Airbnb host (private addresses are covered in IcalUrlGuardTest)
+        // Not https, or not a Booking.com host (private addresses are covered in IcalUrlGuardTest)
         for (String bad : new String[]{"http://ical.booking.com/v1/export?t=a", "https://example.com/a.ics",
                 "https://localhost/a.ics", "https://127.0.0.1/a.ics", "https://169.254.169.254/latest",
                 "https://booking.com.evil.com/a.ics", "https://example.com/airbnb.com/a.ics", ""}) {
@@ -371,7 +371,7 @@ class ApiIntegrationTest {
         }
         send(post(path), token, "{\"icsUrl\":\"https://example.com/a.ics\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Only Booking.com and Airbnb calendar links are supported."));
+                .andExpect(jsonPath("$.message").value("Only Booking.com calendar links are supported."));
     }
 
     @Test
@@ -379,18 +379,18 @@ class ApiIntegrationTest {
         String token = registerAndGetToken();
         String path = "/api/units/" + unitWithToken(token) + "/calendars";
 
-        // an Airbnb link labelled as Booking by an old or wrong client is still Airbnb
+        // an Airbnb link is refused, even when an old or wrong client labels it as Booking
         send(post(path), token, "{\"platform\":\"BOOKING\",\"icsUrl\":\"https://www.airbnb.com/calendar/ical/123.ics?s=qa\"}")
-                .andExpect(status().isOk()).andExpect(jsonPath("$.platform").value("AIRBNB"));
+                .andExpect(status().isBadRequest());
 
         // webcal:// is accepted and stored as https://
         send(post(path), token, "{\"icsUrl\":\"webcal://ical.booking.com/v1/export?t=qa\"}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.platform").value("BOOKING"));
 
         // one calendar per channel, with a message that names it
-        send(post(path), token, "{\"icsUrl\":\"https://www.airbnb.com/calendar/ical/999.ics?s=other\"}")
+        send(post(path), token, "{\"icsUrl\":\"https://ical.booking.com/v1/export?t=other\"}")
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("This room already has an Airbnb calendar."));
+                .andExpect(jsonPath("$.message").value("This room already has a Booking.com calendar."));
     }
 
     @Test

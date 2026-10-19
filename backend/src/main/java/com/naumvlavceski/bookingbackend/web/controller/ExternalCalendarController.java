@@ -54,13 +54,13 @@ public class ExternalCalendarController {
         ReservationSource platform = PlatformDetector.detect(icsUrl).orElse(null);
         if (platform == null) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Only Booking.com and Airbnb calendar links are supported."));
+                    .body(Map.of("message", "Only Booking.com calendar links are supported."));
         }
         boolean exists = calendarRepository.findAllByUnitId(unitId).stream()
                 .anyMatch(c -> c.getPlatform() == platform);
         if (exists) {
             return ResponseEntity.status(409).body(Map.of("message",
-                    "This room already has " + PlatformDetector.withArticle(platform) + " calendar."));
+                    "This room already has a Booking.com calendar."));
         }
         try {
             IcalUrlGuard.validate(icsUrl);

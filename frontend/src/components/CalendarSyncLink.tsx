@@ -27,7 +27,7 @@ export default function CalendarSyncLink({token}: { token: string }) {
                 <div className="min-w-0">
                     <h2 id={`feed-title-${token}`} className="text-title-3 text-fg">Send your bookings to other channels</h2>
                     <p className="mt-0.5 text-body-sm text-muted">
-                        Paste this link into Booking.com's or Airbnb's calendar sync settings. Dates you book here then get
+                        Paste this link into Booking.com's calendar sync settings. Dates you book here then get
                         blocked there automatically.
                     </p>
                 </div>
