@@ -21,7 +21,8 @@ export default function InvoicesPage() {
 
     return (
         <div>
-            <PageHeader title="Invoices" description="Earnings from confirmed and paid bookings. Pick a property."/>
+            <PageHeader title="Invoices" description="Earnings from confirmed and paid bookings. Pick a property."
+                        back={{to: "/dashboard/calendar"}}/>
 
             {isLoading ? (
                 <ListSkeleton rows={3} label="Loading properties..."/>

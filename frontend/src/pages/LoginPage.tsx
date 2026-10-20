@@ -1,7 +1,7 @@
 import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
 import {useEffect, useRef, useState} from "react";
 import {useMutation} from "@tanstack/react-query";
-import {useNavigate, Link, Navigate} from "react-router-dom";
+import {useNavigate, useLocation, Link, Navigate} from "react-router-dom";
 import {login, resendCode} from "../lib/api/auth";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {clearSessionExpired, takeReturnTo, wasSessionExpired} from "../lib/auth/session";
@@ -24,6 +24,12 @@ export default function LoginPage() {
     const {errors, validate, recheck} = useInlineValidation(MESSAGES);
     const [sessionExpired] = useState(wasSessionExpired);
     useEffect(clearSessionExpired, []);
+    // Set by the forgot-password page; dropped from history once read so a reload doesn't repeat it
+    const location = useLocation();
+    const [passwordChanged] = useState(() => Boolean((location.state as { passwordChanged?: boolean } | null)?.passwordChanged));
+    useEffect(() => {
+        if (passwordChanged) navigate(location.pathname, {replace: true, state: null});
+    }, [passwordChanged, navigate, location.pathname]);
 
     const mutation = useMutation({
         mutationFn: login,
@@ -67,7 +73,10 @@ export default function LoginPage() {
             footer={<p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>}
         >
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                {sessionExpired && !mutation.isError && (
+                {passwordChanged && !mutation.isError && (
+                    <Callout tone="success" role="status">Password changed, please sign in.</Callout>
+                )}
+                {sessionExpired && !passwordChanged && !mutation.isError && (
                     <Callout tone="info" role="status">Your session expired, please log in again.</Callout>
                 )}
                 <TextField
@@ -98,6 +107,13 @@ export default function LoginPage() {
                     required
                     error={errors.password}
                 />
+                <div className="-mt-3 flex justify-end">
+                    {/* What was typed travels in router state, never in the URL */}
+                    <Link to="/forgot-password" state={{email: form.email.trim()}}
+                          className="link inline-flex min-h-11 items-center text-body-sm">
+                        Forgot password?
+                    </Link>
+                </div>
 
                 {mutation.isError && (
                     <Callout tone="danger" role="alert">

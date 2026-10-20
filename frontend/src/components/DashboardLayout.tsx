@@ -8,17 +8,16 @@ import {useFromHere} from "../lib/useReturnTo";
 import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
 import {
-    AlertIcon,
     CalendarIcon,
     CalendarXIcon,
     ChannelsIcon,
     ChevronRightIcon,
     HelpIcon,
     HouseIcon,
+    LockIcon,
     LogoutIcon,
     MoreHorizontalIcon,
     ReceiptIcon,
-    SyncIcon,
 } from "./icons";
 import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
@@ -35,6 +34,7 @@ import {CountBubble} from "./ui/Badge";
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
 const HELP_PATH = "/dashboard/help/connect-calendars";
+const PASSWORD_PATH = "/dashboard/account/password";
 
 function isChannels(pathname: string) {
     return pathname.startsWith("/dashboard/conflicts") || pathname.startsWith("/dashboard/sync-health");
@@ -64,7 +64,7 @@ export default function DashboardLayout() {
     useEffect(() => {
         if (me?.email) applyAccountTheme(me.email);
     }, [me?.email]);
-    const {conflictCount, failingCount, total: alertCount} = useSyncAlerts();
+    const {total: alertCount} = useSyncAlerts();
     const stripVisible = useAlertStripVisible();
     const fromHere = useFromHere();
     // The More sheet (phones and tablets) closes by itself when you navigate somewhere.
@@ -89,7 +89,7 @@ export default function DashboardLayout() {
         navigate("/login", {replace: true});
     }
 
-    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help");
+    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname === PASSWORD_PATH;
     const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
         {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
         {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: ChannelsIcon, active: isChannels(pathname), count: alertCount},
@@ -132,6 +132,9 @@ export default function DashboardLayout() {
                     <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
                     <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
+                    <SidebarLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} active={pathname === PASSWORD_PATH}>
+                        Change password
+                    </SidebarLink>
                     <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
                         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
                             {initials(me?.fullName ?? me?.businessName)}
@@ -221,6 +224,7 @@ export default function DashboardLayout() {
                         }}/>
                         <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
+                        <SheetLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} onClick={closeMore} chevron>Change password</SheetLink>
                     </SheetGroup>
                     <SheetGroup>
                         <button type="button" onClick={handleLogout} className={sheetRow}>
@@ -260,14 +264,6 @@ function SheetLink({to, state, icon: Icon, onClick, chevron, trailing, children}
     );
 }
 
-function SidebarGroup({label, children}: { label: string; children: ReactNode }) {
-    return (
-        <div className="mt-6">
-            <p className="px-3 pb-2 text-overline text-subtle uppercase">{label}</p>
-            <div className="space-y-0.5">{children}</div>
-        </div>
-    );
-}
 
 function SidebarLink({to, state, icon: Icon, active, trailing, children}: {
     to: string;

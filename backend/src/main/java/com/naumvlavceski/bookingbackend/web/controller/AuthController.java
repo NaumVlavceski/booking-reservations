@@ -1,15 +1,20 @@
 package com.naumvlavceski.bookingbackend.web.controller;
 
 import com.naumvlavceski.bookingbackend.dto.AuthResponse;
+import com.naumvlavceski.bookingbackend.dto.ForgotPasswordRequest;
 import com.naumvlavceski.bookingbackend.dto.LoginRequest;
 import com.naumvlavceski.bookingbackend.dto.RegisterRequest;
 import com.naumvlavceski.bookingbackend.dto.RegistrationResponse;
 import com.naumvlavceski.bookingbackend.dto.ResendCodeRequest;
+import com.naumvlavceski.bookingbackend.dto.ResetPasswordRequest;
+import com.naumvlavceski.bookingbackend.dto.ResetTokenResponse;
 import com.naumvlavceski.bookingbackend.dto.VerifyEmailRequest;
+import com.naumvlavceski.bookingbackend.dto.VerifyResetCodeRequest;
 import com.naumvlavceski.bookingbackend.exception.TooManyRequestsException;
 import com.naumvlavceski.bookingbackend.ratelimit.RateLimiter;
 import com.naumvlavceski.bookingbackend.service.AuthService;
 import com.naumvlavceski.bookingbackend.service.EmailVerificationService;
+import com.naumvlavceski.bookingbackend.service.PasswordResetService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,10 +37,14 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService verificationService;
+    private final PasswordResetService passwordResetService;
     private final RateLimiter rateLimiter;
 
     @Value("${app.auth.ip-limit-per-hour:30}")
     private int ipLimitPerHour;
+
+    @Value("${app.auth.reset-ip-limit-per-hour:5}")
+    private int resetIpLimitPerHour;
 
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> register(@Valid @RequestBody RegisterRequest request,
@@ -64,8 +73,36 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "If this address needs verification, a new code has been sent."));
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                              HttpServletRequest http) {
+        limitByIp("forgot", http, resetIpLimitPerHour);
+        passwordResetService.requestReset(request.email());
+        // Same answer whether or not the address exists, is verified, or is cooling down
+        return ResponseEntity.ok(Map.of("message", "If an account with this email exists, we sent a code."));
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResetTokenResponse verifyResetCode(@Valid @RequestBody VerifyResetCodeRequest request,
+                                              HttpServletRequest http) {
+        limitByIp("verify-reset", http);
+        return new ResetTokenResponse(passwordResetService.verifyCode(request.email(), request.code()));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request,
+                                                             HttpServletRequest http) {
+        limitByIp("reset", http);
+        passwordResetService.resetPassword(request.resetToken(), request.newPassword());
+        return ResponseEntity.ok(Map.of("message", "Your password has been changed. Please sign in."));
+    }
+
     private void limitByIp(String action, HttpServletRequest http) {
-        if (!rateLimiter.tryAcquire(action + ":" + clientIp(http), ipLimitPerHour, IP_WINDOW)) {
+        limitByIp(action, http, ipLimitPerHour);
+    }
+
+    private void limitByIp(String action, HttpServletRequest http, int limitPerHour) {
+        if (!rateLimiter.tryAcquire(action + ":" + clientIp(http), limitPerHour, IP_WINDOW)) {
             throw new TooManyRequestsException();
         }
     }

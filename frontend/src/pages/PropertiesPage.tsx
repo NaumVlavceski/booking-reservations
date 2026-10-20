@@ -56,6 +56,7 @@ export default function PropertiesPage() {
         <div>
             <PageHeader
                 title="Properties"
+                back={{to: "/dashboard/calendar"}}
                 actions={hasProperties && (
                     <ButtonLink to="/dashboard/properties/new" icon={<PlusIcon size={18}/>} className="hidden sm:inline-flex">
                         Add property
