@@ -35,7 +35,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
         queryFn: () => getUnitCalendars(unitId),
     });
 
-    const availablePlatforms = (["BOOKING", "AIRBNB"] as const).filter(
+    const availablePlatforms = (["BOOKING"] as const).filter(
         (p) => !calendars?.some((c) => c.platform === p)
     );
     // The channel comes from the link itself, so it can never disagree with what was pasted
@@ -94,12 +94,9 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                     <h2 id={`import-title-${unitId}`} className="text-title-3 text-fg">Bring in bookings from other
                         channels</h2>
                     <p className="mt-0.5 text-body-sm text-muted">
-                        Paste the calendar export link from Booking.com or Airbnb. Their bookings then appear on your
+                        Paste the calendar export link from Booking.com. Its bookings then appear on your
                         calendar
                         automatically. Not sure where to find the link? See how it works on{" "}
-                        <Link to="/dashboard/help/connect-calendars#airbnb" state={fromHere}
-                              className="link underline">Airbnb</Link>
-                        {" "}or{" "}
                         <Link to="/dashboard/help/connect-calendars#booking" state={fromHere}
                               className="link underline">Booking.com</Link>.
                     </p>
@@ -173,7 +170,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                                 setIcsUrl(e.target.value);
                                 setFormError(null);
                             }}
-                            placeholder="Paste the Booking.com or Airbnb link"
+                            placeholder="Paste the Booking.com link"
                             aria-describedby={`ics-hint-${unitId}`}
                             aria-invalid={formError ? true : undefined}
                             required
@@ -191,7 +188,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                         {icsUrl.trim() === "" ? null : alreadyConnected ? (
                             <span className="inline-flex items-center gap-1.5 font-medium text-warning">
                                 <AlertIcon size={15}/>
-                                This room already has {detected === "AIRBNB" ? "an" : "a"} {PLATFORM_NAME[detected]} calendar.
+                                This room already has a {PLATFORM_NAME[detected]} calendar.
                             </span>
                         ) : detected ? (
                             <span className="inline-flex items-center gap-1.5 font-semibold text-success">
@@ -200,7 +197,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                             </span>
                         ) : (
                             <span className="text-muted">
-                                Only Booking.com and Airbnb calendar links are supported.
+                                Only Booking.com calendar links are supported.
                             </span>
                         )}
                     </p>
@@ -209,7 +206,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
             ) : (
                 <p className="flex items-center gap-2 text-body-sm text-muted">
                     <CheckIcon size={16} className="text-success"/>
-                    Booking.com and Airbnb are both connected for this room.
+                    Booking.com is connected for this room.
                 </p>
             )}
 

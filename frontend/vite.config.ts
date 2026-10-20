@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
           id: '/',
           name: 'RoomTrack',
           short_name: 'RoomTrack',
-          description: 'One calendar for every booking from Booking.com, Airbnb and your own guests.',
+          description: 'One calendar for every booking from Booking.com and your own guests.',
           lang: 'en',
           dir: 'ltr',
           start_url: '/',

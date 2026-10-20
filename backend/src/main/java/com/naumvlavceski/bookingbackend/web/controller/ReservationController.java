@@ -1,9 +1,7 @@
 package com.naumvlavceski.bookingbackend.web.controller;
 
 import com.naumvlavceski.bookingbackend.config.security.CurrentUserId;
-import com.naumvlavceski.bookingbackend.dto.PageResponse;
-import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
-import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
+import com.naumvlavceski.bookingbackend.dto.*;
 import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.service.ReservationService;
 import jakarta.validation.Valid;
@@ -66,6 +64,24 @@ public class ReservationController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.ok(reservationService.update(ownerId, id, request));
+    }
+    @GetMapping("/{id}/available-options")
+    public List<MoveOptionResponse> moveOptions(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
+        return reservationService.availableOptions(ownerId, id);
+    }
+
+    @PostMapping("/{id}/move")
+    public ReservationResponse move(
+            @CurrentUserId UUID ownerId,
+            @PathVariable UUID id,
+            @Valid @RequestBody MoveReservationRequest request
+    ) {
+        return reservationService.move(ownerId, id, request.unitId());
+    }
+    @PostMapping("/{id}/copy")
+    public List<ReservationResponse> copy(@CurrentUserId UUID ownerId, @PathVariable UUID id,
+                                          @Valid @RequestBody CopyReservationRequest request){
+        return reservationService.copy(ownerId,id,request.unitIds());
     }
     @GetMapping("/{unitId}/unit")
     public ResponseEntity<List<ReservationResponse>> getAllByUnitId(@CurrentUserId UUID ownerId, @PathVariable UUID unitId) {

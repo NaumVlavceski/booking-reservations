@@ -92,7 +92,6 @@ function Section({id, title, children}: { id?: string; title: string; children: 
 // Buttons under the intro that jump to a part of the page (same ids as the Section elements below)
 const jumpLinks = [
     {id: "booking", label: "Booking.com"},
-    {id: "airbnb", label: "Airbnb"},
     {id: "good-to-know", label: "Good to know"},
     {id: "problems", label: "Problems"},
 ];
@@ -111,7 +110,7 @@ export default function ConnectCalendarsHelpPage() {
         <div className="space-y-8">
             <div>
                 <PageHeader
-                    title="Connect Booking.com and Airbnb"
+                    title="Connect Booking.com"
                     back={{
                         to: backTo,
                         onClick: (e) => {
@@ -137,26 +136,26 @@ export default function ConnectCalendarsHelpPage() {
 
             <Section title="How it works">
                 <p className="text-body-sm leading-6 text-muted">
-                    Airbnb and Booking.com share their calendars through a calendar link. Nothing needs to be
-                    installed, and no passwords are shared. There are two links to connect for each channel.
+                    Booking.com shares its calendar through a calendar link. Nothing needs to be
+                    installed, and no passwords are shared. There are two links to connect for each room.
                 </p>
                 <p className="text-body-sm leading-6 text-muted">
-                    Each room has its own links. Set up the two-way connection for every channel the room is listed
-                    on, and repeat it for each room.
+                    Each room has its own links. Set up the two-way connection for every room that is listed on
+                    Booking.com.
                 </p>
             </Section>
 
             <Section title="Things to know before you start">
                 <div className="space-y-3">
                     <Callout tone="info" title="Channel bookings arrive within 10 minutes.">
-                        When a booking is made on Booking.com or Airbnb, it appears on your calendar within 10 minutes,
+                        When a booking is made on Booking.com, it appears on your calendar within 10 minutes,
                         or right away if you press the refresh button on the calendar. You also get an email when it
                         arrives.
                     </Callout>
                     <Callout tone="warning" title="Direct bookings sync within 3 hours.">
-                        Dates you block in RoomTrack are automatically closed on Booking.com and Airbnb, but the update
+                        Dates you block in RoomTrack are automatically closed on Booking.com, but the update
                         can take up to 3 hours to appear. To avoid double bookings, block the same dates directly on
-                        those platforms right away.
+                        Booking.com right away.
                     </Callout>
                 </div>
             </Section>
@@ -227,73 +226,20 @@ export default function ConnectCalendarsHelpPage() {
                 </Steps>
             </Section>
 
-            <Section id="airbnb" title="Airbnb">
-                {/* Not tested by the owner yet: the steps follow the same flow as Booking.com. Check them against Airbnb. */}
-                <Steps>
-                    <Step n={1} title="Connect each room separately">
-                        <p>Do the steps below once for every room, with the Airbnb listing that matches it.</p>
-                    </Step>
-                    <Step
-                        n={2}
-                        title="Open the calendar connection options on Airbnb"
-                        images={[{
-                            file: "airbnb-1-sync-calendars.png",
-                            alt: "Availability settings with Connect calendars on Airbnb",
-                        }]}
-                    >
-                        <p>
-                            Log in to Airbnb and open the calendar of the listing that matches this room. Open{" "}
-                            <strong>Availability settings</strong> and choose <strong>Connect calendars</strong>{" "}
-                            (sometimes called <strong>Sync calendars</strong>).
-                        </p>
-                    </Step>
-                    <Step
-                        n={3}
-                        title="Paste RoomTrack's link into Airbnb"
-                        images={[{file: "airbnb-2-import-paste.png", alt: "Import calendar on Airbnb with the RoomTrack link pasted"}]}
-                    >
-                        <p>
-                            In RoomTrack, open the room and press <strong>Copy</strong> under{" "}
-                            <strong>Send your bookings to other channels</strong>. On Airbnb, choose{" "}
-                            <strong>Import calendar</strong>, paste the link, give it a name such as{" "}
-                            <em>RoomTrack</em> and confirm.
-                        </p>
-                    </Step>
-                    <Step
-                        n={4}
-                        title="Copy Airbnb's link into RoomTrack"
-                        images={[{file: "airbnb-3-export-copy.png", alt: "Export calendar and the link to copy on Airbnb"}]}
-                    >
-                        <p>
-                            On Airbnb, choose <strong>Export calendar</strong> and copy the link. Paste it into the
-                            empty field under <strong>Bring in bookings from other channels</strong> in RoomTrack, and
-                            click <strong>Connect</strong>.
-                        </p>
-                    </Step>
-                    <Step n={5} title="Check that it works">
-                        <p>
-                            Click <strong>Sync now</strong> in RoomTrack. When it says <strong>Syncing</strong>, your
-                            Airbnb bookings are on your calendar.
-                        </p>
-                    </Step>
-                </Steps>
-            </Section>
-
             <Section id="good-to-know" title="Good to know">
                 <div className="space-y-5 text-body-sm leading-6 text-muted">
                     <div>
                         <h3 className="font-semibold text-fg">RoomTrack only sends out the bookings you create in RoomTrack</h3>
                         <p>
-                            A booking that comes from Airbnb appears on your RoomTrack calendar but is not forwarded to
-                            Booking.com, and the other way round. If a room is listed on both platforms, keep an eye on{" "}
-                            <strong>Booking conflicts</strong> in the menu. RoomTrack shows overlapping bookings there
-                            and also emails you.
+                            A booking that comes from Booking.com appears on your RoomTrack calendar but is not forwarded
+                            anywhere else. Keep an eye on <strong>Booking conflicts</strong> in the menu. RoomTrack shows
+                            overlapping bookings there and also emails you.
                         </p>
                     </div>
                     <div>
                         <h3 className="font-semibold text-fg">Cancel on the platform, not just in RoomTrack</h3>
                         <p>
-                            If you cancel an Airbnb or Booking.com booking only in RoomTrack, it reappears at the next
+                            If you cancel a Booking.com booking only in RoomTrack, it reappears at the next
                             sync because it still exists on the platform. Cancel it there as well. RoomTrack then cancels
                             its own copy automatically.
                         </p>
@@ -302,7 +248,7 @@ export default function ConnectCalendarsHelpPage() {
                         <h3 className="font-semibold text-fg">Keep RoomTrack's link private</h3>
                         <p>
                             It lists your booked dates and guest names. Anyone who has the link can read them, so only
-                            paste it into Airbnb and Booking.com.
+                            paste it into Booking.com.
                         </p>
                     </div>
                     <div>
@@ -320,18 +266,18 @@ export default function ConnectCalendarsHelpPage() {
                 <dl className="space-y-5 text-body-sm leading-6">
                     <div>
                         <dt className="font-semibold text-fg">
-                            “Only Booking.com and Airbnb calendar links are supported.”
+                            “Only Booking.com calendar links are supported.”
                         </dt>
                         <dd className="text-muted">
-                            The link you pasted is not an export link from those two. Check that you copied the link the
+                            The link you pasted is not an export link from Booking.com. Check that you copied the link the
                             platform gives you, not the page address and not the box where you paste RoomTrack's link.
                             Links that start with <code className="rounded bg-surface-sunken px-1">webcal://</code> work too.
                         </dd>
                     </div>
                     <div>
-                        <dt className="font-semibold text-fg">“This room already has an Airbnb calendar.”</dt>
+                        <dt className="font-semibold text-fg">“This room already has a Booking.com calendar.”</dt>
                         <dd className="text-muted">
-                            A room can have one link per channel. Remove the old one first, or use the other room.
+                            A room can have one Booking.com link. Remove the old one first, or use the other room.
                         </dd>
                     </div>
                     <div>
@@ -345,8 +291,7 @@ export default function ConnectCalendarsHelpPage() {
                     <div>
                         <dt className="font-semibold text-fg">Bookings are missing</dt>
                         <dd className="text-muted">
-                            Press <strong>Sync now</strong>. Then check that the link comes from the right listing on
-                            Airbnb, or the right room type on Booking.com.
+                            Press <strong>Sync now</strong>. Then check that the link comes from the right room type on Booking.com.
                         </dd>
                     </div>
                 </dl>

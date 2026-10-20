@@ -45,7 +45,8 @@ export default function SyncHealthPage() {
         <div>
             <PageHeader
                 title="Sync status"
-                description="Booking.com and Airbnb calendars that couldn't be updated. Until they work again, bookings made on those channels may be missing from your calendar."
+                back={{to: "/dashboard/calendar"}}
+                description="Booking.com calendars that couldn't be updated. Until they work again, bookings made on Booking.com may be missing from your calendar."
             />
             <ChannelsNav/>
 
@@ -57,7 +58,7 @@ export default function SyncHealthPage() {
                 </ErrorState>
             ) : !failing || failing.length === 0 ? (
                 <EmptyState icon={<CheckIcon size={24}/>} title="All channels are syncing">
-                    Bookings from Booking.com and Airbnb are arriving normally.
+                    Bookings from Booking.com are arriving normally.
                 </EmptyState>
             ) : (
                 <ul className="space-y-4">

@@ -114,6 +114,9 @@
     --animate-fade-in: fade-in var(--rt-dur-base) var(--rt-ease) both;
     --animate-sheet-in: sheet-in var(--rt-dur-slow) var(--rt-ease-out) both;
     --animate-pop-in: pop-in var(--rt-dur-base) var(--rt-ease-out) both;
+    --animate-fade-out: fade-out var(--rt-dur-base) var(--rt-ease) both;
+    --animate-sheet-out: sheet-out var(--rt-dur-base) var(--rt-ease) both;
+    --animate-pop-out: pop-out var(--rt-dur-base) var(--rt-ease) both;
     --animate-spin-slow: spin 800ms linear infinite;
     --animate-shimmer: shimmer 1.4s ease-in-out infinite;
 }
@@ -128,6 +131,18 @@
 
 @keyframes pop-in {
     from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+@keyframes fade-out {
+    to { opacity: 0; }
+}
+
+@keyframes sheet-out {
+    to { transform: translateY(100%); }
+}
+
+@keyframes pop-out {
+    to { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
 
 @keyframes shimmer {
@@ -233,7 +248,7 @@
 @layer components {
     /* Lists: grouped rows inside one card. */
     .stack-list {
-        @apply divide-y divide-subtle overflow-hidden rounded-2xl border border-subtle bg-surface shadow-card;
+        @apply divide-y divide-subtle /*overflow-hidden*/ rounded-2xl border border-subtle bg-surface shadow-card;
     }
 
     .field-hint {
@@ -266,6 +281,16 @@
 
     .float-field:has(.field-input:disabled) {
         --field-bg: var(--rt-surface-sunken);
+    }
+
+    /* A field on a raised surface (a sheet or dialog): no box fill and no label patch, both blend into it. */
+    .float-field--raised {
+        --float-bg: var(--rt-surface-raised);
+        --field-bg: var(--rt-surface-raised);
+    }
+
+    .float-field--raised .field-input {
+        background-color: transparent;
     }
 
     .float-label {

@@ -17,20 +17,12 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.util.HtmlUtils;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.HexFormat;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Issues and checks the 6-digit code that proves a user owns their email address.
@@ -40,13 +32,12 @@ import java.util.UUID;
 @Service
 public class EmailVerificationService {
     public static final String EMAIL_TYPE = "VERIFY_EMAIL";
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AppUserRepository users;
     private final EmailVerificationRepository codes;
     private final EmailService emailService;
     private final Clock clock;
-    private final byte[] secret;
+    private final OneTimeCodes oneTimeCodes;
     private final boolean mailEnabled;
     private final Duration ttl;
     private final int maxAttempts;
@@ -68,7 +59,7 @@ public class EmailVerificationService {
         this.codes = codes;
         this.emailService = emailService;
         this.clock = clock;
-        this.secret = secret == null ? new byte[0] : secret.getBytes(StandardCharsets.UTF_8);
+        this.oneTimeCodes = new OneTimeCodes(secret);
         this.mailEnabled = mailEnabled;
         this.ttl = Duration.ofMinutes(ttlMinutes);
         this.maxAttempts = maxAttempts;
@@ -78,7 +69,7 @@ public class EmailVerificationService {
 
     @PostConstruct
     void validateSecret() {
-        if (secret.length < 32) {
+        if (oneTimeCodes.secretTooShort()) {
             throw new IllegalStateException("app.auth.code-secret (EMAIL_CODE_SECRET) must be set to at least 32 characters");
         }
     }
@@ -86,13 +77,13 @@ public class EmailVerificationService {
     /** Creates a fresh code (invalidating older ones) and emails it. No rate limits here: callers decide. */
     @Transactional
     public void issueAndSend(AppUser user) {
-        String code = String.format("%06d", RANDOM.nextInt(1_000_000));
+        String code = oneTimeCodes.generate();
         Instant now = clock.instant();
 
         codes.invalidateOpen(user.getId(), now);
         EmailVerification v = new EmailVerification();
         v.setUserId(user.getId());
-        v.setCodeHash(hash(user.getId(), code));
+        v.setCodeHash(oneTimeCodes.hash(user.getId(), code));
         v.setCreatedAt(now);
         v.setExpiresAt(now.plus(ttl));
         codes.save(v);
@@ -127,7 +118,7 @@ public class EmailVerificationService {
     public AppUser verify(String rawEmail, String rawCode) {
         Optional<AppUser> found = users.findFirstByEmailIgnoreCase(normalize(rawEmail));
         if (found.isEmpty() || !found.get().isActive() || found.get().getEmailVerifiedAt() != null) {
-            hash(new UUID(0, 0), rawCode == null ? "" : rawCode); // similar work for unknown emails
+            oneTimeCodes.burn(rawCode); // similar work for unknown emails
             throw invalid();
         }
         AppUser user = found.get();
@@ -143,10 +134,7 @@ public class EmailVerificationService {
         }
         if (v.getAttempts() >= maxAttempts) throw tooMany();
 
-        boolean match = MessageDigest.isEqual(
-                v.getCodeHash().getBytes(StandardCharsets.UTF_8),
-                hash(user.getId(), rawCode == null ? "" : rawCode.trim()).getBytes(StandardCharsets.UTF_8));
-        if (!match) {
+        if (!oneTimeCodes.matches(v.getCodeHash(), user.getId(), rawCode)) {
             v.setAttempts(v.getAttempts() + 1);
             codes.save(v);
             if (v.getAttempts() >= maxAttempts) throw tooMany();
@@ -173,17 +161,6 @@ public class EmailVerificationService {
 
     private static String normalize(String email) {
         return email == null ? "" : email.trim().toLowerCase();
-    }
-
-    /** Keyed hash of the code, bound to the user so one user's hash can't be replayed for another. */
-    private String hash(UUID userId, String code) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret, "HmacSHA256"));
-            return HexFormat.of().formatHex(mac.doFinal((userId + ":" + code).getBytes(StandardCharsets.UTF_8)));
-        } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("HMAC unavailable");
-        }
     }
 
     private void afterCommit(Runnable action) {

@@ -65,7 +65,7 @@ type BaseFieldProps = Omit<FieldProps, "children" | "id" | "floated" | "leadingI
 export function TextField({label, hint, error, labelHidden, className, id, ...input}: BaseFieldProps & ComponentPropsWithRef<"input">) {
     return (
         <Field label={label} hint={hint} error={error} labelHidden={labelHidden} className={className} id={id}>
-            {(control) => <input className="field-input" {...input} placeholder={input.placeholder || " "} {...control}/>}
+            {(control) => <input className="field-input pl-3" {...input} placeholder={input.placeholder || " "} {...control}/>}
         </Field>
     );
 }

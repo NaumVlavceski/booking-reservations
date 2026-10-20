@@ -13,8 +13,14 @@ import ConflictsPage from "./pages/ConflictsPage.tsx";
 import SyncHealthPage from "./pages/SyncHealthPage.tsx";
 import CancelledReservationsPage from "./pages/CancelledReservationsPage.tsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage.tsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.tsx";
+import ChangePasswordPage from "./pages/ChangePasswordPage.tsx";
 import ConnectCalendarsHelpPage from "./pages/ConnectCalendarsHelpPage.tsx";
 import NotFoundPage from "./pages/NotFoundPage.tsx";
+import InvoicesPage from "./pages/InvoicesPage.tsx";
+import InvoicePropertyPage from "./pages/InvoicePropertyPage.tsx";
+import InvoiceUnitPage from "./pages/InvoiceUnitPage.tsx";
+import InvoiceMissingAmountsPage from "./pages/InvoiceMissingAmountsPage.tsx";
 
 
 export default function App() {
@@ -23,6 +29,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage/>}/>
             <Route path="/register" element={<RegisterPage/>}/>
             <Route path="/verify-email" element={<VerifyEmailPage/>}/>
+            <Route path="/forgot-password" element={<ForgotPasswordPage/>}/>
             <Route path="/" element={<Navigate to="/dashboard/calendar" replace/>}/>
             <Route element={<ProtectedRoute/>}>
                 <Route element={<DashboardLayout />}>
@@ -39,7 +46,12 @@ export default function App() {
                     <Route path="/dashboard/conflicts" element={<ConflictsPage />} />
                     <Route path="/dashboard/sync-health" element={<SyncHealthPage/>}/>
                     <Route path="/dashboard/cancelled" element={<CancelledReservationsPage/>}/>
+                    <Route path="/dashboard/invoices" element={<InvoicesPage/>}/>
+                    <Route path="/dashboard/invoices/properties/:propertyId" element={<InvoicePropertyPage/>}/>
+                    <Route path="/dashboard/invoices/units/:unitId" element={<InvoiceUnitPage/>}/>
+                    <Route path="/dashboard/invoices/properties/:propertyId/missing-amounts" element={<InvoiceMissingAmountsPage/>}/>
                     <Route path="/dashboard/help/connect-calendars" element={<ConnectCalendarsHelpPage/>}/>
+                    <Route path="/dashboard/account/password" element={<ChangePasswordPage/>}/>
                     <Route path="*" element={<NotFoundPage/>}/>
                 </Route>
             </Route>

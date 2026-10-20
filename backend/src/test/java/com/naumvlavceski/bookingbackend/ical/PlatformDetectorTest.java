@@ -21,11 +21,9 @@ class PlatformDetectorTest {
     }
 
     @Test
-    void airbnbFeedsAreRecognisedInEveryCountryDomain() {
-        assertEquals(Optional.of(ReservationSource.AIRBNB), detect("https://www.airbnb.com/calendar/ical/123.ics?s=abc"));
-        assertEquals(Optional.of(ReservationSource.AIRBNB), detect("https://airbnb.mk/calendar/ical/123.ics"));
-        assertEquals(Optional.of(ReservationSource.AIRBNB), detect("https://www.airbnb.co.uk/calendar/ical/123.ics"));
-        assertEquals(Optional.of(ReservationSource.AIRBNB), detect("https://www.airbnb.com.au/calendar/ical/123.ics"));
+    void airbnbFeedsAreNotSupported() {
+        assertEquals(Optional.empty(), detect("https://www.airbnb.com/calendar/ical/123.ics?s=abc"));
+        assertEquals(Optional.empty(), detect("https://airbnb.mk/calendar/ical/123.ics"));
     }
 
     @Test
@@ -36,8 +34,6 @@ class PlatformDetectorTest {
         // look-alike hosts
         assertEquals(Optional.empty(), detect("https://booking.com.evil.com/a.ics"));
         assertEquals(Optional.empty(), detect("https://evilbooking.com/a.ics"));
-        assertEquals(Optional.empty(), detect("https://airbnb.evil.com/a.ics"));
-        assertEquals(Optional.empty(), detect("https://notairbnb.com/a.ics"));
     }
 
     @Test
@@ -51,7 +47,7 @@ class PlatformDetectorTest {
     @Test
     void webcalLinksAreTurnedIntoHttps() {
         assertEquals("https://ical.booking.com/v1/export?t=abc", PlatformDetector.normalize("  webcal://ical.booking.com/v1/export?t=abc  "));
-        assertEquals("https://www.airbnb.com/calendar/ical/1.ics", PlatformDetector.normalize("WEBCAL://www.airbnb.com/calendar/ical/1.ics"));
+        assertEquals("https://example.com/1.ics", PlatformDetector.normalize("WEBCAL://example.com/1.ics"));
         assertEquals(Optional.of(ReservationSource.BOOKING), detect("webcal://ical.booking.com/v1/export?t=abc"));
     }
 

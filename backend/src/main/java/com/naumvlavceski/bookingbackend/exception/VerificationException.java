@@ -5,6 +5,8 @@ public class VerificationException extends RuntimeException {
     public static final String INVALID_CODE = "INVALID_CODE";
     public static final String CODE_EXPIRED = "CODE_EXPIRED";
     public static final String TOO_MANY_ATTEMPTS = "TOO_MANY_ATTEMPTS";
+    public static final String RESET_TOKEN_INVALID = "RESET_TOKEN_INVALID";
+    public static final String WRONG_PASSWORD = "WRONG_PASSWORD";
 
     private final String code;
 

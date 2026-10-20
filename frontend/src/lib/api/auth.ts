@@ -50,3 +50,19 @@ export async function verifyEmail(data: VerifyEmailRequest): Promise<AuthRespons
 export async function resendCode(email: string): Promise<void> {
     await apiClient.post("/api/auth/resend-code", {email});
 }
+
+/** Emails a reset code if the address has an account. Always succeeds the same way, whether or not it does. */
+export async function forgotPassword(email: string): Promise<void> {
+    await apiClient.post("/api/auth/forgot-password", {email});
+}
+
+/** Trades the emailed code for a short-lived, one-time reset token. Keep the token in memory only. */
+export async function verifyResetCode(data: { email: string; code: string }): Promise<string> {
+    const res = await apiClient.post<{ resetToken: string }>("/api/auth/verify-reset-code", data);
+    return res.data.resetToken;
+}
+
+/** Sets the new password. Signs out every existing session; the user logs in again afterwards. */
+export async function resetPassword(data: { resetToken: string; newPassword: string }): Promise<void> {
+    await apiClient.post("/api/auth/reset-password", data);
+}

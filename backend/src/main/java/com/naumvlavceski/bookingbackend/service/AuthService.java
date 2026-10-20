@@ -7,6 +7,9 @@ import com.naumvlavceski.bookingbackend.dto.RegisterRequest;
 import com.naumvlavceski.bookingbackend.dto.RegistrationResponse;
 import com.naumvlavceski.bookingbackend.dto.VerifyEmailRequest;
 import com.naumvlavceski.bookingbackend.exception.EmailNotVerifiedException;
+import com.naumvlavceski.bookingbackend.exception.TooManyRequestsException;
+import com.naumvlavceski.bookingbackend.exception.VerificationException;
+import com.naumvlavceski.bookingbackend.ratelimit.RateLimiter;
 import com.naumvlavceski.bookingbackend.model.AppUser;
 import com.naumvlavceski.bookingbackend.model.Owner;
 import com.naumvlavceski.bookingbackend.model.Role;
@@ -19,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -32,6 +36,11 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailVerificationService verificationService;
+    private final PasswordResetService passwordResetService;
+    private final RateLimiter rateLimiter;
+
+    private static final int CHANGE_PASSWORD_TRIES = 5;
+    private static final Duration CHANGE_PASSWORD_WINDOW = Duration.ofMinutes(15);
 
     @Transactional(readOnly = true)
     public MeResponse me(UUID userId) {
@@ -87,6 +96,33 @@ public class AuthService {
         }
 
         return signIn(user);
+    }
+
+    /**
+     * Changes the password of a signed-in user who knows the current one. Every other session ends
+     * (token version bumped); the returned token keeps this device signed in.
+     */
+    @Transactional
+    public AuthResponse changePassword(UUID userId, String currentPassword, String newPassword) {
+        // Counts every try, so a stolen session can't be used to guess the current password
+        if (!rateLimiter.tryAcquire("change-password:" + userId, CHANGE_PASSWORD_TRIES, CHANGE_PASSWORD_WINDOW)) {
+            throw new TooManyRequestsException();
+        }
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found"));
+        // 400, never 401: the frontend signs people out on a 401
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new VerificationException(VerificationException.WRONG_PASSWORD, "Your current password is not correct.");
+        }
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Choose a new password that is different from your current one.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        user = appUserRepository.save(user);
+        passwordResetService.notifyPasswordChanged(user);
+        return new AuthResponse(jwtService.generateToken(user), user.getEmail(), user.getFullName());
     }
 
     @Transactional

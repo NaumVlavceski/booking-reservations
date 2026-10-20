@@ -56,13 +56,10 @@ export interface PageResponse<T> {
 export interface CancelledParams {
     page: number;
     size: number;
-    /** Guest name starts with this (ignoring case). */
     name?: string;
-    /** "yyyy-MM-dd": only stays checking in on or after this day. */
     checkInFrom?: string;
 }
 
-/** One page of cancelled bookings: newest cancellation first, or latest check-in first when a date is given. */
 export async function getCancelledReservations(params: CancelledParams): Promise<PageResponse<ReservationResponse>> {
     const res = await apiClient.get<PageResponse<ReservationResponse>>("/api/reservations/cancelled", {
         params: {
@@ -114,4 +111,23 @@ export async function restoreReservation(r: ReservationResponse, status: Reserva
 export async function updateReservation(id: string, data: ReservationRequest): Promise<ReservationResponse | null> {
     const res = await apiClient.put<ReservationResponse>(`/api/reservations/${id}`, data);
     return res.status === 204 ? null : res.data;
+}
+
+export interface AvailableOption {
+    unitId: string;
+    name: string;
+}
+
+export async function getAvailableOptions(id: string): Promise<AvailableOption[]> {
+    const res = await apiClient.get<AvailableOption[]>(`/api/reservations/${id}/available-options`);
+    return res.data;
+}
+
+export async function moveReservation(id: string, unitId: string): Promise<ReservationResponse> {
+    const res = await apiClient.post<ReservationResponse>(`/api/reservations/${id}/move`, {unitId});
+    return res.data;
+}
+export async function copyReservation(id: string, unitIds: string[]): Promise<ReservationResponse[]> {
+    const res = await apiClient.post<ReservationResponse[]>(`/api/reservations/${id}/copy`, {unitIds});
+    return res.data;
 }

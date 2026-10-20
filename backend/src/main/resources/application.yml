@@ -23,6 +23,10 @@ app:
     resend-cooldown-seconds: 60
     codes-per-hour: 5
     ip-limit-per-hour: ${AUTH_IP_LIMIT_PER_HOUR:30}
+    # Forgot password (reuses code-secret, code-max-attempts, resend-cooldown-seconds and codes-per-hour)
+    reset-code-ttl-minutes: 10
+    reset-token-ttl-minutes: 10
+    reset-ip-limit-per-hour: ${AUTH_RESET_IP_LIMIT_PER_HOUR:5}
   jwt:
     secret: ${APP_JWT_SECRET:}
     idle-timeout-ms: ${APP_JWT_IDLE_TIMEOUT_MS}

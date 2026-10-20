@@ -9,8 +9,8 @@ import AuthLayout from "../components/AuthLayout";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
 import Spinner from "../components/ui/Spinner";
+import CodeInput, {CODE_LENGTH, type CodeInputHandle} from "../components/CodeInput";
 
-const LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 interface VerifyState {
@@ -25,9 +25,9 @@ export default function VerifyEmailPage() {
     const state = (useLocation().state ?? {}) as VerifyState;
     const email = state.email;
 
-    const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(""));
+    const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
     const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS); // a code was just sent
-    const inputs = useRef<(HTMLInputElement | null)[]>([]);
+    const codeInput = useRef<CodeInputHandle>(null);
 
     useEffect(() => {
         if (secondsLeft <= 0) return;
@@ -43,8 +43,8 @@ export default function VerifyEmailPage() {
         },
         onError: () => {
             // Start over with empty boxes and the cursor in the first one
-            setDigits(Array(LENGTH).fill(""));
-            inputs.current[0]?.focus();
+            setDigits(Array(CODE_LENGTH).fill(""));
+            codeInput.current?.focus();
         },
     });
 
@@ -71,44 +71,6 @@ export default function VerifyEmailPage() {
         }
     }
 
-    function handleChange(index: number, value: string) {
-        const typed = value.replace(/\D/g, "");
-        if (typed === "") {
-            update(digits.map((d, i) => (i === index ? "" : d)));
-            return;
-        }
-        // Typing over a filled box, or a keyboard that sends several digits at once, spills forward
-        const next = [...digits];
-        let pos = index;
-        for (const ch of typed) {
-            if (pos >= LENGTH) break;
-            next[pos++] = ch;
-        }
-        update(next);
-        inputs.current[Math.min(pos, LENGTH - 1)]?.focus();
-    }
-
-    function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
-        if (e.key === "Backspace" && digits[index] === "" && index > 0) {
-            e.preventDefault();
-            update(digits.map((d, i) => (i === index - 1 ? "" : d)));
-            inputs.current[index - 1]?.focus();
-        } else if (e.key === "ArrowLeft" && index > 0) {
-            inputs.current[index - 1]?.focus();
-        } else if (e.key === "ArrowRight" && index < LENGTH - 1) {
-            inputs.current[index + 1]?.focus();
-        }
-    }
-
-    function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
-        const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, LENGTH);
-        if (!pasted) return;
-        e.preventDefault();
-        const next = Array.from({length: LENGTH}, (_, i) => pasted[i] ?? "");
-        update(next);
-        inputs.current[Math.min(pasted.length, LENGTH - 1)]?.focus();
-    }
-
     return (
         <AuthLayout
             title="Check your email"
@@ -127,33 +89,15 @@ export default function VerifyEmailPage() {
         >
             <div className="space-y-6">
                 <div>
-                    <div role="group" aria-label="Verification code" className="flex justify-center gap-2 sm:gap-3">
-                        {digits.map((digit, i) => (
-                            <input
-                                key={i}
-                                ref={(el) => {
-                                    inputs.current[i] = el;
-                                }}
-                                value={digit}
-                                onChange={(e) => handleChange(i, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(i, e)}
-                                onPaste={handlePaste}
-                                onFocus={(e) => e.target.select()}
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                autoComplete={i === 0 ? "one-time-code" : "off"}
-                                autoFocus={i === 0}
-                                aria-label={`Digit ${i + 1} of ${LENGTH}`}
-                                aria-invalid={verifyMutation.isError || undefined}
-                                disabled={verifyMutation.isPending}
-                                className={`num h-14 w-11 min-w-0 rounded-xl border bg-surface text-center text-2xl font-semibold text-fg transition-[border-color,box-shadow] focus:ring-3 focus:outline-none disabled:bg-surface-sunken disabled:text-muted sm:w-12 ${
-                                    verifyMutation.isError
-                                        ? "border-danger ring-1 ring-danger focus:ring-danger/30"
-                                        : "border-strong focus:border-primary focus:ring-focus/30"
-                                }`}
-                            />
-                        ))}
-                    </div>
+                    <CodeInput
+                        ref={codeInput}
+                        digits={digits}
+                        onChange={update}
+                        label="Verification code"
+                        invalid={verifyMutation.isError}
+                        disabled={verifyMutation.isPending}
+                        autoFocus
+                    />
 
                     <div aria-live="polite" className="mt-4 min-h-6 text-center">
                         {verifyMutation.isPending && (
