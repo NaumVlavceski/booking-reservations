@@ -300,3 +300,39 @@ export const MoveIcon = (p: IconProps) => (
         <path d="M20 17H4"/>
     </Icon>
 );
+
+export const ReceiptIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/>
+        <line x1="9" y1="8" x2="15" y2="8"/>
+        <line x1="9" y1="12" x2="15" y2="12"/>
+    </Icon>
+);
+
+export const ArrowRightIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+    </Icon>
+);
+
+export const FilterIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <line x1="4" y1="6" x2="20" y2="6"/>
+        <line x1="7" y1="12" x2="17" y2="12"/>
+        <line x1="10" y1="18" x2="14" y2="18"/>
+    </Icon>
+);
+
+/** Channels: your calendar (the hub) linked to Booking.com, Airbnb and other platforms. */
+export const ChannelsIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <circle cx="5" cy="12" r="2.5"/>
+        <circle cx="19" cy="5" r="2.5"/>
+        <circle cx="19" cy="12" r="2.5"/>
+        <circle cx="19" cy="19" r="2.5"/>
+        <line x1="7.5" y1="12" x2="16.5" y2="12"/>
+        <line x1="7.2" y1="10.8" x2="16.8" y2="6.2"/>
+        <line x1="7.2" y1="13.2" x2="16.8" y2="17.8"/>
+    </Icon>
+);

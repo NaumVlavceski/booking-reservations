@@ -59,6 +59,7 @@ export default function ConflictsPage() {
         <div>
             <PageHeader
                 title="Booking conflicts"
+                back={{to: "/dashboard/calendar"}}
                 description="Booking.com reported a stay on dates you already have booked. Nothing was changed automatically — decide which booking is right for each one."
             />
             <ChannelsNav/>

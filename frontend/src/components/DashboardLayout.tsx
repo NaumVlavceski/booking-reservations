@@ -11,11 +11,13 @@ import {
     AlertIcon,
     CalendarIcon,
     CalendarXIcon,
+    ChannelsIcon,
     ChevronRightIcon,
     HelpIcon,
     HouseIcon,
     LogoutIcon,
     MoreHorizontalIcon,
+    ReceiptIcon,
     SyncIcon,
 } from "./icons";
 import SyncAlerts from "./SyncAlerts";
@@ -87,10 +89,10 @@ export default function DashboardLayout() {
         navigate("/login", {replace: true});
     }
 
-    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/help");
+    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help");
     const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
         {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
-        {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: SyncIcon, active: isChannels(pathname), count: alertCount},
+        {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: ChannelsIcon, active: isChannels(pathname), count: alertCount},
     ];
 
     return (
@@ -110,17 +112,18 @@ export default function DashboardLayout() {
                         <SidebarLink to="/dashboard/calendar" icon={CalendarIcon} active={isCalendarArea(pathname)}>Calendar</SidebarLink>
                         <SidebarLink to="/dashboard/properties" icon={HouseIcon} active={pathname.startsWith("/dashboard/properties")}>Properties</SidebarLink>
                         <SidebarLink to="/dashboard/cancelled" icon={CalendarXIcon} active={pathname.startsWith("/dashboard/cancelled")}>Cancelled bookings</SidebarLink>
+                        <SidebarLink to="/dashboard/invoices" icon={ReceiptIcon} active={pathname.startsWith("/dashboard/invoices")}>Invoices</SidebarLink>
                     </nav>
-                    <SidebarGroup label="Channels">
-                        <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}
-                                     trailing={<CountBubble count={conflictCount} className="ml-auto"/>}>
-                            Booking conflicts{warnings(conflictCount)}
-                        </SidebarLink>
-                        <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}
-                                     trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>
-                            Sync status{warnings(failingCount)}
-                        </SidebarLink>
-                    </SidebarGroup>
+                    {/*<SidebarGroup label="Channels">*/}
+                    {/*    <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}*/}
+                    {/*                 trailing={<CountBubble count={conflictCount} className="ml-auto"/>}>*/}
+                    {/*        Booking conflicts{warnings(conflictCount)}*/}
+                    {/*    </SidebarLink>*/}
+                    {/*    <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}*/}
+                    {/*                 trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>*/}
+                    {/*        Sync status{warnings(failingCount)}*/}
+                    {/*    </SidebarLink>*/}
+                    {/*</SidebarGroup>*/}
                 </div>
                 <div className="space-y-0.5 border-t border-subtle px-3 pt-3 pb-4">
                     <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon} active={pathname.startsWith("/dashboard/help")}>
@@ -204,10 +207,11 @@ export default function DashboardLayout() {
                     <SheetGroup>
                         <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore} chevron>Properties</SheetLink>
                         <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled bookings</SheetLink>
-                        <SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}
-                                   trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>
-                        <SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}
-                                   trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>
+                        <SheetLink to="/dashboard/invoices" icon={ReceiptIcon} onClick={closeMore} chevron>Invoices</SheetLink>
+                        {/*<SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}*/}
+                        {/*           trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>*/}
+                        {/*<SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}*/}
+                        {/*           trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>*/}
                     </SheetGroup>
                     <SheetGroup>
                         <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com</SheetLink>

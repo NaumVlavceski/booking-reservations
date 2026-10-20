@@ -45,6 +45,7 @@ export default function SyncHealthPage() {
         <div>
             <PageHeader
                 title="Sync status"
+                back={{to: "/dashboard/calendar"}}
                 description="Booking.com calendars that couldn't be updated. Until they work again, bookings made on Booking.com may be missing from your calendar."
             />
             <ChannelsNav/>
