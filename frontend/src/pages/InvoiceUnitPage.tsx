@@ -9,6 +9,7 @@ import {formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
 import {useFromHere} from "../lib/useReturnTo";
 import {CalendarIcon, ChevronRightIcon} from "../components/icons";
 import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
+import InvoiceExportButton from "../components/InvoiceExportButton";
 import InvoiceFilters from "../components/InvoiceFilters";
 import InvoiceSummary from "../components/InvoiceSummary";
 import MissingAmountsCallout from "../components/MissingAmountsCallout";
@@ -44,7 +45,13 @@ export default function InvoiceUnitPage() {
                 back={{to: data ? `/dashboard/invoices/properties/${data.propertyId}${search}` : "/dashboard/invoices"}}
                 alerts={false}
             />
-            <InvoiceFilters range={range} invalid={invalid} activeCount={activeCount} onChange={setRange}/>
+            <InvoiceFilters
+                range={range} invalid={invalid} activeCount={activeCount} onChange={setRange}
+                actions={data && (
+                    <InvoiceExportButton propertyId={data.propertyId} unitId={data.unitId} range={range}
+                                      disabled={invalid || data.reservationCount === 0}/>
+                )}
+            />
 
             {invalid ? null : isLoading ? (
                 <ListSkeleton rows={4} label="Loading bookings..."/>

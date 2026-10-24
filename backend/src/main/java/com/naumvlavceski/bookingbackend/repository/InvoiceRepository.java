@@ -61,6 +61,17 @@ public interface InvoiceRepository extends JpaRepository<Reservation, UUID> {
         BigDecimal getTotalAmount();
     }
 
+    interface ExportRow {
+        String getUnitName();
+        String getGuestName();
+        LocalDate getCheckIn();
+        LocalDate getCheckOut();
+        Integer getNights();
+        String getStatus();
+        String getSource();
+        BigDecimal getTotalAmount();
+    }
+
     @Query(value = """
             SELECT p.id AS "propertyId", p.name AS "propertyName", COUNT(u.id)::bigint AS "unitCount"
             FROM property p
@@ -194,4 +205,33 @@ public interface InvoiceRepository extends JpaRepository<Reservation, UUID> {
                                           @Param("status") String status,
                                           @Param("source") String source,
                                           Pageable pageable);
+
+    @Query(value = """
+            SELECT u.name                                           AS "unitName",
+                   r.guest_name                                     AS "guestName",
+                   lower(r.stay_range)                              AS "checkIn",
+                   upper(r.stay_range)                              AS "checkOut",
+                   (upper(r.stay_range) - lower(r.stay_range))::int AS "nights",
+                   r.status                                         AS "status",
+                   r.source                                         AS "source",
+                   r.total_amount                                   AS "totalAmount"
+            FROM unit u
+            JOIN reservation r ON r.unit_id = u.id AND r.owner_id = u.owner_id
+            WHERE u.owner_id = :ownerId
+              AND u.property_id = :propertyId
+              AND (CAST(:unitId AS uuid) IS NULL OR u.id = CAST(:unitId AS uuid))
+              AND r.status IN ('CONFIRMED', 'PAID')
+              AND (CAST(:from AS date) IS NULL OR lower(r.stay_range) >= CAST(:from AS date))
+              AND (CAST(:to AS date) IS NULL OR lower(r.stay_range) <= CAST(:to AS date))
+              AND (CAST(:status AS text) IS NULL OR r.status = CAST(:status AS text))
+              AND (CAST(:source AS text) IS NULL OR r.source = CAST(:source AS text))
+            ORDER BY lower(r.stay_range), u.name, r.id
+            """, nativeQuery = true)
+    List<ExportRow> exportRows(@Param("ownerId") UUID ownerId,
+                               @Param("propertyId") UUID propertyId,
+                               @Param("unitId") String unitId,
+                               @Param("from") LocalDate from,
+                               @Param("to") LocalDate to,
+                               @Param("status") String status,
+                               @Param("source") String source);
 }

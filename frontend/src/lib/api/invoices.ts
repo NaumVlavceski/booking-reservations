@@ -132,6 +132,35 @@ export const invoiceMissingAmountsQuery = (propertyId: string, unitId: string | 
     queryFn: () => getInvoiceMissingAmounts(propertyId, unitId, range, page),
 });
 
+/** invoices_2026-10-01_2026-10-31.xlsx; the same names the backend gives, used if its header can't be read. */
+function exportFilename({from, to}: InvoiceFilters): string {
+    if (from && to) return `invoices_${from}_${to}.xlsx`;
+    if (from) return `invoices_from_${from}.xlsx`;
+    if (to) return `invoices_until_${to}.xlsx`;
+    return "invoices_all-time.xlsx";
+}
+
+/**
+ * Downloads every booking of a property (or one room) matching the filters as an Excel file. Fetched with the
+ * session token like any other call, then handed to the browser as a file.
+ */
+export async function downloadInvoicesExcel(propertyId: string, unitId: string | null, range: InvoiceFilters): Promise<void> {
+    const res = await apiClient.get<Blob>(`/api/invoices/properties/${propertyId}/export`,
+        {params: {...filterParams(range), unitId: unitId || undefined}, responseType: "blob"});
+    const disposition = String(res.headers["content-disposition"] ?? "");
+    const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? exportFilename(range);
+
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    // Revoke a little later: some browsers (Safari) read the file only after click() has returned.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 const amountFormat = new Intl.NumberFormat(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
 /** "1,250.50", followed by the currency code once the backend sends one. */

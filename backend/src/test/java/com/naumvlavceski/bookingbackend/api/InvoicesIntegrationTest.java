@@ -8,6 +8,10 @@ import com.naumvlavceski.bookingbackend.repository.AppUserRepository;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import io.hypersistence.utils.hibernate.type.range.Range;
+import org.dhatim.fastexcel.reader.Cell;
+import org.dhatim.fastexcel.reader.CellType;
+import org.dhatim.fastexcel.reader.ReadableWorkbook;
+import org.dhatim.fastexcel.reader.Row;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -24,6 +29,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,6 +77,29 @@ class InvoicesIntegrationTest {
     private void reserve(String token, String unit, String in, String out, String guest, String extra) throws Exception {
         send(post("/api/reservations"), token, "{\"unitId\":\"" + unit + "\",\"checkIn\":\"" + in + "\",\"checkOut\":\""
                 + out + "\",\"guestName\":\"" + guest + "\"" + (extra == null ? "" : "," + extra) + "}", 200);
+    }
+
+    private static List<Row> sheet(byte[] xlsx) throws Exception {
+        try (ReadableWorkbook wb = new ReadableWorkbook(new ByteArrayInputStream(xlsx))) {
+            return wb.getFirstSheet().read();
+        }
+    }
+
+    /** A sheet row as "a|b|c": dates (columns C, D) as yyyy-MM-dd, numbers plain, formulas as "=SUM(..)". */
+    private static String line(Row row) {
+        StringBuilder out = new StringBuilder();
+        for (int c = 0; c < 8; c++) {
+            if (c > 0) out.append('|');
+            Cell cell = c < row.getCellCount() ? row.getCell(c) : null;
+            if (cell == null) continue;
+            if (cell.getFormula() != null) out.append('=').append(cell.getFormula());
+            else if (cell.getType() == CellType.NUMBER && (c == 2 || c == 3))
+                out.append(row.getCellAsDate(c).orElseThrow().toLocalDate());
+            else if (cell.getType() == CellType.NUMBER)
+                out.append(row.getCellAsNumber(c).orElseThrow().stripTrailingZeros().toPlainString());
+            else out.append(cell.getText());
+        }
+        return out.toString();
     }
 
     @Test
@@ -179,6 +208,38 @@ class InvoicesIntegrationTest {
         mvc.perform(get("/api/invoices/units/" + room1 + "/reservations").header("Authorization", "Bearer " + a))
                 .andExpect(jsonPath("$.propertyId").value(p1));
 
+        // Excel export: every matching booking, not paged, earliest check-in first, same filters
+        var xlsx = mvc.perform(get("/api/invoices/properties/" + p1 + "/export?from=2032-03-01&to=2032-12-31")
+                        .header("Authorization", "Bearer " + a))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"invoices_2032-03-01_2032-12-31.xlsx\""))
+                .andReturn().getResponse();
+        List<Row> rows = sheet(xlsx.getContentAsByteArray());
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(
+                "Beach House|||||||",
+                "Room|Guest|Check-in|Check-out|Nights|Status|Source|Amount",
+                "Room 1|Anna|2032-03-01|2032-03-04|3|Confirmed|Direct|300",
+                "Room 1|Boris|2032-04-10|2032-04-12|2|Paid|Direct|250.5",
+                "Room 1|Cleo|2032-05-01|2032-05-02|1|Confirmed|Direct|",
+                "Room 1|CLOSED - Not available|2032-08-01|2032-08-03|2|Confirmed|Booking.com|",
+                "Total||||=SUM(E3:E6)|||=SUM(H3:H6)"), rows.stream().map(InvoicesIntegrationTest::line).toList());
+        rows = sheet(mvc.perform(get("/api/invoices/properties/" + p1 + "/export?status=PAID&unitId=" + room1)
+                        .header("Authorization", "Bearer " + a))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"invoices_all-time.xlsx\""))
+                .andReturn().getResponse().getContentAsByteArray());
+        org.junit.jupiter.api.Assertions.assertEquals(4, rows.size()); // title, header, Boris, total
+        org.junit.jupiter.api.Assertions.assertEquals("Boris", rows.get(2).getCellText(1));
+        rows = sheet(mvc.perform(get("/api/invoices/properties/" + p1 + "/export?unitId=" + room2)
+                        .header("Authorization", "Bearer " + a))
+                .andReturn().getResponse().getContentAsByteArray());
+        org.junit.jupiter.api.Assertions.assertEquals(2, rows.size()); // title and header only
+        send(get("/api/invoices/properties/" + p1 + "/export?unitId=" + unitIds(a, p2).get(0)), a, null, 404);
+        send(get("/api/invoices/properties/" + p1 + "/export?from=2032-05-01&to=2032-01-01"), a, null, 400);
+        send(get("/api/invoices/properties/" + p1 + "/export?status=BLOCK"), a, null, 400);
+
         // empty unit
         mvc.perform(get("/api/invoices/units/" + room2 + "/reservations").header("Authorization", "Bearer " + a))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.reservations.items.length()").value(0))
@@ -190,6 +251,7 @@ class InvoicesIntegrationTest {
         send(get("/api/invoices/properties/" + p1 + "/units"), b, null, 404);
         send(get("/api/invoices/units/" + room1 + "/reservations"), b, null, 404);
         send(get("/api/invoices/properties/" + p1 + "/missing-amounts"), b, null, 404);
+        send(get("/api/invoices/properties/" + p1 + "/export"), b, null, 404);
         send(get("/api/invoices/properties/" + bProp + "/units"), a, null, 404);
         org.junit.jupiter.api.Assertions.assertEquals(1, (Integer) JsonPath.read(
                 send(get("/api/invoices/properties"), b, null, 200), "$.length()"));
@@ -199,5 +261,6 @@ class InvoicesIntegrationTest {
         send(get("/api/invoices/units/" + room1 + "/reservations?from=2032-05-01&to=2032-01-01"), a, null, 400);
         send(get("/api/invoices/properties/" + p1 + "/units?from=bad"), a, null, 400);
         send(get("/api/invoices/properties"), null, null, 401);
+        send(get("/api/invoices/properties/" + p1 + "/export"), null, null, 401);
     }
 }

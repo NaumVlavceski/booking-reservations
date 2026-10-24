@@ -139,7 +139,29 @@ public class InvoiceService {
                 unit == null ? null : unit.getId(), unit == null ? null : unit.getName(), toPage(items));
     }
 
-    /** Page numbers start at 0; size is clamped to 1..MAX_PAGE_SIZE (same rules as the cancelled list). */
+    /**
+     * Every booking behind the totals of a property (or one of its rooms when unitId is given) as an Excel file, with
+     * the same filters as the screens, so the file adds up to what they show. Not paged.
+     */
+    @Transactional(readOnly = true)
+    public InvoiceXlsx.Export exportXlsx(UUID ownerId, UUID propertyId, UUID unitId, LocalDate from, LocalDate to,
+                                         ReservationStatus status, ReservationSource source) {
+        checkRange(from, to);
+        checkStatus(status);
+        Property property = propertyRepository.findByIdAndOwnerId(propertyId, ownerId)
+                .orElseThrow(() -> new NoSuchElementException("Property not found"));
+        if (unitId != null) {
+            unitRepository.findByIdAndOwnerId(unitId, ownerId)
+                    .filter(u -> u.getProperty().getId().equals(property.getId()))
+                    .orElseThrow(() -> new NoSuchElementException("Room not found"));
+        }
+
+        List<InvoiceRepository.ExportRow> rows = invoiceRepository.exportRows(ownerId, property.getId(),
+                unitId == null ? null : unitId.toString(), from, to, name(status), name(source));
+        return new InvoiceXlsx.Export(InvoiceXlsx.filename(from, to), InvoiceXlsx.write(property.getName(), rows));
+    }
+
+
     private static Pageable pageable(int page, int size) {
         return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
     }

@@ -5,6 +5,7 @@ import {formatEarnings, invoicePropertiesQuery, invoicePropertyUnitsQuery} from 
 import {formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
 import {plural} from "../lib/plural";
 import {BedIcon, ChevronRightIcon} from "../components/icons";
+import InvoiceExportButton from "../components/InvoiceExportButton";
 import InvoiceFilters from "../components/InvoiceFilters";
 import InvoiceSummary from "../components/InvoiceSummary";
 import MissingAmountsCallout from "../components/MissingAmountsCallout";
@@ -32,7 +33,11 @@ export default function InvoicePropertyPage() {
     return (
         <div>
             <PageHeader title={data?.propertyName ?? "Invoices"} back={{to: backTo}} alerts={false}/>
-            <InvoiceFilters range={range} invalid={invalid} activeCount={activeCount} onChange={setRange}/>
+            <InvoiceFilters
+                range={range} invalid={invalid} activeCount={activeCount} onChange={setRange}
+                actions={<InvoiceExportButton propertyId={propertyId} range={range}
+                                           disabled={invalid || !data || data.grandTotal.reservationCount === 0}/>}
+            />
 
             {invalid ? null : isLoading ? (
                 <ListSkeleton rows={3} label="Loading earnings..."/>

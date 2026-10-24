@@ -13,3 +13,7 @@ app:
     ip-limit-per-hour: 100000
   jwt:
     secret: test-only-secret-test-only-secret-test-only-1234
+    # Same values the tests used to need as env vars; timeouts only, not secrets
+    idle-timeout-ms: 1800000
+    absolute-timeout-ms: 86400000
+    renew-threshold-ratio: 0.5

@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {type ReactNode, useState} from "react";
 import type {InvoiceFilters as Filters} from "../lib/api/invoices";
 import {formatPeriod} from "../lib/useInvoiceFilters";
 import {SOURCE_LABEL, STATUS_LABEL} from "../lib/sources";
@@ -13,6 +13,8 @@ interface InvoiceFiltersProps {
     invalid: boolean;
     activeCount: number;
     onChange: (next: Partial<Filters>) => void;
+    /** Shown at the end of the row, e.g. the Excel download. */
+    actions?: ReactNode;
 }
 
 const STATUS_OPTIONS = [
@@ -34,7 +36,7 @@ const CLEARED: Filters = {from: "", to: "", status: "", source: ""};
  * A compact filter row for the invoices screens: one "Filters" button that opens a sheet (dates From → To,
  * status, source), and the active filters as chips you can remove one by one. Changes apply straight away.
  */
-export default function InvoiceFilters({range, invalid, activeCount, onChange}: InvoiceFiltersProps) {
+export default function InvoiceFilters({range, invalid, activeCount, onChange, actions}: InvoiceFiltersProps) {
     const [open, setOpen] = useState(false);
     const hasDates = range.from !== "" || range.to !== "";
 
@@ -60,6 +62,7 @@ export default function InvoiceFilters({range, invalid, activeCount, onChange}: 
                 {range.source && (
                     <Chip label={SOURCE_LABEL[range.source]} onRemove={() => onChange({source: ""})} removeLabel="Remove source filter"/>
                 )}
+                {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
             </div>
             {invalid && <p role="alert" className="field-error">"From" must be on or before "To".</p>}
 

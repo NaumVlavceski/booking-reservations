@@ -337,9 +337,34 @@ export const ChannelsIcon = (p: IconProps) => (
     </Icon>
 );
 
+export const EyeIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </Icon>
+);
+
+export const EyeOffIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+        <path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/>
+        <path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/>
+        <line x1="2" y1="2" x2="22" y2="22"/>
+    </Icon>
+);
+
 export const LockIcon = (p: IconProps) => (
     <Icon {...p}>
         <rect x="4" y="11" width="16" height="10" rx="2"/>
         <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+    </Icon>
+);
+
+/** Download a file: an arrow down into a tray. */
+export const DownloadIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M12 3v12"/>
+        <path d="m7 10 5 5 5-5"/>
+        <path d="M5 21h14"/>
     </Icon>
 );

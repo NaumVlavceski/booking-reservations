@@ -18,7 +18,7 @@ export default function InvoiceSummary({label, period, totals, currency}: Invoic
     return (
         <section
             aria-label="Total"
-            className="sticky bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.5rem)] z-10 mt-4 rounded-2xl border border-subtle bg-surface-raised px-4 py-3 shadow-popover sm:static sm:px-5 sm:py-4 sm:shadow-card"
+            className="bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.5rem)] z-10 mt-4 rounded-2xl border border-subtle bg-surface-raised px-4 py-3 shadow-popover sm:static sm:px-5 sm:py-4 sm:shadow-card"
         >
             <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">

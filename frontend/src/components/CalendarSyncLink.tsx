@@ -33,7 +33,7 @@ export default function CalendarSyncLink({token}: { token: string }) {
                 </div>
             </div>
             <div className="flex gap-2">
-                <div className="float-field is-floated min-w-0 flex-1 [--field-bg:var(--rt-surface-sunken)]">
+                <div className="float-field is-floated min-w-0 flex-1">
                     <input
                         id={`feed-${token}`}
                         readOnly
