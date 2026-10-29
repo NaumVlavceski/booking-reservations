@@ -4,21 +4,20 @@ import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {getMe} from "../lib/api/me";
-import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
 import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
 import {
-    AlertIcon,
     CalendarIcon,
     CalendarXIcon,
+    ChannelsIcon,
     ChevronRightIcon,
     HelpIcon,
     HouseIcon,
+    LockIcon,
     LogoutIcon,
     MoreHorizontalIcon,
-    PlusIcon,
-    SyncIcon,
+    ReceiptIcon,
 } from "./icons";
 import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
@@ -35,6 +34,7 @@ import {CountBubble} from "./ui/Badge";
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
 const HELP_PATH = "/dashboard/help/connect-calendars";
+const PASSWORD_PATH = "/dashboard/account/password";
 
 function isChannels(pathname: string) {
     return pathname.startsWith("/dashboard/conflicts") || pathname.startsWith("/dashboard/sync-health");
@@ -59,13 +59,12 @@ export default function DashboardLayout() {
     const location = useLocation();
     const {pathname} = location;
     const queryClient = useQueryClient();
-    const activeProperty = useActiveProperty();
     const {data: me} = useQuery({queryKey: ["me"], queryFn: getMe, staleTime: Infinity});
     // Each account keeps its own light/dark choice (light until it picks dark).
     useEffect(() => {
         if (me?.email) applyAccountTheme(me.email);
     }, [me?.email]);
-    const {conflictCount, failingCount, total: alertCount} = useSyncAlerts();
+    const {total: alertCount} = useSyncAlerts();
     const stripVisible = useAlertStripVisible();
     const fromHere = useFromHere();
     // The More sheet (phones and tablets) closes by itself when you navigate somewhere.
@@ -90,10 +89,10 @@ export default function DashboardLayout() {
         navigate("/login", {replace: true});
     }
 
-    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/help");
+    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname === PASSWORD_PATH;
     const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
         {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
-        {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: SyncIcon, active: isChannels(pathname), count: alertCount},
+        {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: ChannelsIcon, active: isChannels(pathname), count: alertCount},
     ];
 
     return (
@@ -113,26 +112,18 @@ export default function DashboardLayout() {
                         <SidebarLink to="/dashboard/calendar" icon={CalendarIcon} active={isCalendarArea(pathname)}>Calendar</SidebarLink>
                         <SidebarLink to="/dashboard/properties" icon={HouseIcon} active={pathname.startsWith("/dashboard/properties")}>Properties</SidebarLink>
                         <SidebarLink to="/dashboard/cancelled" icon={CalendarXIcon} active={pathname.startsWith("/dashboard/cancelled")}>Cancelled bookings</SidebarLink>
+                        <SidebarLink to="/dashboard/invoices" icon={ReceiptIcon} active={pathname.startsWith("/dashboard/invoices")}>Invoices</SidebarLink>
                     </nav>
-                    <SidebarGroup label="Channels">
-                        <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}
-                                     trailing={<CountBubble count={conflictCount} className="ml-auto"/>}>
-                            Booking conflicts{warnings(conflictCount)}
-                        </SidebarLink>
-                        <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}
-                                     trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>
-                            Sync status{warnings(failingCount)}
-                        </SidebarLink>
-                    </SidebarGroup>
-                    <SidebarGroup label="Quick add">
-                        <SidebarLink to="/dashboard/properties/new" icon={PlusIcon} active={false}>Add property</SidebarLink>
-                        <SidebarLink to={addUnitPath(activeProperty)} state={fromHere} icon={PlusIcon} active={false}>
-                            <span className="min-w-0">
-                                Add room
-                                {activeProperty && <span className="block truncate text-caption font-normal text-subtle">to {activeProperty.name}</span>}
-                            </span>
-                        </SidebarLink>
-                    </SidebarGroup>
+                    {/*<SidebarGroup label="Channels">*/}
+                    {/*    <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}*/}
+                    {/*                 trailing={<CountBubble count={conflictCount} className="ml-auto"/>}>*/}
+                    {/*        Booking conflicts{warnings(conflictCount)}*/}
+                    {/*    </SidebarLink>*/}
+                    {/*    <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}*/}
+                    {/*                 trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>*/}
+                    {/*        Sync status{warnings(failingCount)}*/}
+                    {/*    </SidebarLink>*/}
+                    {/*</SidebarGroup>*/}
                 </div>
                 <div className="space-y-0.5 border-t border-subtle px-3 pt-3 pb-4">
                     <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon} active={pathname.startsWith("/dashboard/help")}>
@@ -141,6 +132,9 @@ export default function DashboardLayout() {
                     <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
                     <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
+                    <SidebarLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} active={pathname === PASSWORD_PATH}>
+                        Change password
+                    </SidebarLink>
                     <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
                         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
                             {initials(me?.fullName ?? me?.businessName)}
@@ -159,7 +153,7 @@ export default function DashboardLayout() {
             {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */}
             <nav aria-label="Main" className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
                 <Link to="/dashboard/calendar" className="mb-4 rounded-xl p-1" aria-label={`${businessName}, calendar`}>
-                    <span className="block rounded-xl bg-white p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
+                    <span className="block rounded-xl  p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
                 </Link>
                 {destinations.map((d) => (
                     <RailItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
@@ -214,28 +208,23 @@ export default function DashboardLayout() {
                 </div>
                 <div className="space-y-3">
                     <SheetGroup>
+                        <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore} chevron>Properties</SheetLink>
                         <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled bookings</SheetLink>
-                        <SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}
-                                   trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>
-                        <SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}
-                                   trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>
+                        <SheetLink to="/dashboard/invoices" icon={ReceiptIcon} onClick={closeMore} chevron>Invoices</SheetLink>
+                        {/*<SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}*/}
+                        {/*           trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>*/}
+                        {/*<SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}*/}
+                        {/*           trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>*/}
                     </SheetGroup>
                     <SheetGroup>
-                        <SheetLink to="/dashboard/properties/new" icon={PlusIcon} onClick={closeMore}>Add property</SheetLink>
-                        <SheetLink to={addUnitPath(activeProperty)} state={fromHere} icon={PlusIcon} onClick={closeMore}>
-                            <span className="min-w-0 truncate">
-                                Add room{activeProperty && <span className="font-normal text-subtle"> to {activeProperty.name}</span>}
-                            </span>
-                        </SheetLink>
-                    </SheetGroup>
-                    <SheetGroup>
-                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com &amp; Airbnb</SheetLink>
+                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com</SheetLink>
                         <InstallAppButton onShowIosSteps={() => {
                             closeMore();
                             setIosStepsOpen(true);
                         }}/>
                         <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
+                        <SheetLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} onClick={closeMore} chevron>Change password</SheetLink>
                     </SheetGroup>
                     <SheetGroup>
                         <button type="button" onClick={handleLogout} className={sheetRow}>
@@ -275,14 +264,6 @@ function SheetLink({to, state, icon: Icon, onClick, chevron, trailing, children}
     );
 }
 
-function SidebarGroup({label, children}: { label: string; children: ReactNode }) {
-    return (
-        <div className="mt-6">
-            <p className="px-3 pb-2 text-overline text-subtle uppercase">{label}</p>
-            <div className="space-y-0.5">{children}</div>
-        </div>
-    );
-}
 
 function SidebarLink({to, state, icon: Icon, active, trailing, children}: {
     to: string;

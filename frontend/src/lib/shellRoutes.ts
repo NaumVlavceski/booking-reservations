@@ -8,13 +8,14 @@ const FORM_ROUTES = [
     "/dashboard/properties/:propertyId/units/:unitId",
     "/dashboard/reservations/new",
     "/dashboard/reservations/:id",
+    "/dashboard/account/password",
 ];
 
 export function isFormRoute(pathname: string): boolean {
     return FORM_ROUTES.some((pattern) => matchPath(pattern, pathname) !== null);
 }
 
-const AUTH_ROUTES = ["/login", "/register", "/verify-email"];
+const AUTH_ROUTES = ["/login", "/register", "/verify-email", "/forgot-password"];
 
 /** What sits at the bottom of a phone screen: the tab bar, a form's Save bar, or nothing (auth pages). */
 export function bottomChrome(pathname: string): "tabs" | "form" | "none" {

@@ -27,13 +27,13 @@ export default function CalendarSyncLink({token}: { token: string }) {
                 <div className="min-w-0">
                     <h2 id={`feed-title-${token}`} className="text-title-3 text-fg">Send your bookings to other channels</h2>
                     <p className="mt-0.5 text-body-sm text-muted">
-                        Paste this link into Booking.com's or Airbnb's calendar sync settings. Dates you book here then get
+                        Paste this link into Booking.com's calendar sync settings. Dates you book here then get
                         blocked there automatically.
                     </p>
                 </div>
             </div>
             <div className="flex gap-2">
-                <div className="float-field is-floated min-w-0 flex-1 [--field-bg:var(--rt-surface-sunken)]">
+                <div className="float-field is-floated min-w-0 flex-1">
                     <input
                         id={`feed-${token}`}
                         readOnly

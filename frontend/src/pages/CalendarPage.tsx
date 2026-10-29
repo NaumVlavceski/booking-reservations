@@ -801,13 +801,21 @@ export default function CalendarPage() {
                         </button>
                         {openMenu === "more" && (
                             <div className="cal-popover cal-menu" role="menu">
-                                <Link to={addUnitPath(activeProperty)} state={fromHere} className="cal-menu-item"
-                                      role="menuitem">
-                                    Add room
-                                </Link>
-                                <Link to="/dashboard/properties/new" className="cal-menu-item" role="menuitem">
-                                    Add property
-                                </Link>
+                                {/* One property: add a room to it. Several: pick one on the Properties page. None: add one. */}
+                                {properties?.length === 1 ? (
+                                    <Link to={addUnitPath(properties[0])} state={fromHere} className="cal-menu-item"
+                                          role="menuitem">
+                                        Add room
+                                    </Link>
+                                ) : (properties?.length ?? 0) > 1 ? (
+                                    <Link to="/dashboard/properties" className="cal-menu-item" role="menuitem">
+                                        Properties
+                                    </Link>
+                                ) : (
+                                    <Link to="/dashboard/properties/new" className="cal-menu-item" role="menuitem">
+                                        Add property
+                                    </Link>
+                                )}
                                 <div className="cal-menu-divider"/>
                                 <Link to="/dashboard/cancelled" className="cal-menu-item" role="menuitem">
                                     Cancelled bookings
@@ -907,7 +915,7 @@ export default function CalendarPage() {
                                     >
                                         <div
                                             className="cal-grid-header-bg"
-                                            style={{gridColumn: `1 / ${windowColCount + 1}`, gridRow: "1 / 3"}}
+                                            style={{gridColumn: `1 / ${windowColCount + 1}`, gridRow: "3 / 3"}}
                                         />
 
                                         {todayColIndex >= 0 && (
@@ -923,7 +931,7 @@ export default function CalendarPage() {
                                         {renderedDays.map((d, i) => (
                                             <div
                                                 key={"h-" + d.index}
-                                                className={`cal-day-header${d.isWeekend && !d.isToday ? " is-weekend" : ""}`}
+                                                className={`cal-day-header${d.isWeekend && !d   .isToday ? " is-weekend" : ""}`}
                                                 style={{gridColumn: `${i + 1} / ${i + 2}`, gridRow: "2 / 3"}}
                                             >
                                                 <div

@@ -291,3 +291,80 @@ export const AddSquareIcon = (p: IconProps) => (
         <line x1="8" y1="12" x2="16" y2="12"/>
     </Icon>
 );
+
+export const MoveIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M8 3 4 7l4 4"/>
+        <path d="M4 7h16"/>
+        <path d="m16 21 4-4-4-4"/>
+        <path d="M20 17H4"/>
+    </Icon>
+);
+
+export const ReceiptIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/>
+        <line x1="9" y1="8" x2="15" y2="8"/>
+        <line x1="9" y1="12" x2="15" y2="12"/>
+    </Icon>
+);
+
+export const ArrowRightIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+    </Icon>
+);
+
+export const FilterIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <line x1="4" y1="6" x2="20" y2="6"/>
+        <line x1="7" y1="12" x2="17" y2="12"/>
+        <line x1="10" y1="18" x2="14" y2="18"/>
+    </Icon>
+);
+
+/** Channels: your calendar (the hub) linked to Booking.com, Airbnb and other platforms. */
+export const ChannelsIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <circle cx="5" cy="12" r="2.5"/>
+        <circle cx="19" cy="5" r="2.5"/>
+        <circle cx="19" cy="12" r="2.5"/>
+        <circle cx="19" cy="19" r="2.5"/>
+        <line x1="7.5" y1="12" x2="16.5" y2="12"/>
+        <line x1="7.2" y1="10.8" x2="16.8" y2="6.2"/>
+        <line x1="7.2" y1="13.2" x2="16.8" y2="17.8"/>
+    </Icon>
+);
+
+export const EyeIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </Icon>
+);
+
+export const EyeOffIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+        <path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/>
+        <path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/>
+        <line x1="2" y1="2" x2="22" y2="22"/>
+    </Icon>
+);
+
+export const LockIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <rect x="4" y="11" width="16" height="10" rx="2"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+    </Icon>
+);
+
+/** Download a file: an arrow down into a tray. */
+export const DownloadIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M12 3v12"/>
+        <path d="m7 10 5 5 5-5"/>
+        <path d="M5 21h14"/>
+    </Icon>
+);

@@ -8,7 +8,7 @@ import {RefreshIcon} from "./icons";
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * The calendar's one "sync" button: pulls the latest from Booking.com/Airbnb
+ * The calendar's one "sync" button: pulls the latest from Booking.com
  * for every connected room, then reloads everything on screen, and says what
  * happened. Calendars synced in the last minute are skipped by the server.
  */
@@ -27,7 +27,7 @@ export default function SyncAllButton() {
             })).length;
 
             if (total === 0) {
-                toast.show("Calendar is up to date. No Booking.com or Airbnb calendars are connected yet.", {tone: "info"});
+                toast.show("Calendar is up to date. No Booking.com calendars are connected yet.", {tone: "info"});
             } else if (failing > 0) {
                 toast.show(`${plural(failing, "calendar isn't", "calendars aren't")} syncing.`, {
                     tone: "error",
@@ -50,7 +50,7 @@ export default function SyncAllButton() {
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
             aria-label={mutation.isPending ? "Syncing calendars" : "Sync calendars"}
-            title="Sync with Booking.com and Airbnb"
+            title="Sync with Booking.com"
             className="cal-icon-btn cal-sync-btn"
         >
             <RefreshIcon size={20} className={mutation.isPending ? "cal-spin" : undefined}/>

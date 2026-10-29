@@ -5,7 +5,7 @@ import {differenceInCalendarDays, format} from "date-fns";
 import {blockedNights, canCheckOutOn, showAsBooked, type BookedRange, type PickStep} from "../lib/stayDates";
 import {parseLocalDate} from "../lib/dates";
 import {dayButtonLabel} from "../lib/dayPickerLabels";
-import {CalendarIcon} from "./icons";
+import {ArrowRightIcon, CalendarIcon} from "./icons";
 
 interface StayDatesPickerProps {
     checkIn: string;   // yyyy-MM-dd or ""
@@ -15,18 +15,28 @@ interface StayDatesPickerProps {
     bookedRanges?: BookedRange[];
     /** id of an error message to tie to both date fields. */
     describedBy?: string;
+    /**
+     * "stay" (default): a booking, at least one night, "N nights" shown.
+     * "period": a filter range "from – to": the same day is allowed, no night count, empty reads "Any date".
+     */
+    mode?: "stay" | "period";
+    labels?: { checkIn: string; checkOut: string };
 }
 
 type Step = PickStep;
 
 const toIso = (d: Date) => format(d, "yyyy-MM-dd");
 
-export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, bookedRanges = [], describedBy}: StayDatesPickerProps) {
+export default function StayDatesPicker({
+    checkIn, checkOut, onChange, invalid, bookedRanges = [], describedBy, mode = "stay",
+    labels = {checkIn: "Check-in", checkOut: "Check-out"},
+}: StayDatesPickerProps) {
+    const period = mode === "period";
     const [step, setStep] = useState<Step | null>(null);
     const ids = useId();
     const from = checkIn ? parseLocalDate(checkIn) : undefined;
     const to = checkOut ? parseLocalDate(checkOut) : undefined;
-    const nights = from && to ? differenceInCalendarDays(to, from) : 0;
+    const nights = !period && from && to ? differenceInCalendarDays(to, from) : 0;
 
     // Every night already taken by another stay on this unit (the check-out day itself is free).
     const blockedDates = useMemo(() => blockedNights(bookedRanges), [bookedRanges]);
@@ -39,7 +49,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
     function handleDay(day: Date) {
         if (step === "checkIn") {
             // Keep the existing check-out only if it's still after the new check-in.
-            const keepCheckOut = to && differenceInCalendarDays(to, day) > 0 ? checkOut : "";
+            const keepCheckOut = to && differenceInCalendarDays(to, day) >= (period ? 0 : 1) ? checkOut : "";
             onChange(toIso(day), keepCheckOut);
             setStep("checkOut");
         } else if (step === "checkOut") {
@@ -51,7 +61,8 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
     const checkInDisabled = (day: Date) => showAsBooked(day, "checkIn", undefined, blockedDates);
     const hasBookedNights = blockedDates.size > 0;
     // A check-out day is only pickable if none of the nights between the chosen check-in and that day are booked
-    const checkOutDisabled = (day: Date) => !canCheckOutOn(day, from, blockedDates);
+    const checkOutDisabled = (day: Date) =>
+        period ? Boolean(from) && differenceInCalendarDays(day, from!) < 0 : !canCheckOutOn(day, from, blockedDates);
 
     const fieldClass = (active: boolean, empty: boolean) =>
         `field-input flex items-center justify-between gap-2 text-left ${empty ? "text-subtle" : "text-fg"} ${
@@ -59,7 +70,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
         }`;
 
     const field = (which: Step, label: string, date: Date | undefined) => (
-        <div className={`float-field is-floated ${step === which ? "is-active" : ""}`}>
+        <div className={`float-field is-floated ${period ? "float-field--raised" : ""} ${step === which ? "is-active" : ""}`}>
             <button
                 type="button"
                 className={fieldClass(step === which, !date)}
@@ -71,7 +82,7 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
                 aria-describedby={invalid && !date ? describedBy : undefined}
             >
                 <span id={`${ids}-${which}-value`} className="truncate">
-                    {date ? format(date, "EEE, d MMM") : "Add date"}
+                    {date ? format(date, period ? "d MMM yyyy" : "EEE, d MMM") : period ? "Any date" : "Add date"}
                 </span>
                 <CalendarIcon size={18} className="shrink-0 text-subtle"/>
             </button>
@@ -81,10 +92,19 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
 
     return (
         <div>
-            <div className="grid grid-cols-2 gap-3">
-                {field("checkIn", "Check-in", from)}
-                {field("checkOut", "Check-out", to)}
-            </div>
+            {period ? (
+                // A filter reads as one range: From → To.
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
+                    {field("checkIn", labels.checkIn, from)}
+                    <ArrowRightIcon size={18} className="text-subtle"/>
+                    {field("checkOut", labels.checkOut, to)}
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 gap-3">
+                    {field("checkIn", labels.checkIn, from)}
+                    {field("checkOut", labels.checkOut, to)}
+                </div>
+            )}
 
             {nights > 0 && !step && (
                 <p className="field-hint num">
@@ -96,7 +116,9 @@ export default function StayDatesPicker({checkIn, checkOut, onChange, invalid, b
                 <div id={`${ids}-panel`} className="rdp-theme mt-3 animate-pop-in rounded-2xl border border-subtle bg-surface-raised p-2 shadow-popover sm:p-3">
                     <div className="flex items-center justify-between px-2 pt-1">
                         <p aria-live="polite" className="text-title-3 text-fg">
-                            {step === "checkIn" ? "Select check-in" : "Select check-out"}
+                            {period
+                                ? `Pick the "${step === "checkIn" ? labels.checkIn : labels.checkOut}" date`
+                                : step === "checkIn" ? "Select check-in" : "Select check-out"}
                         </p>
                         {nights > 0 && (
                             <p className="num text-caption text-subtle">

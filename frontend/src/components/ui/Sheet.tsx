@@ -1,4 +1,4 @@
-import {useEffect, useId, useRef, type ReactNode, type RefObject} from "react";
+import {useEffect, useId, useRef, useState, type ReactNode, type RefObject} from "react";
 import {createPortal} from "react-dom";
 import {CloseIcon} from "../icons";
 
@@ -27,6 +27,9 @@ interface SheetProps {
     footer?: ReactNode;
 }
 
+/** Matches the exit animations (--rt-dur-base). */
+const EXIT_MS = 200;
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -42,6 +45,16 @@ export default function Sheet({
     const panelRef = useRef<HTMLDivElement>(null);
     const onCloseRef = useRef(onClose);
     const dismissibleRef = useRef(dismissible);
+    // Stay mounted while the closing animation plays.
+    const [rendered, setRendered] = useState(open);
+    if (open && !rendered) setRendered(true);
+    const closing = rendered && !open;
+
+    useEffect(() => {
+        if (open || !rendered) return;
+        const t = window.setTimeout(() => setRendered(false), EXIT_MS);
+        return () => window.clearTimeout(t);
+    }, [open, rendered]);
 
     useEffect(() => {
         onCloseRef.current = onClose;
@@ -92,13 +105,13 @@ export default function Sheet({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
-    if (!open) return null;
+    if (!rendered) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6">
+        <div className={`fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6 ${closing ? "pointer-events-none" : ""}`}>
             <div
                 aria-hidden="true"
-                className="absolute inset-0 animate-fade-in bg-scrim"
+                className={`absolute inset-0 bg-scrim ${closing ? "animate-fade-out" : "animate-fade-in"}`}
                 onClick={() => dismissible && onClose()}
             />
             <div
@@ -108,7 +121,9 @@ export default function Sheet({
                 aria-labelledby={titleId}
                 aria-describedby={description ? descriptionId : undefined}
                 tabIndex={-1}
-                className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-subtle bg-surface-raised shadow-overlay outline-none animate-sheet-in sm:max-h-[85dvh] sm:animate-pop-in sm:rounded-3xl ${
+                className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-subtle bg-surface-raised shadow-overlay outline-none sm:max-h-[85dvh] sm:rounded-3xl ${
+                    closing ? "animate-sheet-out sm:animate-pop-out" : "animate-sheet-in sm:animate-pop-in"
+                } ${
                     size === "md" ? "sm:max-w-lg" : "sm:max-w-md"
                 }`}
             >

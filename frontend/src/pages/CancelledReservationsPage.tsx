@@ -104,6 +104,7 @@ export default function CancelledReservationsPage() {
         <div>
             <PageHeader
                 title="Cancelled bookings"
+                back={{to: "/dashboard/calendar"}}
                 description="Cancelled bookings free up their dates. Restore one to put it back on the calendar — as long as those dates are still free."
             />
 
