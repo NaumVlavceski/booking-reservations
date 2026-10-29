@@ -325,4 +325,12 @@ class PasswordResetIntegrationTest {
         send(post("/api/auth/forgot-password"), null, "{\"email\":\"" + uniqueEmail() + "\"}", ip)
                 .andExpect(status().isTooManyRequests());
     }
+
+    @Test
+    void loginCountsAgainstThePerIpLimit() throws Exception {
+        String ip = UUID.randomUUID().toString();
+        send(post("/api/auth/login"), null, "{\"email\":\"" + uniqueEmail() + "\",\"password\":\"x\"}", ip)
+                .andExpect(status().isUnauthorized());
+        verify(rateLimiter).tryAcquire(eq("login:" + ip), anyInt(), any());
+    }
 }

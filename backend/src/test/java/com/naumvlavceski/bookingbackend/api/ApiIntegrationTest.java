@@ -146,6 +146,20 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void loginIsLimitedPerAddressEvenForTheRightPassword() throws Exception {
+        String email = uniqueEmail();
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
+        markVerified(email);
+        for (int i = 0; i < 10; i++) {
+            send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"wrong-" + i + "\"}")
+                    .andExpect(status().isUnauthorized());
+        }
+        // Different case is the same address; the right password no longer helps once the tries are used up
+        send(post("/api/auth/login"), null, "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"" + PASSWORD + "\"}")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void wrongPasswordIsCheckedBeforeVerificationStatusIsRevealed() throws Exception {
         String email = uniqueEmail();
         send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());

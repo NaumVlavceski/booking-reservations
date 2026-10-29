@@ -54,7 +54,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        limitByIp("login", http);
         return authService.login(request);
     }
 

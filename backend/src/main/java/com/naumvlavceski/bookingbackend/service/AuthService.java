@@ -41,6 +41,8 @@ public class AuthService {
 
     private static final int CHANGE_PASSWORD_TRIES = 5;
     private static final Duration CHANGE_PASSWORD_WINDOW = Duration.ofMinutes(15);
+    private static final int LOGIN_TRIES = 10;
+    private static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
 
     @Transactional(readOnly = true)
     public MeResponse me(UUID userId) {
@@ -79,7 +81,12 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        AppUser user = appUserRepository.findFirstByEmailIgnoreCase(request.email().trim())
+        String email = request.email().trim();
+        // Counts every try, right or wrong, so one account's password can't be guessed quickly from many addresses
+        if (!rateLimiter.tryAcquire("login-email:" + email.toLowerCase(), LOGIN_TRIES, LOGIN_WINDOW)) {
+            throw new TooManyRequestsException();
+        }
+        AppUser user = appUserRepository.findFirstByEmailIgnoreCase(email)
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
