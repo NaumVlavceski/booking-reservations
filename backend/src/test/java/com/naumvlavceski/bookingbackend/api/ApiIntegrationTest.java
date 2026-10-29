@@ -48,7 +48,7 @@ class ApiIntegrationTest {
     }
 
     private static String registerJson(String email) {
-        return "{\"businessName\":\"Biz\",\"contactPhone\":\"1\",\"email\":\"" + email
+        return "{\"contactPhone\":\"1\",\"email\":\"" + email
                 + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}";
     }
 
@@ -128,10 +128,10 @@ class ApiIntegrationTest {
     @Test
     void registerRejectsInvalidInputWithReadableMessage() throws Exception {
         send(post("/api/auth/register"), null,
-                "{\"businessName\":\"\",\"email\":\"nope\",\"password\":\"1\",\"fullName\":\"\"}")
+                "{\"email\":\"nope\",\"password\":\"1\",\"fullName\":\"\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("Email must be a well-formed email address")))
-                .andExpect(jsonPath("$.message").value(containsString("Business name must not be blank")))
+                .andExpect(jsonPath("$.message").value(containsString("Full name must not be blank")))
                 .andExpect(jsonPath("$.message").value(containsString("Password size must be between 8 and 72")));
     }
 

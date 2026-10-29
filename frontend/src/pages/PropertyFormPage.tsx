@@ -1,4 +1,4 @@
-import {useNavigate, useParams, useSearchParams} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {useCallback, useState} from "react";
 import {
@@ -15,31 +15,17 @@ import {apiErrorMessage} from "../lib/api/client.ts";
 import {propertyDeleteMessage} from "../lib/plural";
 import FormTopBar from "../components/FormTopBar";
 import ConfirmDialog from "../components/ConfirmDialog";
+import PropertyFields from "../components/PropertyFields";
+import {PROPERTY_MESSAGES} from "../lib/propertyForm";
 import {SectionCard} from "../components/ui/Card";
-import {TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
 import {FormSkeleton} from "../components/ui/States";
-import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
+import {useInlineValidation} from "../lib/useInlineValidation";
 import {useReturnTo} from "../lib/useReturnTo";
-
-const MAX_ROOMS = 200;
-
-const MESSAGES: ValidationMessages = {
-    name: {valueMissing: "Enter a name for the property."},
-    unitCount: {
-        valueMissing: `Enter how many rooms it has (0 to ${MAX_ROOMS}).`,
-        badInput: "Enter a whole number.",
-        rangeUnderflow: "Enter 0 or more rooms.",
-        rangeOverflow: `Enter at most ${MAX_ROOMS} rooms.`,
-        stepMismatch: "Enter a whole number.",
-    },
-};
 
 export default function PropertyFormPage() {
     const {id} = useParams();
     const isEditing = Boolean(id);
-    const [searchParams] = useSearchParams();
-    const isWelcome = !isEditing && searchParams.get("welcome") === "1";
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     // Back (and Save on an edit) return to the page you came from, e.g. the calendar or the property page.
@@ -51,7 +37,7 @@ export default function PropertyFormPage() {
         address: "",
     })
     const [unitCount, setUnitCount] = useState("1");
-    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
+    const {errors, validate, recheck} = useInlineValidation(PROPERTY_MESSAGES);
     const {data: existing, isLoading: isLoadingExisting} = useQuery({
         queryKey: ["properties", id],
         queryFn: () => getProperty(id!),
@@ -84,7 +70,7 @@ export default function PropertyFormPage() {
                 queryClient.fetchQuery(propertiesQuery),
                 queryClient.fetchQuery(allUnitsQuery),
             ]);
-            navigate("/dashboard/calendar", {replace: isWelcome});
+            navigate("/dashboard/calendar");
         }
     })
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -126,7 +112,7 @@ export default function PropertyFormPage() {
         );
     }
 
-    const title = isEditing ? `Edit ${existing?.name ?? "property"}` : isWelcome ? "Set up your first property" : "Add a property";
+    const title = isEditing ? `Edit ${existing?.name ?? "property"}` : "Add a property";
     const isDirty = isEditing
         ? existing != null && (form.name !== existing.name || form.address !== existing.address)
         : Boolean(form.name || form.address || unitCount !== "1");
@@ -138,68 +124,23 @@ export default function PropertyFormPage() {
                 saving={mutation.isPending}
                 title={title}
                 isDirty={isDirty}
-                back={isWelcome ? undefined : {to: backFallback}}
+                back={{to: backFallback}}
                 onDelete={isEditing ? () => {
                     deleteMutation.reset();
                     setConfirmDelete(true);
                 } : undefined}
                 deleteLabel="Delete property"
             />
-            {isWelcome && (
-                <Callout tone="info" className="mb-4" title="Welcome to RoomTrack">
-                    Tell us about your place and how many rooms it has — we'll create them for you.
-                </Callout>
-            )}
-
             <form id="property-form" onSubmit={handleSubmit} noValidate className="space-y-4">
                 <SectionCard id="property-details" title="Property details">
-                    <TextField
-                        label="Name"
-                        id="name"
-                        name="name"
-                        value={form.name}
-                        onChange={(e) => {
-                            setForm({...form, name: e.target.value});
-                            recheck(e.target);
-                        }}
-                        required
-                        autoComplete="off"
-                        autoCapitalize="words"
-                        enterKeyHint="next"
-                        placeholder="Property Name"
-                        error={errors.name}
+                    <PropertyFields
+                        form={form}
+                        onChange={setForm}
+                        unitCount={isEditing ? undefined : unitCount}
+                        onUnitCountChange={setUnitCount}
+                        errors={errors}
+                        recheck={recheck}
                     />
-                    <TextField
-                        label="Address"
-                        id="address"
-                        name="address"
-                        value={form.address}
-                        onChange={(e) => setForm({...form, address: e.target.value})}
-                        autoComplete="street-address"
-                        enterKeyHint={isEditing ? "done" : "next"}
-                        placeholder="Address ..."
-                    />
-                    {!isEditing && (
-                        <TextField
-                            label="Number of rooms"
-                            id="unitCount"
-                            name="unitCount"
-                            type="number"
-                            inputMode="numeric"
-                            min={0}
-                            max={MAX_ROOMS}
-                            step={1}
-                            value={unitCount}
-                            onChange={(e) => {
-                                setUnitCount(e.target.value);
-                                recheck(e.target);
-                            }}
-                            required
-                            enterKeyHint="done"
-                            hint="Named Room 1, Room 2, … with space for 2 guests each. You can rename them anytime."
-                            error={errors.unitCount}
-                        />
-                    )}
                 </SectionCard>
 
                 {mutation.isError && (

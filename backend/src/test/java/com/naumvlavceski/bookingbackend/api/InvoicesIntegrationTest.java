@@ -54,7 +54,7 @@ class InvoicesIntegrationTest {
 
     private String token() throws Exception {
         String email = "inv_" + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
-        send(post("/api/auth/register"), null, "{\"businessName\":\"Biz\",\"contactPhone\":\"1\",\"email\":\"" + email
+        send(post("/api/auth/register"), null, "{\"contactPhone\":\"1\",\"email\":\"" + email
                 + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}", 202);
         AppUser user = appUsers.findFirstByEmailIgnoreCase(email).orElseThrow();
         user.setEmailVerifiedAt(OffsetDateTime.now());

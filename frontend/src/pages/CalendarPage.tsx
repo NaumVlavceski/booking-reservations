@@ -15,7 +15,7 @@ import {allUnitsQuery, type UnitResponse} from "../lib/api/units";
 import {allReservationsQuery} from "../lib/api/reservations";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
-import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon, PlusIcon} from "../components/icons";
+import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon} from "../components/icons";
 import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
 import {amountDue, layoutBarLabel} from "../lib/barLabel";
@@ -1097,15 +1097,15 @@ export default function CalendarPage() {
                                     {/*{canCollapse && (*/}
                                     {/*    <ChevronDownIcon className={`cal-group-chevron${row.collapsed ? " is-collapsed" : ""}`}/>*/}
                                     {/*)}*/}
-                                    <Link
-                                        to={`/dashboard/properties/${property.id}/units/new`}
-                                        state={fromHere}
-                                        className="cal-group-add"
-                                        title={`Add a room to ${property.name}`}
-                                        aria-label={`Add a room to ${property.name}`}
-                                    >
-                                        <PlusIcon size={15}/>
-                                    </Link>
+                                    {/*<Link*/}
+                                    {/*    to={`/dashboard/properties/${property.id}/units/new`}*/}
+                                    {/*    state={fromHere}*/}
+                                    {/*    className="cal-group-add"*/}
+                                    {/*    title={`Add a room to ${property.name}`}*/}
+                                    {/*    aria-label={`Add a room to ${property.name}`}*/}
+                                    {/*>*/}
+                                    {/*    <PlusIcon size={15}/>*/}
+                                    {/*</Link>*/}
                                     <span className="cal-group-text">
                                         <span className="cal-group-name">{property.name}</span>
                                         <span className="cal-group-meta">

@@ -19,9 +19,6 @@ public class Owner {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
-    private String businessName;
-
     private String contactPhone;
 
     @ColumnDefault("'Europe/Skopje'")

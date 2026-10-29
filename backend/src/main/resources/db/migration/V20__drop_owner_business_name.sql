@@ -1,0 +1,1 @@
+ALTER TABLE owner DROP COLUMN IF EXISTS business_name;

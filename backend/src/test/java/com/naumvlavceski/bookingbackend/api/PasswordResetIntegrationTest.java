@@ -72,7 +72,7 @@ class PasswordResetIntegrationTest {
     /** A registered, verified account. */
     private String verifiedUser() throws Exception {
         String email = uniqueEmail();
-        send(post("/api/auth/register"), "{\"businessName\":\"Biz\",\"contactPhone\":\"1\",\"email\":\"" + email
+        send(post("/api/auth/register"), "{\"contactPhone\":\"1\",\"email\":\"" + email
                 + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}").andExpect(status().isAccepted());
         AppUser user = appUsers.findFirstByEmailIgnoreCase(email).orElseThrow();
         user.setEmailVerifiedAt(OffsetDateTime.now());
@@ -215,7 +215,7 @@ class PasswordResetIntegrationTest {
 
     @Test
     void registrationPasswordRuleIsUnchanged() throws Exception {
-        send(post("/api/auth/register"), "{\"businessName\":\"Biz\",\"contactPhone\":\"1\",\"email\":\"" + uniqueEmail()
+        send(post("/api/auth/register"), "{\"contactPhone\":\"1\",\"email\":\"" + uniqueEmail()
                 + "\",\"password\":\"short\",\"fullName\":\"Tester\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Password size must be between 8 and 72"));
@@ -253,7 +253,7 @@ class PasswordResetIntegrationTest {
     @Test
     void unverifiedAccountsGetNoCode() throws Exception {
         String email = uniqueEmail();
-        send(post("/api/auth/register"), "{\"businessName\":\"Biz\",\"contactPhone\":\"1\",\"email\":\"" + email
+        send(post("/api/auth/register"), "{\"contactPhone\":\"1\",\"email\":\"" + email
                 + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}").andExpect(status().isAccepted());
         forgot(email);
         assertEquals(0, resetEmailsTo(email));

@@ -1,17 +1,17 @@
-import {Link, useParams} from "react-router-dom";
+import {useParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {useCallback, useState} from "react";
 import {createUnit, deleteUnit, getUnit, type UnitRequest, updateUnit} from "../lib/api/units.ts";
 import {getProperty} from "../lib/api/properties.ts";
 import {apiErrorMessage} from "../lib/api/client.ts";
-import {useFromHere, useReturnTo} from "../lib/useReturnTo";
+import {useReturnTo} from "../lib/useReturnTo";
 import ConfirmDialog from "../components/ConfirmDialog";
 import FormTopBar from "../components/FormTopBar";
 import {allReservationsQuery} from "../lib/api/reservations.ts";
 import {unitDeleteMessage} from "../lib/plural";
 import CalendarSyncLink from "../components/CalendarSyncLink.tsx";
 import ExternalCalendars from "../components/ExternalCalendar.tsx";
-import {ChevronRightIcon, HelpIcon} from "../components/icons";
+import ChannelGuideLink from "../components/ChannelGuideLink";
 import {SectionCard} from "../components/ui/Card";
 import {TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
@@ -33,7 +33,6 @@ export default function UnitFormPage() {
     const isEditing = Boolean(unitId);
     const queryClient = useQueryClient();
     const {to: backTo, goBack} = useReturnTo(`/dashboard/properties/${propertyId}`);
-    const fromHere = useFromHere();
     const [form, setForm] = useState<UnitRequest>({
         name: "",
         capacity: 2,
@@ -173,15 +172,7 @@ export default function UnitFormPage() {
                 {isEditing && existing?.token && (
                     <section aria-labelledby="channels-heading" className="space-y-3 pt-2">
                         <h2 id="channels-heading" className="px-1 text-overline text-subtle uppercase">Channels</h2>
-                        <Link
-                            to="/dashboard/help/connect-calendars"
-                            state={fromHere}
-                            className="flex min-h-14 items-center gap-3 rounded-2xl border border-primary-line bg-primary-soft px-4 py-3 text-body-sm font-semibold text-on-primary-soft transition-colors hover:border-primary"
-                        >
-                            <HelpIcon size={20} className="shrink-0"/>
-                            <span className="min-w-0 flex-1">Step-by-step guide: connect Booking.com</span>
-                            <ChevronRightIcon size={18} className="shrink-0"/>
-                        </Link>
+                        <ChannelGuideLink/>
                         <CalendarSyncLink token={existing.token}/>
                         <ExternalCalendars unitId={existing.id}/>
                     </section>
