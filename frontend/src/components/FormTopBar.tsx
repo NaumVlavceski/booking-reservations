@@ -85,9 +85,9 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                                 label="Booking actions"
                                 trigger={<MoreVerticalIcon size={20}/>}
                                 items={[
-                                    {kind: "button", label: "Move", icon: <MoveIcon size={18}/>, onSelect: onMove, disabled: saving},
-                                    ...(onCopy ? [{kind: "button" as const, label: "Copy", icon: <CopyIcon size={18}/>, onSelect: onCopy, disabled: saving}] : []),
-                                    {kind: "button", label: deleteLabel, icon: <TrashIcon size={18}/>, onSelect: onDelete, danger: true, disabled: saving},
+                                    {kind: "button", label: "Move", icon: <MoveIcon size={18}/>, onSelect: onMove, disabled: saving || !online},
+                                    ...(onCopy ? [{kind: "button" as const, label: "Copy", icon: <CopyIcon size={18}/>, onSelect: onCopy, disabled: saving || !online}] : []),
+                                    {kind: "button", label: deleteLabel, icon: <TrashIcon size={18}/>, onSelect: onDelete, danger: true, disabled: saving || !online},
                                 ]}
                             />
                         </div>
@@ -95,7 +95,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                         <button
                             type="button"
                             onClick={onDelete}
-                            disabled={saving}
+                            disabled={saving || !online}
                             title={deleteLabel}
                             aria-label={deleteLabel}
                             className="icon-btn justify-self-end text-danger hover:bg-danger-soft"

@@ -5,6 +5,7 @@ import {useNavigate, useLocation, Link, Navigate} from "react-router-dom";
 import {login, resendCode} from "../lib/api/auth";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {clearSessionExpired, takeReturnTo, wasSessionExpired} from "../lib/auth/session";
+import {clearOfflineCalendar} from "../lib/offlineCalendar";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import AuthLayout from "../components/AuthLayout";
 import {TextField} from "../components/ui/Field";
@@ -35,6 +36,8 @@ export default function LoginPage() {
         mutationFn: login,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
+            // A copy left by another account on this device is never shown to this one.
+            clearOfflineCalendar();
             navigate(takeReturnTo("/dashboard/calendar"), {replace: true});
         },
         onError: (error) => {

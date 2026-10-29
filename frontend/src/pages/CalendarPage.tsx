@@ -15,6 +15,8 @@ import {allUnitsQuery, type UnitResponse} from "../lib/api/units";
 import {allReservationsQuery} from "../lib/api/reservations";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
+import {useConnected} from "../lib/apiReachability";
+import {useToast} from "../lib/toast";
 import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon} from "../components/icons";
 import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
@@ -171,6 +173,11 @@ export default function CalendarPage() {
 
     const activeProperty = useActiveProperty();
     const fromHere = useFromHere();
+    // Offline the calendar shows its saved copy (lib/offlineCalendar.ts): bookings open to view, nothing new starts.
+    const connected = useConnected();
+    const toast = useToast();
+    const showOfflineHint = (what: string) =>
+        toast.show(`You're offline. Connect to ${what}.`, {tone: "info"});
     const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
 
     function saveCollapsed(next: Set<string>) {
@@ -720,6 +727,10 @@ export default function CalendarPage() {
     // (hundreds of them, all re-rendered whenever the day window shifted —
     // that's what made scrolling stutter). Maps the tap position to a room + day.
     function openNewReservationAt(clientX: number, clientY: number) {
+        if (!connected) {
+            showOfflineHint("add a booking");
+            return;
+        }
         const scroller = scrollerRef.current;
         if (!scroller) return;
         const rect = scroller.getBoundingClientRect();
@@ -961,6 +972,10 @@ export default function CalendarPage() {
                                         key={row.unit.id}
                                         to={`/dashboard/properties/${row.unit.propertyId}/units/${row.unit.id}`}
                                         state={fromHere}
+                                        onClick={connected ? undefined : (e) => {
+                                            e.preventDefault();
+                                            showOfflineHint("edit rooms");
+                                        }}
                                         className="cal-unit-row"
                                     >
                                         <div className="cal-unit-name" title={row.unit.name}>

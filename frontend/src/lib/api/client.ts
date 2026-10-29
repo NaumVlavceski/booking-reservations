@@ -1,6 +1,7 @@
 import axios, {type AxiosResponse} from "axios";
 import {tokenStorage} from "../auth/tokenStorage";
 import {markSessionExpired} from "../auth/session";
+import {clearOfflineCalendar} from "../offlineCalendar";
 
 /** The backend's human-readable `message` from an error response, if it sent one. */
 export function apiErrorMessage(error: unknown, fallback: string): string {
@@ -47,6 +48,7 @@ function endSession() {
     if (sessionEnding) return;
     sessionEnding = true;
     tokenStorage.clear();
+    clearOfflineCalendar();
     const {pathname, search, hash} = window.location;
     markSessionExpired(pathname + search + hash);
     window.location.replace("/login");

@@ -6,6 +6,11 @@ import App from "./App";
 import ToastProvider from "./components/ToastProvider";
 import AppNotices from "./components/AppNotices";
 import { reportApiError, reportApiSuccess } from "./lib/apiReachability";
+import { keepOffline } from "./lib/offlineCalendar";
+import { meQuery } from "./lib/api/me";
+import { propertiesQuery } from "./lib/api/properties";
+import { allUnitsQuery } from "./lib/api/units";
+import { allReservationsQuery } from "./lib/api/reservations";
 import "./lib/pwa";
 import "./index.css";
 
@@ -19,6 +24,9 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+// What the calendar needs, so it can still be read offline (view only).
+keepOffline(queryClient, [meQuery.queryKey, propertiesQuery.queryKey, allUnitsQuery.queryKey, allReservationsQuery.queryKey]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

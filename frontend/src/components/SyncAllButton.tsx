@@ -3,6 +3,7 @@ import {useNavigate} from "react-router-dom";
 import {getFailingCalendars, syncAllCalendars} from "../lib/api/calendars";
 import {apiErrorMessage} from "../lib/api/client";
 import {useToast} from "../lib/toast";
+import {useConnected} from "../lib/apiReachability";
 import {RefreshIcon} from "./icons";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -16,6 +17,8 @@ export default function SyncAllButton() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const toast = useToast();
+    // Offline the calendar is a saved copy: there is nothing to sync until the connection is back.
+    const connected = useConnected();
 
     const mutation = useMutation({
         mutationFn: syncAllCalendars,
@@ -48,10 +51,10 @@ export default function SyncAllButton() {
         <button
             type="button"
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !connected}
             aria-label={mutation.isPending ? "Syncing calendars" : "Sync calendars"}
-            title="Sync with Booking.com"
-            className="cal-icon-btn cal-sync-btn"
+            title={connected ? "Sync with Booking.com" : "Connect to sync with Booking.com"}
+            className={`cal-icon-btn cal-sync-btn${connected ? "" : " is-offline"}`}
         >
             <RefreshIcon size={20} className={mutation.isPending ? "cal-spin" : undefined}/>
         </button>

@@ -26,7 +26,8 @@ import NotificationToggle from "./NotificationToggle";
 import ThemeToggle from "./ThemeToggle";
 import {applyAccountTheme} from "../lib/theme";
 import {useOnlineStatus} from "../lib/useOnlineStatus";
-import {useApiReachable} from "../lib/apiReachability";
+import {useConnected} from "../lib/apiReachability";
+import {clearOfflineCalendar, hasOfflineCalendar} from "../lib/offlineCalendar";
 import AppLogo from "./AppLogo";
 import OfflineScreen from "./OfflineScreen";
 import InstallAppButton, {IosInstallSheet} from "./InstallApp";
@@ -79,15 +80,18 @@ export default function DashboardLayout() {
     const isCalendar = pathname.startsWith("/dashboard/calendar");
     const chrome = bottomChrome(pathname);
     const [iosStepsOpen, setIosStepsOpen] = useState(false);
-    // No connection or no answer from the server: pages make way for the offline screen (never old data).
+    // No connection or no answer from the server: pages make way for the offline screen. The calendar is the
+    // exception: it shows the last bookings saved on this device, view only (lib/offlineCalendar.ts).
     // Forms stay, so nothing typed is lost; their Save is disabled while offline.
     const online = useOnlineStatus();
-    const apiReachable = useApiReachable();
-    const showOffline = (!online || !apiReachable) && chrome !== "form";
-    const page = showOffline ? <OfflineScreen offline={!online}/> : <Outlet/>;
+    const connected = useConnected();
+    const calendarSaved = hasOfflineCalendar(queryClient);
+    const showOffline = !connected && chrome !== "form" && !(isCalendar && calendarSaved);
+    const page = showOffline ? <OfflineScreen offline={!online} calendarSaved={calendarSaved}/> : <Outlet/>;
 
     function handleLogout() {
         tokenStorage.clear();
+        clearOfflineCalendar();
         queryClient.clear();
         closeMore();
         navigate("/login", {replace: true});

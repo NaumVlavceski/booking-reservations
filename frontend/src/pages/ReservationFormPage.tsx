@@ -4,12 +4,13 @@ import {apiErrorMessage} from "../lib/api/client";
 import {Navigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
-    createReservation, deleteReservation, getReservation, restoreReservation,
+    allReservationsQuery, createReservation, deleteReservation, getReservation, restoreReservation,
     getReservations,
     type ReservationRequest,
     updateReservation
 } from "../lib/api/reservations.ts";
-import {getUnit} from "../lib/api/units.ts";
+import {allUnitsQuery, getUnit} from "../lib/api/units.ts";
+import {useConnected} from "../lib/apiReachability";
 import {useId, useState} from "react";
 
 import FormTopBar from "../components/FormTopBar";
@@ -64,10 +65,15 @@ export default function ReservationFormPage() {
     const datesErrorId = useId();
     const {errors, validate, recheck} = useInlineValidation(MESSAGES);
 
+    // Offline, a booking opened from the calendar's saved copy starts from that copy (view only: Save is off).
+    const connected = useConnected();
     const {data: existing, isLoading: isLoadingExisting, isError: loadFailed, refetch} = useQuery({
         queryKey: ["reservations", "detail", id],
         queryFn: () => getReservation(id!),
         enabled: isEditing,
+        initialData: () => connected ? undefined
+            : queryClient.getQueryData(allReservationsQuery.queryKey)?.find((r) => r.id === id),
+        initialDataUpdatedAt: () => queryClient.getQueryState(allReservationsQuery.queryKey)?.dataUpdatedAt,
     });
     const initialForm: ReservationRequest = {
         unitId: prefillUnitId ?? "",
@@ -112,6 +118,9 @@ export default function ReservationFormPage() {
         queryKey: ["units", "detail", form.unitId],
         queryFn: () => getUnit(form.unitId),
         enabled: Boolean(form.unitId),
+        initialData: () => connected ? undefined
+            : queryClient.getQueryData(allUnitsQuery.queryKey)?.find((u) => u.id === form.unitId),
+        initialDataUpdatedAt: () => queryClient.getQueryState(allUnitsQuery.queryKey)?.dataUpdatedAt,
     });
     const {data: unitReservations} = useQuery({
         queryKey: ["reservations", "unit", form.unitId],

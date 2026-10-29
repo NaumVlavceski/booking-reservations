@@ -112,6 +112,13 @@
     color: var(--rt-fg-muted);
 }
 
+/* Offline (the calendar is a saved copy): unavailable, not busy. */
+.cal-icon-btn.is-offline {
+    cursor: not-allowed;
+    background: transparent;
+    opacity: 0.45;
+}
+
 .cal-spin {
     animation: cal-spin 800ms linear infinite;
 }

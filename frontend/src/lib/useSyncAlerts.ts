@@ -1,6 +1,6 @@
 import {useQuery} from "@tanstack/react-query";
 import {useLocation} from "react-router-dom";
-import {useOnlineStatus} from "./useOnlineStatus";
+import {useConnected} from "./apiReachability";
 import {pollOpenConflicts} from "./api/conflicts";
 import {pollFailingCalendars} from "./api/calendars";
 
@@ -27,9 +27,9 @@ export function useSyncAlerts() {
 /** Whether the SyncAlerts strip has anything to show on this page (offline, or alerts for another page). */
 export function useAlertStripVisible(): boolean {
     const {conflictCount, failingCount} = useSyncAlerts();
-    const online = useOnlineStatus();
+    const connected = useConnected();
     const {pathname} = useLocation();
-    return !online
+    return !connected
         || (conflictCount > 0 && pathname !== "/dashboard/conflicts")
         || (failingCount > 0 && pathname !== "/dashboard/sync-health");
 }

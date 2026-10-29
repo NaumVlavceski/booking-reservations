@@ -1,5 +1,6 @@
 import {useSyncExternalStore} from "react";
 import axios from "axios";
+import {useOnlineStatus} from "./useOnlineStatus";
 
 
 let reachable = true;
@@ -23,13 +24,24 @@ export function reportApiSuccess() {
     set(true);
 }
 
+export function isApiReachable(): boolean {
+    return reachable;
+}
+
+export function subscribeApiReachable(onChange: () => void) {
+    listeners.add(onChange);
+    return () => {
+        listeners.delete(onChange);
+    };
+}
+
 export function useApiReachable(): boolean {
-    return useSyncExternalStore(
-        (onChange) => {
-            listeners.add(onChange);
-            return () => listeners.delete(onChange);
-        },
-        () => reachable,
-        () => true,
-    );
+    return useSyncExternalStore(subscribeApiReachable, isApiReachable, () => true);
+}
+
+/** Online and the server answers. When false, pages show what they already have and nothing can be changed. */
+export function useConnected(): boolean {
+    const online = useOnlineStatus();
+    const apiReachable = useApiReachable();
+    return online && apiReachable;
 }
