@@ -3,7 +3,8 @@ import {useEffect, useState, type ComponentType, type ReactNode} from "react";
 import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
-import {getMe} from "../lib/api/me";
+import {meQuery} from "../lib/api/me";
+import {ONBOARDING_PATH, ONBOARDING_STEPS, useOnboardingState} from "../lib/onboarding";
 import {useFromHere} from "../lib/useReturnTo";
 import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
@@ -12,6 +13,7 @@ import {
     CalendarXIcon,
     ChannelsIcon,
     ChevronRightIcon,
+    CompassIcon,
     HelpIcon,
     HouseIcon,
     LockIcon,
@@ -59,7 +61,10 @@ export default function DashboardLayout() {
     const location = useLocation();
     const {pathname} = location;
     const queryClient = useQueryClient();
-    const {data: me} = useQuery({queryKey: ["me"], queryFn: getMe, staleTime: Infinity});
+    const {data: me} = useQuery(meQuery);
+    // A setup left half-way stays one tap away (it ends once skipped or finished).
+    const {state: setup} = useOnboardingState();
+    const setupStep = setup?.status === "active" && pathname !== ONBOARDING_PATH ? setup.step : null;
     // Each account keeps its own light/dark choice (light until it picks dark).
     useEffect(() => {
         if (me?.email) applyAccountTheme(me.email);
@@ -73,7 +78,6 @@ export default function DashboardLayout() {
     const closeMore = () => setMoreOpenedAt(null);
     const isCalendar = pathname.startsWith("/dashboard/calendar");
     const chrome = bottomChrome(pathname);
-    const businessName = me?.businessName ?? "RoomTrack";
     const [iosStepsOpen, setIosStepsOpen] = useState(false);
     // No connection or no answer from the server: pages make way for the offline screen (never old data).
     // Forms stay, so nothing typed is lost; their Save is disabled while offline.
@@ -105,10 +109,15 @@ export default function DashboardLayout() {
             <aside aria-label="Main menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
                 <div className="flex items-center gap-3 px-5 pt-6 pb-5">
                     <span className="shrink-0 rounded-xl p-1"><AppLogo size={28}/></span>
-                    <p className="min-w-0 truncate text-title-3 text-fg">{businessName}</p>
+                    <p className="min-w-0 truncate text-title-3 text-fg">RoomTrack</p>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-4">
                     <nav aria-label="Main" className="space-y-0.5">
+                        {setupStep && (
+                            <SidebarLink to={ONBOARDING_PATH} icon={CompassIcon} active={false} trailing={<SetupStepCount step={setupStep}/>}>
+                                Finish setup
+                            </SidebarLink>
+                        )}
                         <SidebarLink to="/dashboard/calendar" icon={CalendarIcon} active={isCalendarArea(pathname)}>Calendar</SidebarLink>
                         <SidebarLink to="/dashboard/properties" icon={HouseIcon} active={pathname.startsWith("/dashboard/properties")}>Properties</SidebarLink>
                         <SidebarLink to="/dashboard/cancelled" icon={CalendarXIcon} active={pathname.startsWith("/dashboard/cancelled")}>Cancelled bookings</SidebarLink>
@@ -137,10 +146,10 @@ export default function DashboardLayout() {
                     </SidebarLink>
                     <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
                         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
-                            {initials(me?.fullName ?? me?.businessName)}
+                            {initials(me?.fullName)}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-body-sm font-semibold text-fg">{me?.fullName ?? businessName}</p>
+                            <p className="truncate text-body-sm font-semibold text-fg">{me?.fullName}</p>
                             {me?.email && <p className="truncate text-caption text-subtle">{me.email}</p>}
                         </div>
                         <button type="button" onClick={handleLogout} className="icon-btn text-muted" aria-label="Log out" title="Log out">
@@ -152,7 +161,7 @@ export default function DashboardLayout() {
 
             {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */}
             <nav aria-label="Main" className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
-                <Link to="/dashboard/calendar" className="mb-4 rounded-xl p-1" aria-label={`${businessName}, calendar`}>
+                <Link to="/dashboard/calendar" className="mb-4 rounded-xl p-1" aria-label="RoomTrack, calendar">
                     <span className="block rounded-xl  p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
                 </Link>
                 {destinations.map((d) => (
@@ -199,14 +208,21 @@ export default function DashboardLayout() {
             <Sheet open={isMoreOpen} onClose={closeMore} title="More" titleHidden showClose closeLabel="Close menu">
                 <div className="flex items-center gap-3 pr-10 pb-4">
                     <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-body-sm font-bold text-on-primary-soft">
-                        {initials(me?.businessName)}
+                        {initials(me?.fullName)}
                     </span>
                     <div className="min-w-0">
-                        <p className="truncate text-title-3 text-fg">{businessName}</p>
+                        <p className="truncate text-title-3 text-fg">{me?.fullName}</p>
                         {me?.email && <p className="truncate text-body-sm text-muted">{me.email}</p>}
                     </div>
                 </div>
                 <div className="space-y-3">
+                    {setupStep && (
+                        <SheetGroup>
+                            <SheetLink to={ONBOARDING_PATH} icon={CompassIcon} onClick={closeMore} trailing={<SetupStepCount step={setupStep}/>} chevron>
+                                Finish setup
+                            </SheetLink>
+                        </SheetGroup>
+                    )}
                     <SheetGroup>
                         <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore} chevron>Properties</SheetLink>
                         <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled bookings</SheetLink>
@@ -239,7 +255,15 @@ export default function DashboardLayout() {
     );
 }
 
-const sheetRow = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
+function SetupStepCount({step}: { step: number }) {
+    return (
+        <span className="num ml-auto pl-2 text-caption font-medium text-subtle">
+            <span className="sr-only">, </span>Step {step} of {ONBOARDING_STEPS.length}
+        </span>
+    );
+}
+
+const sheetRow ="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
 
 function SheetGroup({children}: { children: ReactNode }) {
     return <div className="rounded-2xl bg-surface-sunken p-1">{children}</div>;

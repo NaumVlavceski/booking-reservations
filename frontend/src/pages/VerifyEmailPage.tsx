@@ -4,6 +4,7 @@ import {useMutation} from "@tanstack/react-query";
 import {resendCode, verifyEmail} from "../lib/api/auth";
 import {apiErrorMessage} from "../lib/api/client";
 import {tokenStorage} from "../lib/auth/tokenStorage";
+import {ONBOARDING_PATH} from "../lib/onboarding";
 import {useToast} from "../lib/toast";
 import AuthLayout from "../components/AuthLayout";
 import Button from "../components/ui/Button";
@@ -15,7 +16,7 @@ const RESEND_SECONDS = 60;
 
 interface VerifyState {
     email?: string;
-    /** Set after sign-up, so the new owner lands on "add your first property". */
+    /** Set after sign-up, so the new owner lands straight in the guided setup. */
     welcome?: boolean;
 }
 
@@ -39,7 +40,7 @@ export default function VerifyEmailPage() {
         mutationFn: verifyEmail,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
-            navigate(state.welcome ? "/dashboard/properties/new?welcome=1" : "/dashboard/calendar", {replace: true});
+            navigate(state.welcome ? ONBOARDING_PATH : "/dashboard/calendar", {replace: true});
         },
         onError: () => {
             // Start over with empty boxes and the cursor in the first one

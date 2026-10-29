@@ -44,7 +44,6 @@ class UnsubscribeTest {
     @Test
     void getOnlyConfirmsAndPostUnsubscribesWithoutLogin() throws Exception {
         Owner owner = new Owner();
-        owner.setBusinessName("Unsub owner");
         owner = owners.save(owner);
         String token = links.token(owner.getId());
 

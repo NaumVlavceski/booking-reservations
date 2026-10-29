@@ -14,7 +14,9 @@ import {useFromHere} from "../lib/useReturnTo";
 import {detectPlatform, normalizeIcsUrl} from "../lib/calendarPlatform";
 import {describeSyncError, PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
+import {useChannelNotice} from "../lib/channelNotice";
 import ConfirmDialog from "./ConfirmDialog";
+import ChannelNoticeDialog from "./ChannelNoticeDialog";
 import SyncProblem from "./SyncProblem";
 import Card from "./ui/Card";
 import Button from "./ui/Button";
@@ -29,6 +31,8 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     const [icsUrl, setIcsUrl] = useState("");
     const [formError, setFormError] = useState<string | null>(null);
     const [removing, setRemoving] = useState<ExternalCalendar | null>(null);
+    const channelNotice = useChannelNotice();
+    const [noticeOpen, setNoticeOpen] = useState(false);
 
     const {data: calendars, isLoading, isError, refetch} = useQuery({
         queryKey: ["calendars", unitId],
@@ -80,6 +84,11 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     function handleAdd(e: React.FormEvent) {
         e.preventDefault();
         setFormError(null);
+        // The very first connection waits for "I understand" on the sync notes.
+        if (!channelNotice.understood) {
+            setNoticeOpen(true);
+            return;
+        }
         addMutation.mutate();
     }
 
@@ -209,6 +218,16 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                     Booking.com is connected for this room.
                 </p>
             )}
+
+            <ChannelNoticeDialog
+                open={noticeOpen}
+                onUnderstood={() => {
+                    channelNotice.markUnderstood();
+                    setNoticeOpen(false);
+                    addMutation.mutate();
+                }}
+                onClose={() => setNoticeOpen(false)}
+            />
 
             <ConfirmDialog
                 open={removing !== null}

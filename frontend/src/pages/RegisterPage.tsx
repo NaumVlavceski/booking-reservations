@@ -11,7 +11,6 @@ import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
 
 const MESSAGES: ValidationMessages = {
-    businessName: {valueMissing: "Enter the name of your business."},
     fullName: {valueMissing: "Enter your full name."},
     email: {valueMissing: "Enter your email address.", typeMismatch: "Enter an email address like name@example.com."},
     password: {
@@ -24,7 +23,6 @@ const MESSAGES: ValidationMessages = {
 export default function RegisterPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState({
-        businessName: "",
         contactPhone: "",
         email: "",
         password: "",
@@ -58,10 +56,6 @@ export default function RegisterPage() {
             footer={<p>Already have an account? <Link to="/login" className="link inline-flex min-h-11 items-center">Log in</Link></p>}
         >
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                <TextField label="Business name" id="businessName" name="businessName" value={form.businessName}
-                           onChange={handleChange} required autoComplete="organization" enterKeyHint="next"
-                           error={errors.businessName}/>
-
                 <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
                     <TextField label="Full name" id="fullName" name="fullName" value={form.fullName}
                                onChange={handleChange} required autoComplete="name" enterKeyHint="next"

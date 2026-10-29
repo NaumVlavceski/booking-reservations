@@ -52,7 +52,6 @@ class CancelledListTest {
     @BeforeEach
     void setUp() {
         owner = new Owner();
-        owner.setBusinessName("Cancelled list owner");
         owner = ownerRepository.save(owner);
         unit = newUnit(owner);
     }
@@ -191,7 +190,6 @@ class CancelledListTest {
     @Test
     void otherOwnersCancelledBookingsAreNeverListed() {
         Owner other = new Owner();
-        other.setBusinessName("Someone else");
         other = ownerRepository.save(other);
         cancelled(newUnit(other), "Not yours", "2031-01-01", 1);
         cancelled(unit, "Yours", "2031-01-05", 2);

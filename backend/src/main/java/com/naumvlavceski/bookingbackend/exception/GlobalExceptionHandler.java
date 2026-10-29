@@ -93,7 +93,6 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
     }
 
-    // "businessName" -> "Business name"
     private static String humanize(String field) {
         String words = field.replaceAll("([a-z])([A-Z])", "$1 $2").toLowerCase();
         return Character.toUpperCase(words.charAt(0)) + words.substring(1);

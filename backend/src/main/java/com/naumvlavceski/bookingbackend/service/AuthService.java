@@ -46,7 +46,7 @@ public class AuthService {
     public MeResponse me(UUID userId) {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
-        return new MeResponse(user.getEmail(), user.getFullName(), user.getOwner().getBusinessName());
+        return new MeResponse(user.getEmail(), user.getFullName());
     }
 
     @Transactional
@@ -56,7 +56,6 @@ public class AuthService {
             throw new IllegalArgumentException("Email already registered");
         }
         Owner owner = new Owner();
-        owner.setBusinessName(request.businessName());
         owner.setContactPhone(request.contactPhone());
         owner.setActive(true);
         owner = ownerRepository.save(owner);

@@ -9,6 +9,8 @@ const FORM_ROUTES = [
     "/dashboard/reservations/new",
     "/dashboard/reservations/:id",
     "/dashboard/account/password",
+    // The guided first-run setup: its Back / Continue bar sits where Save would.
+    "/dashboard/welcome",
 ];
 
 export function isFormRoute(pathname: string): boolean {

@@ -47,7 +47,6 @@ class IcalReconcilerTest {
     @BeforeEach
     void setUp() {
         Owner owner = new Owner();
-        owner.setBusinessName("Test owner");
         owner = ownerRepository.save(owner);
 
         Property property = new Property();
