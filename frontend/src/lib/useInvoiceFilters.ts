@@ -10,6 +10,9 @@ const FILTER_KEYS = ["from", "to", "status", "source"] as const;
 const day = (value: string) => format(parseLocalDate(value), "d MMM yyyy");
 
 /** "1 Jan 2026 → 31 Mar 2026", "From 1 Jan 2026", "Until 31 Mar 2026", or "All time". */
+/** No filters: all dates, every status and source. */
+export const CLEARED: InvoiceFilters = {from: "", to: "", status: "", source: ""};
+
 export function formatPeriod({from, to}: Pick<InvoiceFilters, "from" | "to">): string {
     if (from && to) return `${day(from)} → ${day(to)}`;
     if (from) return `From ${day(from)}`;

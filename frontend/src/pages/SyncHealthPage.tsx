@@ -2,7 +2,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {getFailingCalendars, syncCalendarNow, type ExternalCalendar} from "../lib/api/calendars";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {formatWhen} from "../lib/dates";
 import {describeSyncError, PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
@@ -12,12 +12,12 @@ import PageHeader from "../components/ui/PageHeader";
 import ChannelsNav from "../components/ChannelsNav";
 import Card from "../components/ui/Card";
 import Button, {ButtonLink} from "../components/ui/Button";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 
 export default function SyncHealthPage() {
     const queryClient = useQueryClient();
     const toast = useToast();
-    const {data: failing, isLoading, isError, refetch, isRefetching} = useQuery({
+    const {data: failing, isLoading, isError, error, refetch, isRefetching} = useQuery({
         queryKey: ["calendars", "health"],
         queryFn: getFailingCalendars,
     });
@@ -35,7 +35,7 @@ export default function SyncHealthPage() {
                 toast.show(`${result.unitName} is syncing with ${platform} again.`);
             }
         },
-        onError: (error) => toast.show(apiErrorMessage(error, "Couldn't try again right now."), {tone: "error"}),
+        onError: (error) => toast.show(errorMessage(error, "Couldn't sync this calendar."), {tone: "error"}),
     });
 
     const unitById = new Map(units?.map((u) => [u.id, u]));
@@ -50,13 +50,14 @@ export default function SyncHealthPage() {
             />
             <ChannelsNav/>
 
+            {isError && failing && (
+                <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>
+            )}
             {isLoading ? (
-                <ListSkeleton rows={2} label="Loading…"/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load the sync status" onRetry={() => refetch()} retrying={isRefetching}>
-                    Check your connection and try again.
-                </ErrorState>
-            ) : !failing || failing.length === 0 ? (
+                <ListSkeleton rows={2} label="Loading sync status…"/>
+            ) : !failing ? (
+                <ErrorState title="Couldn't load the sync status" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
+            ) : failing.length === 0 ? (
                 <EmptyState icon={<CheckIcon size={24}/>} title="All channels are syncing">
                     Bookings from Booking.com are arriving normally.
                 </EmptyState>

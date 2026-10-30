@@ -5,7 +5,7 @@ import {dismissConflict, getOpenConflicts, type SyncConflict} from "../lib/api/c
 import {getReservation, type ReservationResponse} from "../lib/api/reservations";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {formatStayDays, formatWhen, parseLocalDate} from "../lib/dates";
 import {PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
@@ -15,7 +15,7 @@ import PageHeader from "../components/ui/PageHeader";
 import ChannelsNav from "../components/ChannelsNav";
 import Card from "../components/ui/Card";
 import Button, {ButtonLink} from "../components/ui/Button";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 
 // What channels put in SUMMARY when they don't share guest details — not worth showing.
 const GENERIC_SUMMARY = /^(closed\s*-\s*)?not available$|^reserved$|^blocked$|^airbnb \(not available\)$/i;
@@ -30,7 +30,7 @@ export default function ConflictsPage() {
     const toast = useToast();
     const [confirming, setConfirming] = useState<SyncConflict | null>(null);
 
-    const {data: conflicts, isLoading, isError, refetch, isRefetching} = useQuery({queryKey: ["conflicts"], queryFn: getOpenConflicts});
+    const {data: conflicts, isLoading, isError, error, refetch, isRefetching} = useQuery({queryKey: ["conflicts"], queryFn: getOpenConflicts});
     const {data: units} = useQuery(allUnitsQuery);
     const {data: properties} = useQuery(propertiesQuery);
     const reservationIds = [...new Set((conflicts ?? []).map((c) => c.conflictingReservationId).filter(Boolean))];
@@ -64,13 +64,14 @@ export default function ConflictsPage() {
             />
             <ChannelsNav/>
 
+            {isError && conflicts && (
+                <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>
+            )}
             {isLoading ? (
-                <ListSkeleton rows={2} label="Loading…"/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load conflicts" onRetry={() => refetch()} retrying={isRefetching}>
-                    Check your connection and try again.
-                </ErrorState>
-            ) : !conflicts || conflicts.length === 0 ? (
+                <ListSkeleton rows={2} label="Loading conflicts…"/>
+            ) : !conflicts ? (
+                <ErrorState title="Couldn't load conflicts" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
+            ) : conflicts.length === 0 ? (
                 <EmptyState icon={<CheckIcon size={24}/>} title="No conflicts">
                     Your channels agree with your calendar.
                 </EmptyState>
@@ -168,7 +169,7 @@ export default function ConflictsPage() {
                 pendingLabel="Saving…"
                 cancelLabel="Go back"
                 pending={dismissMutation.isPending}
-                error={dismissMutation.isError ? apiErrorMessage(dismissMutation.error, "Couldn't dismiss this warning.") : null}
+                error={dismissMutation.isError ? errorMessage(dismissMutation.error, "Couldn't dismiss this warning.") : null}
                 onConfirm={() => confirming && dismissMutation.mutate(confirming)}
                 onCancel={() => setConfirming(null)}
             />

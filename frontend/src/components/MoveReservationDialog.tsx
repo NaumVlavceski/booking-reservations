@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage, errorReason} from "../lib/errors";
 import {copyReservation, getAvailableOptions, moveReservation} from "../lib/api/reservations";
 import Sheet from "./ui/Sheet";
 import Button from "./ui/Button";
@@ -28,7 +28,7 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
     const isCopy = mode === "copy";
     const queryClient = useQueryClient();
     const [selected, setSelected] = useState<string[]>([]);
-    const {data: options, isLoading, isError, refetch} = useQuery({
+    const {data: options, isLoading, isError, error, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "available-options", reservationId],
         queryFn: () => getAvailableOptions(reservationId),
         enabled: open,
@@ -108,16 +108,17 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
                     </Callout>
                 )}
                 {saveMutation.isError && (
-                    <Callout tone="danger" role="alert">{apiErrorMessage(saveMutation.error, "Couldn't save the changes.")}</Callout>
+                    <Callout tone="danger" role="alert">{errorMessage(saveMutation.error, "Couldn't save the changes.")}</Callout>
                 )}
                 {mutation.isError && (
-                    <Callout tone="danger" role="alert">{apiErrorMessage(mutation.error, isCopy ? "Couldn't copy this booking." : "Couldn't move this booking.")}</Callout>
+                    <Callout tone="danger" role="alert">{errorMessage(mutation.error, isCopy ? "Couldn't copy this booking." : "Couldn't move this booking.")}</Callout>
                 )}
                 {isLoading ? (
                     <div className="flex justify-center py-4"><Spinner/></div>
                 ) : isError ? (
-                    <Callout tone="danger" role="alert" action={<Button variant="secondary" onClick={() => refetch()}>Try again</Button>}>
-                        Couldn't load the rooms.
+                    <Callout tone="danger" role="alert" title="Couldn't load the free rooms"
+                             action={<Button variant="secondary" onClick={() => refetch()} loading={isRefetching} loadingLabel="Trying again…">Try again</Button>}>
+                        {errorReason(error)}
                     </Callout>
                 ) : options && options.length === 0 ? (
                     <p className="text-body text-muted">No other room in this property is free on these dates.</p>

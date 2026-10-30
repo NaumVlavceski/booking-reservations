@@ -11,7 +11,7 @@ import {
 } from "../lib/api/properties.ts";
 import {allUnitsQuery} from "../lib/api/units.ts";
 import {allReservationsQuery} from "../lib/api/reservations.ts";
-import {apiErrorMessage} from "../lib/api/client.ts";
+import {errorMessage, fieldErrors} from "../lib/errors";
 import {propertyDeleteMessage} from "../lib/plural";
 import FormTopBar from "../components/FormTopBar";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -19,7 +19,7 @@ import PropertyFields from "../components/PropertyFields";
 import {PROPERTY_MESSAGES} from "../lib/propertyForm";
 import {SectionCard} from "../components/ui/Card";
 import Callout from "../components/ui/Callout";
-import {FormSkeleton} from "../components/ui/States";
+import {FormSkeleton, RecordLoadError} from "../components/ui/States";
 import {useInlineValidation} from "../lib/useInlineValidation";
 import {useReturnTo} from "../lib/useReturnTo";
 
@@ -37,8 +37,8 @@ export default function PropertyFormPage() {
         address: "",
     })
     const [unitCount, setUnitCount] = useState("1");
-    const {errors, validate, recheck} = useInlineValidation(PROPERTY_MESSAGES);
-    const {data: existing, isLoading: isLoadingExisting} = useQuery({
+    const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(PROPERTY_MESSAGES);
+    const {data: existing, isLoading: isLoadingExisting, error: loadError, refetch, isRefetching} = useQuery({
         queryKey: ["properties", id],
         queryFn: () => getProperty(id!),
         enabled: isEditing,
@@ -71,7 +71,11 @@ export default function PropertyFormPage() {
                 queryClient.fetchQuery(allUnitsQuery),
             ]);
             navigate("/dashboard/calendar");
-        }
+        },
+        onError: (error) => {
+            const fields = fieldErrors(error);
+            if (fields) showServerErrors(document.getElementById("property-form") as HTMLFormElement | null, fields);
+        },
     })
     const [confirmDelete, setConfirmDelete] = useState(false);
     const {data: units} = useQuery({...allUnitsQuery, enabled: isEditing});
@@ -111,6 +115,15 @@ export default function PropertyFormPage() {
             </div>
         );
     }
+    // Never an empty form that could be saved over the real property.
+    if (isEditing && !existing && loadError) {
+        return (
+            <div className="mx-auto max-w-2xl">
+                <FormTopBar formId="property-form" saving={false} title="Edit property" back={{to: backFallback}} hideSave/>
+                <RecordLoadError what="property" error={loadError} onRetry={() => refetch()} retrying={isRefetching} backTo="/dashboard/properties"/>
+            </div>
+        );
+    }
 
     const title = isEditing ? `Edit ${existing?.name ?? "property"}` : "Add a property";
     const isDirty = isEditing
@@ -145,7 +158,7 @@ export default function PropertyFormPage() {
 
                 {mutation.isError && (
                     <Callout tone="danger" role="alert">
-                        {apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}
+                        {otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't save the property.")}
                     </Callout>
                 )}
             </form>
@@ -157,7 +170,7 @@ export default function PropertyFormPage() {
                 confirmLabel="Delete property"
                 pending={deleteMutation.isPending}
                 error={deleteMutation.isError
-                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this property. Try again.")
+                    ? errorMessage(deleteMutation.error, "Couldn't delete this property.")
                     : null}
                 onConfirm={() => deleteMutation.mutate()}
                 onCancel={closeConfirm}

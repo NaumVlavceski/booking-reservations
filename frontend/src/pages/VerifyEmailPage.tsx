@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import {Link, Navigate, useLocation, useNavigate} from "react-router-dom";
 import {useMutation} from "@tanstack/react-query";
 import {resendCode, verifyEmail} from "../lib/api/auth";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {ONBOARDING_PATH} from "../lib/onboarding";
 import {useToast} from "../lib/toast";
@@ -57,7 +57,7 @@ export default function VerifyEmailPage() {
             toast.show("If your address needs verification, a new code is on its way.");
         },
         onError: (error) => {
-            toast.show(apiErrorMessage(error, "Couldn't send a new code right now. Try again in a moment."), {tone: "error"});
+            toast.show(errorMessage(error, "Couldn't send a new code."), {tone: "error"});
         },
     });
 
@@ -106,7 +106,7 @@ export default function VerifyEmailPage() {
                         )}
                         {verifyMutation.isError && (
                             <Callout tone="danger" className="text-left">
-                                {apiErrorMessage(verifyMutation.error, "Couldn't verify the code. Check your connection and try again.")}
+                                {errorMessage(verifyMutation.error, "Couldn't verify the code.")}
                             </Callout>
                         )}
                     </div>

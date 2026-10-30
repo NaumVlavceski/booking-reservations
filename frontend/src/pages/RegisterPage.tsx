@@ -1,4 +1,4 @@
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage, fieldErrors} from "../lib/errors";
 import {Link, useNavigate} from "react-router-dom";
 import {useState} from "react";
 import {useMutation} from "@tanstack/react-query";
@@ -28,13 +28,17 @@ export default function RegisterPage() {
         password: "",
         fullName: "",
     });
-    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
+    const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
 
     const mutation = useMutation({
         mutationFn: register,
         onSuccess: (data) => {
             // No token until the emailed code is entered; a brand-new account then sets up its first property.
             navigate("/verify-email", {replace: true, state: {email: data.email, welcome: true}});
+        },
+        onError: (error) => {
+            const fields = fieldErrors(error);
+            if (fields) showServerErrors(document.getElementById("register-form") as HTMLFormElement | null, fields);
         },
     });
 
@@ -55,7 +59,7 @@ export default function RegisterPage() {
             subtitle="Start managing your rentals in minutes"
             footer={<p>Already have an account? <Link to="/login" className="link inline-flex min-h-11 items-center">Log in</Link></p>}
         >
-            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            <form id="register-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
                     <TextField label="Full name" id="fullName" name="fullName" value={form.fullName}
                                onChange={handleChange} required autoComplete="name" enterKeyHint="next"
@@ -76,7 +80,7 @@ export default function RegisterPage() {
 
                 {mutation.isError && (
                     <Callout tone="danger" role="alert">
-                        {apiErrorMessage(mutation.error, "Registration failed. Check your details and try again.")}
+                        {otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't create your account.")}
                     </Callout>
                 )}
 

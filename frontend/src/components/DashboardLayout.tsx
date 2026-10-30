@@ -30,6 +30,7 @@ import {useConnected} from "../lib/apiReachability";
 import {clearOfflineCalendar, hasOfflineCalendar} from "../lib/offlineCalendar";
 import AppLogo from "./AppLogo";
 import OfflineScreen from "./OfflineScreen";
+import ErrorBoundary from "./ErrorBoundary";
 import InstallAppButton, {IosInstallSheet} from "./InstallApp";
 import Sheet from "./ui/Sheet";
 import {CountBubble} from "./ui/Badge";
@@ -87,7 +88,9 @@ export default function DashboardLayout() {
     const connected = useConnected();
     const calendarSaved = hasOfflineCalendar(queryClient);
     const showOffline = !connected && chrome !== "form" && !(isCalendar && calendarSaved);
-    const page = showOffline ? <OfflineScreen offline={!online} calendarSaved={calendarSaved}/> : <Outlet/>;
+    // A page that crashes is replaced by "Something went wrong"; the menu stays, and leaving the page clears it.
+    const outlet = <ErrorBoundary key={pathname}><Outlet/></ErrorBoundary>;
+    const page = showOffline ? <OfflineScreen offline={!online} calendarSaved={calendarSaved}/> : outlet;
 
     function handleLogout() {
         tokenStorage.clear();
@@ -188,7 +191,7 @@ export default function DashboardLayout() {
                 {isCalendar && !showOffline ? (
                     <>
                         <SyncAlerts className="px-4 pt-[env(safe-area-inset-top)] box-content sm:px-0 sm:pt-0"/>
-                        <Outlet/>
+                        {outlet}
                     </>
                 ) : isCalendar ? (
                     <div className="px-4 sm:px-0">{page}</div>

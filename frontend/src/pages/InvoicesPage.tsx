@@ -1,10 +1,11 @@
 import {useQuery} from "@tanstack/react-query";
 import {Link, Navigate} from "react-router-dom";
+import {ButtonLink} from "../components/ui/Button";
 import {invoicePropertiesQuery} from "../lib/api/invoices";
 import {plural} from "../lib/plural";
-import {ChevronRightIcon, HouseIcon} from "../components/icons";
+import {ChevronRightIcon, HouseIcon, PlusIcon} from "../components/icons";
 import PageHeader from "../components/ui/PageHeader";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 
 function initials(name: string) {
     const words = name.trim().split(/\s+/);
@@ -13,7 +14,7 @@ function initials(name: string) {
 
 /** Invoices, step 1: pick a property. With only one property there is nothing to pick, so skip ahead. */
 export default function InvoicesPage() {
-    const {data: properties, isLoading, isError, refetch, isRefetching} = useQuery(invoicePropertiesQuery);
+    const {data: properties, isLoading, isError, error, refetch, isRefetching} = useQuery(invoicePropertiesQuery);
 
     if (properties?.length === 1) {
         return <Navigate to={`/dashboard/invoices/properties/${properties[0].propertyId}`} replace/>;
@@ -24,14 +25,16 @@ export default function InvoicesPage() {
             <PageHeader title="Invoices" description="Earnings from confirmed and paid bookings. Pick a property."
                         back={{to: "/dashboard/calendar"}}/>
 
+            {isError && properties && (
+                <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>
+            )}
             {isLoading ? (
                 <ListSkeleton rows={3} label="Loading properties..."/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load invoices" onRetry={() => refetch()} retrying={isRefetching}>
-                    Try refreshing the page.
-                </ErrorState>
-            ) : !properties || properties.length === 0 ? (
-                <EmptyState icon={<HouseIcon size={24}/>} title="No properties yet">
+            ) : !properties ? (
+                <ErrorState title="Couldn't load invoices" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
+            ) : properties.length === 0 ? (
+                <EmptyState icon={<HouseIcon size={24}/>} title="No properties yet"
+                            action={<ButtonLink to="/dashboard/properties/new" size="lg" icon={<PlusIcon size={18}/>}>Add a property</ButtonLink>}>
                     Add a property and some bookings to see your earnings here.
                 </EmptyState>
             ) : (

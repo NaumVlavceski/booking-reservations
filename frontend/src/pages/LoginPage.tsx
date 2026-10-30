@@ -1,4 +1,4 @@
-import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
+import {errorCode, errorMessage} from "../lib/errors";
 import {useEffect, useRef, useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {useNavigate, useLocation, Link, Navigate} from "react-router-dom";
@@ -41,7 +41,7 @@ export default function LoginPage() {
             navigate(takeReturnTo("/dashboard/calendar"), {replace: true});
         },
         onError: (error) => {
-            if (apiErrorCode(error) === "EMAIL_NOT_VERIFIED") {
+            if (errorCode(error) === "EMAIL_NOT_VERIFIED") {
                 // Right password, unverified address: send a fresh code (the server enforces its cooldown) and ask for it
                 const email = form.email.trim();
                 resendCode(email).catch(() => {});
@@ -120,7 +120,7 @@ export default function LoginPage() {
 
                 {mutation.isError && (
                     <Callout tone="danger" role="alert">
-                        {apiErrorMessage(mutation.error, "Invalid email or password.")}
+                        {errorMessage(mutation.error, "Couldn't sign in.")}
                     </Callout>
                 )}
 

@@ -12,7 +12,7 @@ import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
 import InvoiceFilters from "../components/InvoiceFilters";
 import Pager from "../components/ui/Pager";
 import PageHeader from "../components/ui/PageHeader";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 import NotFoundPage from "./NotFoundPage";
 
 /**
@@ -51,16 +51,15 @@ export default function InvoiceMissingAmountsPage() {
 
             {invalid ? null : isLoading ? (
                 <ListSkeleton rows={4} label="Loading bookings..."/>
-            ) : isError || !data ? (
-                <ErrorState title="Couldn't load bookings" onRetry={() => refetch()} retrying={isRefetching}>
-                    Try refreshing the page.
-                </ErrorState>
+            ) : !data ? (
+                <ErrorState title="Couldn't load bookings" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : data.reservations.totalElements === 0 ? (
                 <EmptyState icon={<CheckCircleIcon size={24}/>} title="Every booking has an amount">
                     Nothing is counted as 0 for these filters.
                 </EmptyState>
             ) : (
                 <div className={`transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
+                    {isError && <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>}
                     <p className="mb-3 px-1 text-body-sm text-muted">
                         {plural(data.reservations.totalElements, "booking")} counted as 0. Tap one to add its total.
                     </p>

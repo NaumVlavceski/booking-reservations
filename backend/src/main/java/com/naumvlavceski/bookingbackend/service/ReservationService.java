@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.exception.DatesTakenException;
 import com.naumvlavceski.bookingbackend.dto.MoveOptionResponse;
 import com.naumvlavceski.bookingbackend.dto.PageResponse;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
@@ -14,10 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,10 +29,6 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UnitRepository unitRepository;
 
-    //    public List<ReservationResponse> findAllForOwner(UUID ownerId){
-//        return reservationRepository.findAllByOwnerId(ownerId).stream()
-//                .map(this::toResponse).toList();
-//    }
     public List<ReservationResponse> findAllForOwner(UUID ownerId, UUID unitId, ReservationStatus status) {
         List<Reservation> reservations = reservationRepository.findAllByOwnerId(ownerId);
 
@@ -46,8 +41,9 @@ public class ReservationService {
     }
 
     private static final int MAX_PAGE_SIZE = 100;
+    private static final UUID NO_ID = new UUID(0, 0);
 
-    /** Cancelled bookings, one page at a time. See {@link ReservationRepository#findCancelled}. */
+
     public PageResponse<ReservationResponse> listCancelled(UUID ownerId, String name, LocalDate checkInFrom,
                                                            int page, int size) {
         String trimmed = name == null ? "" : name.trim();
@@ -74,11 +70,13 @@ public class ReservationService {
         if (nights <= 0) {
             throw new IllegalArgumentException("Check-out must be after check-in");
         }
+        ReservationStatus status = request.status() != null ? request.status() : ReservationStatus.CONFIRMED;
+        if (status != ReservationStatus.CANCELLED) rejectIfTaken(unit, request.checkIn(), request.checkOut(), NO_ID);
         Reservation reservation = new Reservation();
         reservation.setUnit(unit);
         reservation.setOwnerId(ownerId);
         reservation.setStayRange(Range.closedOpen(request.checkIn(), request.checkOut()));
-        reservation.setStatus(request.status() != null ? request.status() : ReservationStatus.CONFIRMED);
+        reservation.setStatus(status);
         reservation.setGuestName(request.guestName());
         reservation.setGuestEmail(request.guestEmail());
         reservation.setGuestPhone(request.guestPhone());
@@ -103,9 +101,11 @@ public class ReservationService {
         }
         Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId)
                 .orElseThrow(() -> new NoSuchElementException("Reservation not found"));
+        ReservationStatus status = request.status() != null ? request.status() : reservation.getStatus();
+        if (status != ReservationStatus.CANCELLED) rejectIfTaken(unit, request.checkIn(), request.checkOut(), reservationId);
         reservation.setUnit(unit);
         reservation.setStayRange(Range.closedOpen(request.checkIn(), request.checkOut()));
-        reservation.setStatus(request.status() != null ? request.status() : reservation.getStatus());
+        reservation.setStatus(status);
         reservation.setGuestName(request.guestName());
         reservation.setGuestEmail(request.guestEmail());
         reservation.setGuestPhone(request.guestPhone());
@@ -147,15 +147,10 @@ public class ReservationService {
         if (!target.getProperty().getId().equals(reservation.getUnit().getProperty().getId())) {
             throw new IllegalArgumentException("A booking can only be moved to a room in the same property");
         }
-        List<Reservation> overlaps = reservationRepository.findOverlapping(
-                target.getId(), reservation.getStayRange().lower(), reservation.getStayRange().upper(), reservationId);
-        if (!overlaps.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "That room is taken on these dates.");
-        }
+        rejectIfTaken(target, reservation.getStayRange().lower(), reservation.getStayRange().upper(), reservationId);
         reservation.setUnit(target);
         return toResponse(reservationRepository.save(reservation));
     }
-
     @Transactional
     public List<ReservationResponse> copy(UUID ownerId, UUID reservationId, List<UUID> targetsUnitsIds) {
         Reservation source = reservationRepository.findByIdAndOwnerId(reservationId, ownerId)
@@ -174,10 +169,7 @@ public class ReservationService {
                     || !unit.getProperty().getId().equals(propertyId)) {
                 throw new IllegalArgumentException("A booking can only be copied to other rooms of the same property");
             }
-            if (!reservationRepository.findOverlapping(unit.getId(), start, end, source.getId()).isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        unit.getName() + " is taken on these dates.");
-            }
+            rejectIfTaken(unit, start, end, source.getId());
 
             Reservation copy = new Reservation();
             copy.setUnit(unit);
@@ -193,6 +185,16 @@ public class ReservationService {
         }
         return copies;
     }
+
+    /** Refuses dates that overlap another live booking of the room, saying which (the DB constraint no_overlap stays the backstop). */
+    private void rejectIfTaken(Unit unit, LocalDate checkIn, LocalDate checkOut, UUID excludeId) {
+        List<Reservation> overlaps = reservationRepository.findOverlapping(unit.getId(), checkIn, checkOut, excludeId);
+        if (!overlaps.isEmpty()) {
+            Reservation taken = overlaps.get(0);
+            throw new DatesTakenException(unit.getName(), taken.getStayRange().lower(), taken.getStayRange().upper());
+        }
+    }
+
     public void delete(UUID ownerId, UUID reservationId) {
         Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId).orElseThrow(() -> new NoSuchElementException("Reservation not found"));
         reservation.setStatus(ReservationStatus.CANCELLED);

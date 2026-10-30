@@ -2,15 +2,16 @@ import {keepPreviousData, useQuery} from "@tanstack/react-query";
 import {isAxiosError} from "axios";
 import {Link, useParams} from "react-router-dom";
 import {formatEarnings, invoicePropertiesQuery, invoicePropertyUnitsQuery} from "../lib/api/invoices";
-import {formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
+import {CLEARED, formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
 import {plural} from "../lib/plural";
-import {BedIcon, ChevronRightIcon} from "../components/icons";
+import {BedIcon, CalendarIcon, ChevronRightIcon, PlusIcon} from "../components/icons";
 import InvoiceExportButton from "../components/InvoiceExportButton";
 import InvoiceFilters from "../components/InvoiceFilters";
 import InvoiceSummary from "../components/InvoiceSummary";
 import MissingAmountsCallout from "../components/MissingAmountsCallout";
 import PageHeader from "../components/ui/PageHeader";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import Button, {ButtonLink} from "../components/ui/Button";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 import NotFoundPage from "./NotFoundPage";
 
 /** Invoices, step 2: the rooms of one property with their days and earnings, and the property total at the bottom. */
@@ -41,16 +42,24 @@ export default function InvoicePropertyPage() {
 
             {invalid ? null : isLoading ? (
                 <ListSkeleton rows={3} label="Loading earnings..."/>
-            ) : isError || !data ? (
-                <ErrorState title="Couldn't load earnings" onRetry={() => refetch()} retrying={isRefetching}>
-                    Try refreshing the page.
-                </ErrorState>
+            ) : !data ? (
+                <ErrorState title="Couldn't load earnings" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : data.units.length === 0 ? (
-                <EmptyState icon={<BedIcon size={24}/>} title="No rooms yet">
+                <EmptyState icon={<BedIcon size={24}/>} title="No rooms yet"
+                            action={<ButtonLink to={`/dashboard/properties/${propertyId}/units/new`} size="lg" icon={<PlusIcon size={18}/>}>Add a room</ButtonLink>}>
                     Add rooms to this property to see their earnings here.
+                </EmptyState>
+            ) : data.grandTotal.reservationCount === 0 ? (
+                <EmptyState icon={<CalendarIcon size={24}/>}
+                            title={activeCount > 0 ? "No bookings match these filters" : "No confirmed or paid bookings yet"}
+                            action={activeCount > 0 ? <Button variant="secondary" onClick={() => setRange(CLEARED)}>Clear filters</Button> : undefined}>
+                    {activeCount > 0
+                        ? "Try a wider date range, or clear the filters."
+                        : "Earnings show here once bookings are confirmed or paid. Cancelled and blocked dates are not counted."}
                 </EmptyState>
             ) : (
                 <div className={`transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
+                    {isError && <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>}
                     <MissingAmountsCallout
                         count={data.grandTotal.reservationsWithoutAmount}
                         to={`/dashboard/invoices/properties/${data.propertyId}/missing-amounts${search}`}

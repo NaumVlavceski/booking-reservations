@@ -5,7 +5,7 @@ import {Link} from "react-router-dom";
 import {getCancelledReservations, restoreReservation, type ReservationResponse} from "../lib/api/reservations";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {formatStay, formatWhen} from "../lib/dates";
 import {useDebouncedValue} from "../lib/useDebouncedValue";
 import {useToast} from "../lib/toast";
@@ -29,7 +29,7 @@ export default function CancelledReservationsPage() {
     // Wait for a pause in typing before asking the server
     const searchName = useDebouncedValue(name.trim());
 
-    const {data, isLoading, isFetching, isError, refetch, isRefetching} = useQuery({
+    const {data, isLoading, isFetching, isError, error, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "cancelled", {page, name: searchName, checkInFrom}],
         queryFn: () => getCancelledReservations({page, size: PAGE_SIZE, name: searchName, checkInFrom}),
         placeholderData: keepPreviousData, // keep showing the old page while the next one loads
@@ -53,7 +53,7 @@ export default function CancelledReservationsPage() {
         onError: (error) => {
             const message = isAxiosError(error) && error.response?.status === 409
                 ? "Can't restore: some of those nights have been booked since. Change its dates first, then restore it."
-                : apiErrorMessage(error, "Couldn't restore this booking.");
+                : errorMessage(error, "Couldn't restore this booking.");
             toast.show(message, {tone: "error"});
         },
     });
@@ -144,11 +144,9 @@ export default function CancelledReservationsPage() {
             )}
 
             {isLoading ? (
-                <ListSkeleton rows={4} label="Loading…"/>
+                <ListSkeleton rows={4} label="Loading cancelled bookings…"/>
             ) : isError && !data ? (
-                <ErrorState title="Couldn't load cancelled bookings" onRetry={() => refetch()} retrying={isRefetching}>
-                    Check your connection and try again.
-                </ErrorState>
+                <ErrorState title="Couldn't load cancelled bookings" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : items.length === 0 ? (
                 <EmptyState
                     icon={<CalendarXIcon size={24}/>}

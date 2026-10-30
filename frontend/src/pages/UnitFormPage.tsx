@@ -3,7 +3,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {useCallback, useState} from "react";
 import {createUnit, deleteUnit, getUnit, type UnitRequest, updateUnit} from "../lib/api/units.ts";
 import {getProperty} from "../lib/api/properties.ts";
-import {apiErrorMessage} from "../lib/api/client.ts";
+import {errorMessage, fieldErrors} from "../lib/errors";
 import {useReturnTo} from "../lib/useReturnTo";
 import ConfirmDialog from "../components/ConfirmDialog";
 import FormTopBar from "../components/FormTopBar";
@@ -15,7 +15,7 @@ import ChannelGuideLink from "../components/ChannelGuideLink";
 import {SectionCard} from "../components/ui/Card";
 import {TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
-import {FormSkeleton} from "../components/ui/States";
+import {FormSkeleton, RecordLoadError} from "../components/ui/States";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 
 const MESSAGES: ValidationMessages = {
@@ -41,7 +41,7 @@ export default function UnitFormPage() {
         queryKey: ["properties", propertyId],
         queryFn: () => getProperty(propertyId!),
     });
-    const {data: existing, isLoading: isLoadingExisting} = useQuery({
+    const {data: existing, isLoading: isLoadingExisting, error: loadError, refetch, isRefetching} = useQuery({
         queryKey: ["units", "detail", unitId],
         queryFn: () => getUnit(unitId!),
         enabled: isEditing,
@@ -55,6 +55,7 @@ export default function UnitFormPage() {
             capacity: existing.capacity,
         });
     }
+    const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
     const mutation = useMutation({
         mutationFn: (data: UnitRequest) =>
             isEditing ? updateUnit(unitId!, data) : createUnit(propertyId!, data),
@@ -62,10 +63,13 @@ export default function UnitFormPage() {
             // Prefix match — refreshes this property's list and the calendar's ["units", "all"].
             queryClient.invalidateQueries({queryKey: ["units"]});
             goBack();
-        }
+        },
+        onError: (error) => {
+            const fields = fieldErrors(error);
+            if (fields) showServerErrors(document.getElementById("unit-form") as HTMLFormElement | null, fields);
+        },
     })
     const [confirmDelete, setConfirmDelete] = useState(false);
-    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
     const {data: reservations} = useQuery({...allReservationsQuery, enabled: isEditing});
     const deleteMutation = useMutation({
         mutationFn: () => deleteUnit(unitId!),
@@ -99,7 +103,16 @@ export default function UnitFormPage() {
         return (
             <div className="mx-auto max-w-2xl">
                 <FormTopBar formId="unit-form" saving={false} title="Edit room" back={{to: backTo, onClick: handleBack}}/>
-                <FormSkeleton label="Loading unit..." sections={2}/>
+                <FormSkeleton label="Loading room..." sections={2}/>
+            </div>
+        );
+    }
+    // Never an empty form that could be saved over the real room.
+    if (isEditing && !existing && loadError) {
+        return (
+            <div className="mx-auto max-w-2xl">
+                <FormTopBar formId="unit-form" saving={false} title="Edit room" back={{to: backTo, onClick: handleBack}} hideSave/>
+                <RecordLoadError what="room" error={loadError} onRetry={() => refetch()} retrying={isRefetching} backTo={backTo}/>
             </div>
         );
     }
@@ -165,7 +178,7 @@ export default function UnitFormPage() {
                     </SectionCard>
 
                     {mutation.isError && (
-                        <Callout tone="danger" role="alert">{apiErrorMessage(mutation.error, "Something went wrong. Try again.")}</Callout>
+                        <Callout tone="danger" role="alert">{otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't save the room.")}</Callout>
                     )}
                 </form>
 
@@ -186,7 +199,7 @@ export default function UnitFormPage() {
                 confirmLabel="Delete room"
                 pending={deleteMutation.isPending}
                 error={deleteMutation.isError
-                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this room. Try again.")
+                    ? errorMessage(deleteMutation.error, "Couldn't delete this room.")
                     : null}
                 onConfirm={() => deleteMutation.mutate()}
                 onCancel={closeConfirm}

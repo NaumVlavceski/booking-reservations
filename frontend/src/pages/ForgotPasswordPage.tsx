@@ -1,9 +1,8 @@
 import {useEffect, useRef, useState} from "react";
 import {Link, Navigate, useLocation, useNavigate} from "react-router-dom";
 import {useMutation} from "@tanstack/react-query";
-import axios from "axios";
 import {forgotPassword, resetPassword, verifyResetCode} from "../lib/api/auth";
-import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
+import {errorCode, errorMessage} from "../lib/errors";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import {useToast} from "../lib/toast";
@@ -39,15 +38,6 @@ const MESSAGES: ValidationMessages = {
 };
 
 const emptyCode = () => Array<string>(CODE_LENGTH).fill("");
-
-/** Network trouble and rate limits get a friendly line; anything else shows the server's own message. */
-function friendlyError(error: unknown, fallback: string): string {
-    if (axios.isAxiosError(error)) {
-        if (!error.response) return "Couldn't reach RoomTrack. Check your connection and try again.";
-        if (error.response.status === 429) return "Too many attempts. Please wait a few minutes and try again.";
-    }
-    return apiErrorMessage(error, fallback);
-}
 
 export default function ForgotPasswordPage() {
     const navigate = useNavigate();
@@ -115,7 +105,7 @@ export default function ForgotPasswordPage() {
             codeInput.current?.focus();
         },
         onError: (error) => {
-            toast.show(friendlyError(error, "Couldn't send a new code right now. Try again in a moment."), {tone: "error"});
+            toast.show(errorMessage(error, "Couldn't send a new code."), {tone: "error"});
         },
     });
 
@@ -128,7 +118,7 @@ export default function ForgotPasswordPage() {
             setStep("password");
         },
         onError: (error) => {
-            if (apiErrorCode(error) === "INVALID_CODE") setFailedAttempts((n) => n + 1);
+            if (errorCode(error) === "INVALID_CODE") setFailedAttempts((n) => n + 1);
             // Start over with empty boxes and the cursor in the first one
             setDigits(emptyCode());
             codeInput.current?.focus();
@@ -245,7 +235,7 @@ export default function ForgotPasswordPage() {
 
                     {sendMutation.isError && (
                         <Callout tone="danger" role="alert">
-                            {friendlyError(sendMutation.error, "Couldn't send the code. Try again in a moment.")}
+                            {errorMessage(sendMutation.error, "Couldn't send the code.")}
                         </Callout>
                     )}
 
@@ -280,9 +270,9 @@ export default function ForgotPasswordPage() {
                                 </Callout>
                             ) : verifyMutation.isError && (
                                 <Callout tone="danger" className="text-left">
-                                    {apiErrorCode(verifyMutation.error) === "INVALID_CODE"
+                                    {errorCode(verifyMutation.error) === "INVALID_CODE"
                                         ? "Invalid or expired code. Check the email and try again, or request a new code."
-                                        : friendlyError(verifyMutation.error, "Couldn't check the code. Try again in a moment.")}
+                                        : errorMessage(verifyMutation.error, "Couldn't check the code.")}
                                 </Callout>
                             )}
                         </div>
@@ -353,17 +343,17 @@ export default function ForgotPasswordPage() {
                     />
 
                     {resetMutation.isError && (
-                        apiErrorCode(resetMutation.error) === "RESET_TOKEN_INVALID" ? (
+                        errorCode(resetMutation.error) === "RESET_TOKEN_INVALID" ? (
                             <Callout
                                 tone="danger"
                                 role="alert"
                                 action={<Button variant="secondary" size="sm" onClick={startAgain}>Start again</Button>}
                             >
-                                {apiErrorMessage(resetMutation.error, "This password reset has expired. Please start again.")}
+                                {errorMessage(resetMutation.error, "This password reset has expired. Please start again.")}
                             </Callout>
                         ) : (
                             <Callout tone="danger" role="alert">
-                                {friendlyError(resetMutation.error, "Couldn't change the password. Try again in a moment.")}
+                                {errorMessage(resetMutation.error, "Couldn't change the password.")}
                             </Callout>
                         )
                     )}

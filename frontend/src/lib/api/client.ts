@@ -3,22 +3,16 @@ import {tokenStorage} from "../auth/tokenStorage";
 import {markSessionExpired} from "../auth/session";
 import {clearOfflineCalendar} from "../offlineCalendar";
 
-/** The backend's human-readable `message` from an error response, if it sent one. */
-export function apiErrorMessage(error: unknown, fallback: string): string {
-    if (axios.isAxiosError<{ message?: string }>(error)) {
-        return error.response?.data?.message ?? fallback;
-    }
-    return fallback;
-}
+// Error wording for the user lives in lib/errors.ts.
 
-/** The backend's stable machine-readable `code` (e.g. EMAIL_NOT_VERIFIED), if it sent one. */
-export function apiErrorCode(error: unknown): string | undefined {
-    if (axios.isAxiosError<{ code?: string }>(error)) return error.response?.data?.code;
-    return undefined;
-}
+/** A request with no answer by then fails with "This is taking longer than usual" instead of spinning forever. */
+const REQUEST_TIMEOUT_MS = 20_000;
+/** For calls that legitimately take long: syncing with Booking.com, building the Excel file. */
+export const slowRequest = {timeout: 60_000} as const;
 
 export const apiClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8080",
+    timeout: REQUEST_TIMEOUT_MS,
 });
 
 /**
@@ -67,6 +61,8 @@ apiClient.interceptors.response.use(
         // the log-in call is also a 401 but not a session ending. 403 means "not allowed" and keeps you signed in.
         if (error.response?.status === 401 && sentToken && !isAuthCall) {
             endSession();
+            // The page is being replaced by the log-in page: settle never, so no error flashes on the way out.
+            return new Promise(() => {});
         }
 
         return Promise.reject(error);

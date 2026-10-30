@@ -12,8 +12,12 @@ function set(next: boolean) {
     listeners.forEach((notify) => notify());
 }
 
+/** No answer at all: offline or the server is down. A timeout is not one (the server is there, just slow). */
 export function isNetworkError(error: unknown): boolean {
-    return axios.isAxiosError(error) && !error.response && error.code !== axios.AxiosError.ERR_CANCELED;
+    return axios.isAxiosError(error) && !error.response
+        && error.code !== axios.AxiosError.ERR_CANCELED
+        && error.code !== axios.AxiosError.ECONNABORTED
+        && error.code !== axios.AxiosError.ETIMEDOUT;
 }
 
 export function reportApiError(error: unknown) {

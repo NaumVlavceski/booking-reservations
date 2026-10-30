@@ -1,6 +1,6 @@
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {getNotificationSettings, setNotificationsEnabled, type NotificationSettings} from "../lib/api/notifications";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {useToast} from "../lib/toast";
 import {BellIcon} from "./icons";
 import {Switch} from "./ui/Controls";
@@ -27,7 +27,7 @@ export default function NotificationToggle({compact = false, className = ""}: { 
         },
         onError: (error, _enabled, context) => {
             if (context?.previous) queryClient.setQueryData(KEY, context.previous);
-            toast.show(apiErrorMessage(error, "Couldn't change notification settings. Try again."), {tone: "error"});
+            toast.show(errorMessage(error, "Couldn't change email notifications."), {tone: "error"});
         },
     });
 

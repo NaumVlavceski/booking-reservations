@@ -1,7 +1,7 @@
 import {useMutation, useQueryClient} from "@tanstack/react-query";
 import {useNavigate} from "react-router-dom";
 import {getFailingCalendars, syncAllCalendars} from "../lib/api/calendars";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {useToast} from "../lib/toast";
 import {useConnected} from "../lib/apiReachability";
 import {RefreshIcon} from "./icons";
@@ -43,7 +43,7 @@ export default function SyncAllButton() {
             }
         },
         onError: (error) => {
-            toast.show(apiErrorMessage(error, "Couldn't sync right now. Check your connection and try again."), {tone: "error"});
+            toast.show(errorMessage(error, "Couldn't sync with Booking.com."), {tone: "error"});
         },
     });
 

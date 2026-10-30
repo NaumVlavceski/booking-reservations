@@ -1,4 +1,4 @@
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage, errorReason} from "../lib/errors";
 import {useState} from "react";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
@@ -22,6 +22,7 @@ import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Badge from "./ui/Badge";
 import Callout from "./ui/Callout";
+import {Skeleton} from "./ui/States";
 import {AlertIcon, CheckIcon, SyncIcon} from "./icons";
 
 export default function ExternalCalendars({unitId}: { unitId: string }) {
@@ -34,7 +35,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
     const channelNotice = useChannelNotice();
     const [noticeOpen, setNoticeOpen] = useState(false);
 
-    const {data: calendars, isLoading, isError, refetch} = useQuery({
+    const {data: calendars, isLoading, isError, error, refetch, isRefetching} = useQuery({
         queryKey: ["calendars", unitId],
         queryFn: () => getUnitCalendars(unitId),
     });
@@ -55,7 +56,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
             setFormError(null);
             toast.show(`${PLATFORM_NAME[added.platform]} connected. Press Sync now to bring its bookings in.`);
         },
-        onError: (err) => setFormError(apiErrorMessage(err, "Couldn't connect that calendar.")),
+        onError: (err) => setFormError(errorMessage(err, "Couldn't connect that calendar.")),
     });
 
     const deleteMutation = useMutation({
@@ -78,7 +79,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                 toast.show(`Synced with ${name}. The calendar is up to date.`);
             }
         },
-        onError: (err) => toast.show(apiErrorMessage(err, "Couldn't sync that calendar."), {tone: "error"}),
+        onError: (err) => toast.show(errorMessage(err, "Couldn't sync that calendar."), {tone: "error"}),
     });
 
     function handleAdd(e: React.FormEvent) {
@@ -112,12 +113,21 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                 </div>
             </div>
 
-            {isLoading && <p role="status" className="text-body-sm text-muted">Loading…</p>}
-            {isError && (
-                <Callout tone="danger" role="alert"
-                         action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Try again</Button>}>
-                    Couldn't load the connected channels.
+            {isLoading && (
+                <div role="status" aria-live="polite">
+                    <span className="sr-only">Loading connected channels…</span>
+                    <Skeleton className="h-16 w-full rounded-xl"/>
+                </div>
+            )}
+            {isError && !calendars && (
+                <Callout tone="danger" role="alert" title="Couldn't load the connected channels"
+                         action={<Button variant="secondary" size="sm" onClick={() => refetch()} loading={isRefetching}
+                                         loadingLabel="Trying again…">Try again</Button>}>
+                    {errorReason(error)}
                 </Callout>
+            )}
+            {calendars && calendars.length === 0 && (
+                <p className="text-body-sm text-muted">No channel connected yet. Paste a calendar link below to start.</p>
             )}
 
             {calendars && calendars.length > 0 && (
@@ -242,7 +252,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                 pendingLabel="Disconnecting…"
                 cancelLabel="Keep connected"
                 pending={deleteMutation.isPending}
-                error={deleteMutation.isError ? apiErrorMessage(deleteMutation.error, "Couldn't disconnect this calendar.") : null}
+                error={deleteMutation.isError ? errorMessage(deleteMutation.error, "Couldn't disconnect this calendar.") : null}
                 onConfirm={() => removing && deleteMutation.mutate(removing)}
                 onCancel={() => setRemoving(null)}
             />

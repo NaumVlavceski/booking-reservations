@@ -1,6 +1,6 @@
 import {type ReactNode, useState} from "react";
 import type {InvoiceFilters as Filters} from "../lib/api/invoices";
-import {formatPeriod} from "../lib/useInvoiceFilters";
+import {CLEARED, formatPeriod} from "../lib/useInvoiceFilters";
 import {SOURCE_LABEL, STATUS_LABEL} from "../lib/sources";
 import StayDatesPicker from "./StayDatesPicker";
 import {CloseIcon, FilterIcon} from "./icons";
@@ -30,7 +30,6 @@ const SOURCE_OPTIONS = [
     // {value: "AIRBNB", label: "Airbnb"},
 ] as const;
 
-const CLEARED: Filters = {from: "", to: "", status: "", source: ""};
 
 /**
  * A compact filter row for the invoices screens: one "Filters" button that opens a sheet (dates From → To,

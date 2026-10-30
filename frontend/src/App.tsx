@@ -23,6 +23,7 @@ import InvoiceUnitPage from "./pages/InvoiceUnitPage.tsx";
 import InvoiceMissingAmountsPage from "./pages/InvoiceMissingAmountsPage.tsx";
 import OnboardingPage from "./pages/OnboardingPage.tsx";
 import OnboardingGate from "./components/OnboardingGate.tsx";
+import CalendarGate from "./components/CalendarGate.tsx";
 
 
 export default function App() {
@@ -44,7 +45,7 @@ export default function App() {
                     <Route path="/dashboard/properties/:propertyId/units/:unitId" element={<UnitFormPage />} />
                     <Route path="/dashboard/reservations/new" element={<ReservationFormPage/>}/>
                     <Route path="/dashboard/reservations/:id" element={<ReservationFormPage/>}/>
-                    <Route path="/dashboard/calendar" element={<OnboardingGate><CalendarPage /></OnboardingGate>} />
+                    <Route path="/dashboard/calendar" element={<OnboardingGate><CalendarGate><CalendarPage /></CalendarGate></OnboardingGate>} />
                     <Route path="/dashboard/welcome" element={<OnboardingPage/>}/>
                     <Route path="/dashboard/conflicts" element={<ConflictsPage />} />
                     <Route path="/dashboard/sync-health" element={<SyncHealthPage/>}/>

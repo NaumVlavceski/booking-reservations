@@ -15,6 +15,8 @@ type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
  */
 export function useInlineValidation(messages: ValidationMessages = {}) {
     const [errors, setErrors] = useState<Record<string, string>>({});
+    // Server field messages for fields this form has no input for (shown in the form's error box instead).
+    const [otherErrors, setOtherErrors] = useState<string[]>([]);
 
     const messageFor = useCallback((el: Control): string | null => {
         if (el.validity.valid) return null;
@@ -38,6 +40,7 @@ export function useInlineValidation(messages: ValidationMessages = {}) {
             }
         }
         setErrors(next);
+        setOtherErrors([]);
         first?.focus();
         return first === null;
     }, [messageFor]);
@@ -63,5 +66,24 @@ export function useInlineValidation(messages: ValidationMessages = {}) {
         });
     }, []);
 
-    return {errors, validate, recheck, setError};
+    /** After the server rejects some fields: their messages go under those fields, and the first one gets focus. */
+    const showServerErrors = useCallback((form: HTMLFormElement | null, fieldErrors: Record<string, string>) => {
+        const shown: Record<string, string> = {};
+        const other: string[] = [];
+        let first: HTMLElement | null = null;
+        for (const [name, message] of Object.entries(fieldErrors)) {
+            const el = form?.elements.namedItem(name);
+            if (el instanceof HTMLElement) {
+                shown[name] = message;
+                first ??= el;
+            } else {
+                other.push(message);
+            }
+        }
+        setErrors((current) => ({...current, ...shown}));
+        setOtherErrors(other);
+        first?.focus();
+    }, []);
+
+    return {errors, validate, recheck, setError, showServerErrors, otherErrors};
 }

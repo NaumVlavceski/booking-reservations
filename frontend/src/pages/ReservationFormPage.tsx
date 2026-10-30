@@ -1,6 +1,6 @@
 import {repriceForm, type PricingField} from "../lib/pricing.ts";
 import axios from "axios";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage, fieldErrors, logError} from "../lib/errors";
 import {Navigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
@@ -23,10 +23,9 @@ import {AlertCircleIcon, CheckIcon} from "../components/icons";
 import Card from "../components/ui/Card";
 import {TextAreaField, TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
-import Button from "../components/ui/Button";
 import {Stepper} from "../components/ui/Controls";
 import {SegmentedControl} from "../components/ui/Segmented";
-import {FormSkeleton} from "../components/ui/States";
+import {FormSkeleton, RecordLoadError} from "../components/ui/States";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import {useReturnTo} from "../lib/useReturnTo";
 
@@ -63,11 +62,11 @@ export default function ReservationFormPage() {
     const prefillUnitId = searchParams.get("unitId");
     const prefillCheckIn = searchParams.get("checkIn");
     const datesErrorId = useId();
-    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
+    const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
 
     // Offline, a booking opened from the calendar's saved copy starts from that copy (view only: Save is off).
     const connected = useConnected();
-    const {data: existing, isLoading: isLoadingExisting, isError: loadFailed, refetch} = useQuery({
+    const {data: existing, isLoading: isLoadingExisting, error: loadError, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "detail", id],
         queryFn: () => getReservation(id!),
         enabled: isEditing,
@@ -142,10 +141,13 @@ export default function ReservationFormPage() {
         },
         onError: (error) => {
             if (axios.isAxiosError(error) && error.response?.status === 409) {
-                setConflictMessage(`${apiErrorMessage(error, "These dates are no longer available.")} Pick different dates, or choose another room on the calendar.`);
+                // Says which room and dates are taken, and what to do.
+                setConflictMessage(errorMessage(error, "Couldn't save the booking."));
             } else {
                 setConflictMessage(null);
             }
+            const fields = fieldErrors(error);
+            if (fields) showServerErrors(document.getElementById("reservation-form") as HTMLFormElement | null, fields);
         },
     });
     // Saves the form without leaving the page, for Move and Copy (they only use what is saved).
@@ -186,7 +188,10 @@ export default function ReservationFormPage() {
                                 queryClient.invalidateQueries({queryKey: ["reservations"]});
                                 toast.show("Booking restored.");
                             })
-                            .catch((err) => toast.show(apiErrorMessage(err, "Couldn't restore the booking."), {tone: "error"}));
+                            .catch((err) => {
+                                logError(err, "Undo cancel");
+                                toast.show(errorMessage(err, "Couldn't restore the booking."), {tone: "error"});
+                            });
                     },
                 } : undefined,
             });
@@ -258,14 +263,11 @@ export default function ReservationFormPage() {
         );
     }
 
-    if (isEditing && loadFailed && !existing) {
+    if (isEditing && loadError && !existing) {
         return (
             <div className="mx-auto max-w-2xl">
-                <FormTopBar formId="reservation-form" saving={false} title={title} back={back}/>
-                <Callout tone="danger" role="alert" title="Couldn't load this booking"
-                         action={<Button variant="secondary" onClick={() => refetch()}>Try again</Button>}>
-                    Check your connection and try again.
-                </Callout>
+                <FormTopBar formId="reservation-form" saving={false} title={title} back={back} hideSave/>
+                <RecordLoadError what="booking" error={loadError} onRetry={() => refetch()} retrying={isRefetching} backTo="/dashboard/calendar"/>
             </div>
         );
     }
@@ -319,7 +321,7 @@ export default function ReservationFormPage() {
                     <Callout tone="danger" role="alert">{conflictMessage}</Callout>
                 )}
                 {mutation.isError && !conflictMessage && (
-                    <Callout tone="danger" role="alert">{apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}</Callout>
+                    <Callout tone="danger" role="alert">{otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't save the booking.")}</Callout>
                 )}
 
                 {existing?.priceNeedsReview && !isCancelled && (
@@ -462,7 +464,7 @@ export default function ReservationFormPage() {
                 pendingLabel="Cancelling…"
                 cancelLabel="Keep booking"
                 pending={cancelMutation.isPending}
-                error={cancelMutation.isError ? apiErrorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
+                error={cancelMutation.isError ? errorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
                 onConfirm={() => cancelMutation.mutate()}
                 onCancel={() => setConfirmCancel(false)}
             />

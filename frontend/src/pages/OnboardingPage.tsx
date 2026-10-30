@@ -3,7 +3,7 @@ import {Link, Navigate, useNavigate, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {createProperty, propertiesQuery, updateProperty, type PropertyRequest, type PropertyResponse} from "../lib/api/properties";
 import {getUnitsForProperty} from "../lib/api/units";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage, fieldErrors} from "../lib/errors";
 import {
     ONBOARDING_PATH,
     ONBOARDING_STEPS,
@@ -47,7 +47,7 @@ export default function OnboardingPage() {
     const toast = useToast();
     const [searchParams] = useSearchParams();
     const {email, state} = useOnboardingState();
-    const {data: properties, isError, refetch, isRefetching} = useQuery(propertiesQuery);
+    const {data: properties, isError, error, refetch, isRefetching} = useQuery(propertiesQuery);
 
     const active = state?.status === "active" ? state : null;
     // The property this setup created, as long as it still exists.
@@ -55,12 +55,8 @@ export default function OnboardingPage() {
     // Steps 2 and 3 need that property; without it everything starts at step 1.
     const step = property ? toStep(Number(searchParams.get("step")) || active?.step || 1) : 1;
 
-    if (isError) {
-        return (
-            <ErrorState title="Couldn't load your properties" onRetry={() => refetch()} retrying={isRefetching}>
-                Check your connection and try again.
-            </ErrorState>
-        );
+    if (isError && !properties) {
+        return <ErrorState title="Couldn't load your properties" error={error} onRetry={() => refetch()} retrying={isRefetching}/>;
     }
     if (!email || !properties) {
         return <div className="mx-auto max-w-2xl"><FormSkeleton label="Loading setup..." sections={1}/></div>;
@@ -175,7 +171,7 @@ function PropertyStep({property, onSaved, onDone}: {
     // Coming back to this step edits the property it created instead of adding a second one.
     const [form, setForm] = useState<PropertyRequest>({name: property?.name ?? "", address: property?.address ?? ""});
     const [unitCount, setUnitCount] = useState("1");
-    const {errors, validate, recheck} = useInlineValidation(PROPERTY_MESSAGES);
+    const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(PROPERTY_MESSAGES);
     const mutation = useMutation({
         mutationFn: () => property
             ? updateProperty(property.id, form)
@@ -188,6 +184,10 @@ function PropertyStep({property, onSaved, onDone}: {
                 queryClient.invalidateQueries({queryKey: ["units"]}),
             ]);
             onDone();
+        },
+        onError: (error) => {
+            const fields = fieldErrors(error);
+            if (fields) showServerErrors(document.getElementById("onboarding-property") as HTMLFormElement | null, fields);
         },
     });
 
@@ -211,7 +211,7 @@ function PropertyStep({property, onSaved, onDone}: {
             </SectionCard>
             {mutation.isError && (
                 <Callout tone="danger" role="alert">
-                    {apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}
+                    {otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't save the property.")}
                 </Callout>
             )}
             <StepBar>
@@ -232,7 +232,7 @@ function usePropertyUnits(propertyId: string) {
 
 function RoomsStep({property, onBack, onNext}: { property: PropertyResponse; onBack: () => void; onNext: () => void }) {
     const fromHere = useFromHere();
-    const {data: units, isLoading, isError, refetch} = usePropertyUnits(property.id);
+    const {data: units, isLoading, isError, error, refetch, isRefetching} = usePropertyUnits(property.id);
     const addRoomPath = `/dashboard/properties/${property.id}/units/new`;
 
     return (
@@ -250,10 +250,8 @@ function RoomsStep({property, onBack, onNext}: { property: PropertyResponse; onB
 
             {isLoading ? (
                 <ListSkeleton rows={2} label="Loading rooms..."/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load the rooms" onRetry={() => refetch()}>
-                    Check your connection and try again.
-                </ErrorState>
+            ) : isError && !units ? (
+                <ErrorState title="Couldn't load the rooms" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : !units || units.length === 0 ? (
                 <EmptyState
                     icon={<BedIcon size={24}/>}
@@ -296,7 +294,7 @@ function RoomsStep({property, onBack, onNext}: { property: PropertyResponse; onB
 }
 
 function ChannelsStep({property, onBack, onFinish}: { property: PropertyResponse; onBack: () => void; onFinish: () => void }) {
-    const {data: units, isLoading, isError, refetch} = usePropertyUnits(property.id);
+    const {data: units, isLoading, isError, error, refetch, isRefetching} = usePropertyUnits(property.id);
     const [chosenId, setChosenId] = useState<string>();
     const unit = units?.find((u) => u.id === chosenId) ?? units?.[0];
 
@@ -304,10 +302,8 @@ function ChannelsStep({property, onBack, onFinish}: { property: PropertyResponse
         <div className="space-y-4">
             {isLoading ? (
                 <FormSkeleton label="Loading rooms..." sections={1}/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load the rooms" onRetry={() => refetch()}>
-                    Check your connection and try again.
-                </ErrorState>
+            ) : isError && !units ? (
+                <ErrorState title="Couldn't load the rooms" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : !unit ? (
                 <EmptyState icon={<BedIcon size={24}/>} title="Add a room first"
                             action={<Button variant="secondary" onClick={onBack}>Back to rooms</Button>}>
