@@ -14,13 +14,17 @@ import {
     ChannelsIcon,
     ChevronRightIcon,
     CompassIcon,
+    FileTextIcon,
     HelpIcon,
     HouseIcon,
     LockIcon,
     LogoutIcon,
     MoreHorizontalIcon,
+    PersonIcon,
     ReceiptIcon,
+    ShieldIcon,
 } from "./icons";
+import LegalLinks from "./LegalLinks";
 import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
 import ThemeToggle from "./ThemeToggle";
@@ -39,6 +43,7 @@ type IconType = ComponentType<{ size?: number; className?: string }>;
 
 const HELP_PATH = "/dashboard/help/connect-calendars";
 const PASSWORD_PATH = "/dashboard/account/password";
+const ACCOUNT_PATH = "/dashboard/account";
 
 function isChannels(pathname: string) {
     return pathname.startsWith("/dashboard/conflicts") || pathname.startsWith("/dashboard/sync-health");
@@ -100,7 +105,7 @@ export default function DashboardLayout() {
         navigate("/login", {replace: true});
     }
 
-    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname === PASSWORD_PATH;
+    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname.startsWith(ACCOUNT_PATH);
     const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
         {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
         {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: ChannelsIcon, active: isChannels(pathname), count: alertCount},
@@ -151,6 +156,9 @@ export default function DashboardLayout() {
                     <SidebarLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} active={pathname === PASSWORD_PATH}>
                         Change password
                     </SidebarLink>
+                    <SidebarLink to={ACCOUNT_PATH} icon={PersonIcon} active={pathname === ACCOUNT_PATH}>
+                        Account and privacy
+                    </SidebarLink>
                     <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
                         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
                             {initials(me?.fullName)}
@@ -163,6 +171,7 @@ export default function DashboardLayout() {
                             <LogoutIcon size={20}/>
                         </button>
                     </div>
+                    <LegalLinks/>
                 </div>
             </aside>
 
@@ -248,6 +257,11 @@ export default function DashboardLayout() {
                         <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
                         <SheetLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} onClick={closeMore} chevron>Change password</SheetLink>
+                        <SheetLink to={ACCOUNT_PATH} icon={PersonIcon} onClick={closeMore} chevron>Account and privacy</SheetLink>
+                    </SheetGroup>
+                    <SheetGroup>
+                        <SheetLink to="/privacy" icon={ShieldIcon} onClick={closeMore} chevron>Privacy Policy</SheetLink>
+                        <SheetLink to="/terms" icon={FileTextIcon} onClick={closeMore} chevron>Terms of Service</SheetLink>
                     </SheetGroup>
                     <SheetGroup>
                         <button type="button" onClick={handleLogout} className={sheetRow}>

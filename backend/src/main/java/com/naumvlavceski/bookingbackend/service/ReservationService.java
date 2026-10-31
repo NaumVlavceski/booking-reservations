@@ -5,10 +5,13 @@ import com.naumvlavceski.bookingbackend.dto.MoveOptionResponse;
 import com.naumvlavceski.bookingbackend.dto.PageResponse;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
 import com.naumvlavceski.bookingbackend.dto.ReservationResponse;
+import com.naumvlavceski.bookingbackend.model.ExternalEvent;
 import com.naumvlavceski.bookingbackend.model.Reservation;
 import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.model.Unit;
+import com.naumvlavceski.bookingbackend.repository.ExternalEventRepository;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
+import com.naumvlavceski.bookingbackend.repository.SyncConflictRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import io.hypersistence.utils.hibernate.type.range.Range;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -28,6 +33,31 @@ import java.util.*;
 public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UnitRepository unitRepository;
+    private final ExternalEventRepository externalEventRepository;
+    private final SyncConflictRepository syncConflictRepository;
+
+    /**
+     * Removes the guest's personal details from one booking (name, email, phone, notes) and records when.
+     * Dates, room, status, source, guest count and amounts stay, for the owner's accounting. For a booking imported
+     * from Booking.com, the copy of the guest's name kept in a booking conflict about the same event goes too.
+     * Copies of the booking made with "Copy" are separate bookings and must be erased one by one.
+     */
+    @Transactional
+    public ReservationResponse eraseGuest(UUID ownerId, UUID reservationId) {
+        Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId)
+                .orElseThrow(() -> new NoSuchElementException("Reservation not found"));
+        reservation.setGuestName(null);
+        reservation.setGuestEmail(null);
+        reservation.setGuestPhone(null);
+        reservation.setNotes(null);
+        reservation.setGuestErasedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        for (ExternalEvent event : externalEventRepository.findAllByReservationId(reservation.getId())) {
+            syncConflictRepository.findByExternalCalendarIdAndExternalUid(event.getExternalCalendarId(), event.getUid())
+                    .filter(conflict -> ownerId.equals(conflict.getOwnerId()))
+                    .ifPresent(conflict -> conflict.setIncomingSummary(null));
+        }
+        return toResponse(reservationRepository.save(reservation));
+    }
 
     public List<ReservationResponse> findAllForOwner(UUID ownerId, UUID unitId, ReservationStatus status) {
         List<Reservation> reservations = reservationRepository.findAllByOwnerId(ownerId);
@@ -223,7 +253,8 @@ public class ReservationService {
                 r.getTotalAmount(),
                 r.getNotes(),
                 r.isPriceNeedsReview(),
-                r.getCancelledAt()
+                r.getCancelledAt(),
+                r.getGuestErasedAt()
         );
     }
 }

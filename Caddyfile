@@ -1,3 +1,23 @@
-res-booking-back.duckdns.org, api.roomtrack.app  {
-    reverse_proxy backend:8080
+# Access log on stdout (docker-compose caps its size). Secrets never reach it: the calendar feed token in
+# /api/ical/<token>.ics, the unsubscribe ?token=, the Authorization header and the refreshed JWT the backend
+# returns in X-Refreshed-Token are replaced or dropped. Client IPs stay, for abuse investigations.
+(access_log) {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "(/api/ical/)[^/?]+|(token=)[^&]+" "${1}${2}REDACTED"
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				resp_headers>X-Refreshed-Token delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+}
+
+api.roomtrack.app {
+	import access_log
+	reverse_proxy backend:8080
 }

@@ -24,7 +24,7 @@ import {amountDue, layoutBarLabel} from "../lib/barLabel";
 import {formatStay} from "../lib/dates";
 import {easeOutQuad, flingTail} from "../lib/fling";
 
-const MAX_RANGE_DAYS = 5 * 365;
+const MAX_RANGE_DAYS = 2 * 365;
 const CHUNK = 20;
 const BUFFER_CHUNKS = 1;
 

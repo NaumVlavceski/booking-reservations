@@ -38,7 +38,7 @@ public class EmailVerificationService {
     private final EmailService emailService;
     private final Clock clock;
     private final OneTimeCodes oneTimeCodes;
-    private final boolean mailEnabled;
+    private final boolean logCodes;
     private final Duration ttl;
     private final int maxAttempts;
     private final Duration resendCooldown;
@@ -50,7 +50,7 @@ public class EmailVerificationService {
                                     EmailService emailService,
                                     Clock clock,
                                     @Value("${app.auth.code-secret}") String secret,
-                                    @Value("${app.mail.enabled:false}") boolean mailEnabled,
+                                    @Value("#{@mailConfig.logsCodes()}") boolean logCodes,
                                     @Value("${app.auth.code-ttl-minutes:15}") int ttlMinutes,
                                     @Value("${app.auth.code-max-attempts:5}") int maxAttempts,
                                     @Value("${app.auth.resend-cooldown-seconds:60}") int cooldownSeconds,
@@ -60,7 +60,7 @@ public class EmailVerificationService {
         this.emailService = emailService;
         this.clock = clock;
         this.oneTimeCodes = new OneTimeCodes(secret);
-        this.mailEnabled = mailEnabled;
+        this.logCodes = logCodes;
         this.ttl = Duration.ofMinutes(ttlMinutes);
         this.maxAttempts = maxAttempts;
         this.resendCooldown = Duration.ofSeconds(cooldownSeconds);
@@ -112,7 +112,8 @@ public class EmailVerificationService {
 
     /**
      * Checks the code and, if right, marks the address verified. Wrong guesses are counted and kept
-     * even though the call then throws (hence noRollbackFor).
+     * even though the call then throws (hence noRollbackFor). Every failure (unknown or verified address, wrong,
+     * expired or used-up code) is the same INVALID_CODE answer, so it never tells whether an address is registered.
      */
     @Transactional(noRollbackFor = VerificationException.class)
     public AppUser verify(String rawEmail, String rawCode) {
@@ -124,23 +125,22 @@ public class EmailVerificationService {
         AppUser user = found.get();
 
         Optional<EmailVerification> open = codes.findFirstByUserIdAndConsumedAtIsNullOrderByCreatedAtDesc(user.getId());
-        if (open.isEmpty()) throw invalid();
+        if (open.isEmpty()) {
+            oneTimeCodes.burn(rawCode);
+            throw invalid();
+        }
         EmailVerification v = open.get();
 
         Instant now = clock.instant();
-        if (!v.getExpiresAt().isAfter(now)) {
-            throw new VerificationException(VerificationException.CODE_EXPIRED,
-                    "This code has expired. Request a new one.");
+        if (!v.getExpiresAt().isAfter(now) || v.getAttempts() >= maxAttempts) {
+            oneTimeCodes.burn(rawCode);
+            throw invalid();
         }
-        if (v.getAttempts() >= maxAttempts) throw tooMany();
 
         if (!oneTimeCodes.matches(v.getCodeHash(), user.getId(), rawCode)) {
             v.setAttempts(v.getAttempts() + 1);
             codes.save(v);
-            if (v.getAttempts() >= maxAttempts) throw tooMany();
-            int left = maxAttempts - v.getAttempts();
-            throw new VerificationException(VerificationException.INVALID_CODE,
-                    "That code is not correct. " + left + (left == 1 ? " attempt" : " attempts") + " left.");
+            throw invalid();
         }
 
         v.setConsumedAt(now);
@@ -152,11 +152,6 @@ public class EmailVerificationService {
     private static VerificationException invalid() {
         return new VerificationException(VerificationException.INVALID_CODE,
                 "That code is not correct or has expired. Check the code or request a new one.");
-    }
-
-    private static VerificationException tooMany() {
-        return new VerificationException(VerificationException.TOO_MANY_ATTEMPTS,
-                "Too many wrong attempts. Request a new code.");
     }
 
     private static String normalize(String email) {
@@ -174,8 +169,7 @@ public class EmailVerificationService {
     }
 
     private void deliver(AppUser user, String code) {
-        if (!mailEnabled) {
-            // Local development only: there is no mail provider to read the code from
+        if (logCodes) {
             log.info("[DEV ONLY] Email verification code for {}: {}", user.getEmail(), code);
         }
         String ttlText = ttl.toMinutes() + " minutes";

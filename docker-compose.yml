@@ -1,8 +1,15 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:16
     container_name: booking-postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: booking
       POSTGRES_USER: booking
@@ -22,16 +29,19 @@ services:
       context: ./backend
     container_name: booking-backend
     restart: unless-stopped
+    logging: *default-logging
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/booking
       SPRING_DATASOURCE_USERNAME: booking
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       APP_JWT_SECRET: ${JWT_SECRET}
       EMAIL_CODE_SECRET: ${EMAIL_CODE_SECRET}
+      EMAIL_LOG_RETENTION_DAYS: ${EMAIL_LOG_RETENTION_DAYS:-90}
       APP_CORS_ALLOWED_ORIGINS: ${FRONTEND_URL}
+      APP_FRONTEND_URL: ${FRONTEND_URL}
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
-      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-RoomTrack <onboarding@resend.dev>}
       APP_JWT_IDLE_TIMEOUT_MS: ${APP_JWT_IDLE_TIMEOUT_MS}
@@ -47,6 +57,7 @@ services:
     image: caddy:2
     container_name: booking-caddy
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"

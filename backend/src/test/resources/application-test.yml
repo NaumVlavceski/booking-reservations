@@ -10,7 +10,12 @@ spring:
 app:
   auth:
     code-secret: test-only-code-secret-test-only-code-secret-1234
-    ip-limit-per-hour: 100000
+  # MockMvc requests all come from 127.0.0.1: per-IP limits are lifted unless a test sets its own remote address.
+  # Per-account limits, failed logins, feed misses, unsubscribe and forgot-password per IP keep their real values.
+  rate-limit:
+    auth-per-ip: {max: 100000, window: 1h}
+    register-per-ip: {max: 100000, window: 1h}
+    resend-per-ip: {max: 100000, window: 1h}
   jwt:
     secret: test-only-secret-test-only-secret-test-only-1234
     # Same values the tests used to need as env vars; timeouts only, not secrets

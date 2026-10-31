@@ -50,9 +50,9 @@ class PasswordResetServiceTest {
         when(rateLimiter.tryAcquire(anyString(), anyInt(), any())).thenReturn(true);
     }
 
-    private PasswordResetService newService(boolean mailEnabled) {
+    private PasswordResetService newService(boolean logCodes) {
         return new PasswordResetService(users, resets, emailService, mock(PasswordEncoder.class), rateLimiter,
-                Clock.systemUTC(), "unit-test-code-secret-unit-test-code-secret", mailEnabled, 10, 10, 5, 60, 5);
+                Clock.systemUTC(), "unit-test-code-secret-unit-test-code-secret", logCodes, 10, 10, 5, 60, 5);
     }
 
     private static Logger serviceLogger() {
@@ -65,7 +65,7 @@ class PasswordResetServiceTest {
         appender.start();
         serviceLogger().addAppender(appender);
         try {
-            newService(true).requestReset("owner@example.com");
+            newService(false).requestReset("owner@example.com");
             ArgumentCaptor<EmailMessage> msg = ArgumentCaptor.forClass(EmailMessage.class);
             verify(emailService).send(any(), eq("PASSWORD_RESET"), msg.capture());
             Matcher m = CODE.matcher(msg.getValue().text());
@@ -87,7 +87,7 @@ class PasswordResetServiceTest {
         appender.start();
         serviceLogger().addAppender(appender);
         try {
-            newService(false).requestReset("owner@example.com");
+            newService(true).requestReset("owner@example.com");
             assertEquals(1, appender.list.size());
             assertTrue(appender.list.get(0).getFormattedMessage().startsWith("[DEV ONLY]"));
         } finally {

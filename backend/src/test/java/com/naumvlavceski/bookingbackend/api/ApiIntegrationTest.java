@@ -12,12 +12,22 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.naumvlavceski.bookingbackend.model.AppUser;
+import com.naumvlavceski.bookingbackend.model.ConflictKind;
+import com.naumvlavceski.bookingbackend.model.ConflictStatus;
+import com.naumvlavceski.bookingbackend.model.ReservationSource;
+import com.naumvlavceski.bookingbackend.model.SyncConflict;
 import com.naumvlavceski.bookingbackend.repository.AppUserRepository;
+import com.naumvlavceski.bookingbackend.repository.SyncConflictRepository;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -34,6 +44,8 @@ class ApiIntegrationTest {
     @Autowired MockMvc mvc;
 
     private static final String PASSWORD = "Pw-" + UUID.randomUUID();
+    // Registration needs the Terms and Privacy Policy accepted (versions as shown by the frontend)
+    static final String ACCEPT_TERMS = "\"acceptedTerms\":true,\"termsVersion\":\"2026-10-30\",\"privacyVersion\":\"2026-10-30\"";
 
     // ---------- helpers ----------
 
@@ -49,7 +61,7 @@ class ApiIntegrationTest {
 
     private static String registerJson(String email) {
         return "{\"contactPhone\":\"1\",\"email\":\"" + email
-                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}";
+                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"," + ACCEPT_TERMS + "}";
     }
 
     @Autowired AppUserRepository appUsers;
@@ -119,7 +131,8 @@ class ApiIntegrationTest {
     void emailIsCaseInsensitive() throws Exception {
         String email = uniqueEmail();
         send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
-        send(post("/api/auth/register"), null, registerJson(email.toUpperCase())).andExpect(status().isBadRequest());
+        // The same address in capitals is no second account (and the answer doesn't reveal that it exists)
+        send(post("/api/auth/register"), null, registerJson(email.toUpperCase())).andExpect(status().isAccepted());
         markVerified(email);
         send(post("/api/auth/login"), null, "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"" + PASSWORD + "\"}")
                 .andExpect(status().isOk());
@@ -133,6 +146,31 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.message").value(containsString("Email must be a well-formed email address")))
                 .andExpect(jsonPath("$.message").value(containsString("Full name must not be blank")))
                 .andExpect(jsonPath("$.message").value(containsString("Password size must be between 8 and 72")));
+    }
+
+    @Test
+    void registeringRequiresAcceptingTheTermsAndStoresWhatWasAccepted() throws Exception {
+        String email = uniqueEmail();
+        String withoutConsent = registerJson(email).replace("\"acceptedTerms\":true", "\"acceptedTerms\":false");
+        send(post("/api/auth/register"), null, withoutConsent).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.acceptedTerms").exists());
+        String noVersion = registerJson(email).replace(",\"termsVersion\":\"2026-10-30\"", "");
+        send(post("/api/auth/register"), null, noVersion).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.termsVersion").exists());
+
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
+        AppUser stored = appUsers.findFirstByEmailIgnoreCase(email).orElseThrow();
+        assertNotNull(stored.getTermsAcceptedAt());
+        assertEquals("2026-10-30", stored.getTermsVersion());
+        assertEquals("2026-10-30", stored.getPrivacyVersion());
+
+        markVerified(email);
+        String token = JsonPath.read(send(post("/api/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}").andReturn().getResponse().getContentAsString(), "$.token");
+        send(get("/api/me"), token, null)
+                .andExpect(jsonPath("$.termsVersion").value("2026-10-30"))
+                .andExpect(jsonPath("$.privacyVersion").value("2026-10-30"))
+                .andExpect(jsonPath("$.termsAcceptedAt").exists());
     }
 
     @Test
@@ -150,13 +188,61 @@ class ApiIntegrationTest {
         String email = uniqueEmail();
         send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
         markVerified(email);
-        for (int i = 0; i < 10; i++) {
+        // Successful logins don't use up tries
+        for (int i = 0; i < 6; i++) {
+            send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}")
+                    .andExpect(status().isOk());
+        }
+        for (int i = 0; i < 5; i++) {
             send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"wrong-" + i + "\"}")
                     .andExpect(status().isUnauthorized());
         }
         // Different case is the same address; the right password no longer helps once the tries are used up
         send(post("/api/auth/login"), null, "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"" + PASSWORD + "\"}")
-                .andExpect(status().isTooManyRequests());
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"))
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+    }
+
+    @Test
+    void failedLoginsAreLimitedPerIpAcrossAddresses() throws Exception {
+        String ip = "203.0.113." + (int) (Math.random() * 250);
+        // Real default: 20 failed tries per 15 minutes from one address, whatever addresses are tried
+        for (int i = 0; i < 100; i++) {
+            int status = mvc.perform(post("/api/auth/login").with(r -> { r.setRemoteAddr(ip); return r; })
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"" + uniqueEmail() + "\",\"password\":\"x\"}"))
+                    .andReturn().getResponse().getStatus();
+            if (status == 429) return;
+            assertEquals(401, status);
+        }
+        fail("never limited");
+    }
+
+    @Test
+    void unknownAddressAndWrongPasswordLookTheSame() throws Exception {
+        String email = uniqueEmail();
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
+        markVerified(email);
+        String known = send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"wrong-pass\"}")
+                .andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        String unknown = send(post("/api/auth/login"), null, "{\"email\":\"ghost-" + email + "\",\"password\":\"wrong-pass\"}")
+                .andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        assertEquals(known.replaceAll("\"timestamp\":\"[^\"]*\"", ""), unknown.replaceAll("\"timestamp\":\"[^\"]*\"", ""));
+    }
+
+    @Test
+    void registeringAnExistingAddressAnswersLikeANewOne() throws Exception {
+        String email = uniqueEmail();
+        String first = send(post("/api/auth/register"), null, registerJson(email))
+                .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
+        markVerified(email);
+        String again = send(post("/api/auth/register"), null, registerJson(email))
+                .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
+        assertEquals(first, again);
+        // Nothing about the existing account changed: the original password still works
+        send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}")
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -264,6 +350,119 @@ class ApiIntegrationTest {
         send(get("/api/reservations"), intruder, null).andExpect(jsonPath("$.length()").value(0));
     }
 
+    @Autowired SyncConflictRepository syncConflicts;
+
+    private static UUID ownerOf(String token) {
+        String payload = new String(Base64.getUrlDecoder().decode(token.split("\\.")[1]), StandardCharsets.UTF_8);
+        return UUID.fromString(JsonPath.read(payload, "$.ownerId"));
+    }
+
+    private static String idOf(ResultActions created) throws Exception {
+        return JsonPath.read(created.andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), "$.id");
+    }
+
+    /** Owner B uses owner A's ids on every endpoint: always 404 or an empty answer, and A's data stays as it was. */
+    @Test
+    void everyEndpointKeepsOwnersApart() throws Exception {
+        String a = registerAndGetToken();
+        String b = registerAndGetToken();
+
+        String aProperty = createProperty(a, 2);
+        String aUnits = send(get("/api/properties/" + aProperty + "/units"), a, null).andReturn().getResponse().getContentAsString();
+        String aUnit = JsonPath.read(aUnits, "$[0].id");
+        String aUnit2 = JsonPath.read(aUnits, "$[1].id");
+        String aRes = idOf(send(post("/api/reservations"), a, reservationJson(aUnit, "2040-01-01", "2040-01-04", null)));
+        String aCal = idOf(send(post("/api/units/" + aUnit + "/calendars"), a,
+                "{\"icsUrl\":\"https://ical.booking.com/v1/export?t=tenant-test\"}"));
+        SyncConflict conflict = new SyncConflict();
+        conflict.setOwnerId(ownerOf(a));
+        conflict.setUnitId(UUID.fromString(aUnit));
+        conflict.setExternalCalendarId(UUID.fromString(aCal));
+        conflict.setExternalUid("tenant-test-uid");
+        conflict.setPlatform(ReservationSource.BOOKING);
+        conflict.setIncomingStart(LocalDate.of(2040, 1, 2));
+        conflict.setIncomingEnd(LocalDate.of(2040, 1, 3));
+        conflict.setKind(ConflictKind.NEW_OVERLAP);
+        conflict.setStatus(ConflictStatus.OPEN);
+        String aConflict = syncConflicts.save(conflict).getId().toString();
+
+        String bProperty = createProperty(b, 1);
+        String bUnit = firstUnitId(b, bProperty);
+        String bRes = idOf(send(post("/api/reservations"), b, reservationJson(bUnit, "2040-02-01", "2040-02-03", null)));
+
+        // properties and units
+        send(get("/api/properties/" + aProperty), b, null).andExpect(status().isNotFound());
+        send(put("/api/properties/" + aProperty), b, "{\"name\":\"hax\",\"address\":\"x\"}").andExpect(status().isNotFound());
+        send(delete("/api/properties/" + aProperty), b, null).andExpect(status().isNotFound());
+        send(get("/api/properties/" + aProperty + "/units"), b, null).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        send(post("/api/properties/" + aProperty + "/units"), b, "{\"name\":\"hax\",\"capacity\":1}").andExpect(status().isNotFound());
+        send(get("/api/units/" + aUnit), b, null).andExpect(status().isNotFound());
+        send(put("/api/units/" + aUnit), b, "{\"name\":\"hax\",\"capacity\":1}").andExpect(status().isNotFound());
+        send(delete("/api/units/" + aUnit), b, null).andExpect(status().isNotFound());
+        send(get("/api/units"), b, null).andExpect(jsonPath("$[*].id", not(hasItem(aUnit))));
+
+        // reservations, including move/copy targets in either direction
+        send(get("/api/reservations/" + aRes), b, null).andExpect(status().isNotFound());
+        send(put("/api/reservations/" + aRes), b, reservationJson(bUnit, "2040-03-01", "2040-03-02", null)).andExpect(status().isNotFound());
+        send(put("/api/reservations/" + bRes), b, reservationJson(aUnit, "2040-03-01", "2040-03-02", null)).andExpect(status().isNotFound());
+        send(delete("/api/reservations/" + aRes), b, null).andExpect(status().isNotFound());
+        send(get("/api/reservations/" + aRes + "/available-options"), b, null).andExpect(status().isNotFound());
+        send(post("/api/reservations/" + aRes + "/move"), b, "{\"unitId\":\"" + bUnit + "\"}").andExpect(status().isNotFound());
+        send(post("/api/reservations/" + bRes + "/move"), b, "{\"unitId\":\"" + aUnit2 + "\"}").andExpect(status().isNotFound());
+        send(post("/api/reservations/" + aRes + "/copy"), b, "{\"unitIds\":[\"" + bUnit + "\"]}").andExpect(status().isNotFound());
+        send(post("/api/reservations/" + bRes + "/copy"), b, "{\"unitIds\":[\"" + aUnit2 + "\"]}").andExpect(status().isNotFound());
+        send(get("/api/reservations/" + aUnit + "/unit"), b, null).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        send(get("/api/reservations?unitId=" + aUnit), b, null).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        send(get("/api/reservations/cancelled"), b, null).andExpect(jsonPath("$.items[*].id", not(hasItem(aRes))));
+
+        // external calendars
+        send(get("/api/units/" + aUnit + "/calendars"), b, null).andExpect(status().isNotFound());
+        send(post("/api/units/" + aUnit + "/calendars"), b, "{\"icsUrl\":\"https://ical.booking.com/v1/export?t=hax\"}").andExpect(status().isNotFound());
+        send(post("/api/calendars/" + aCal + "/sync"), b, null).andExpect(status().isNotFound());
+        send(delete("/api/calendars/" + aCal), b, null).andExpect(status().isNotFound());
+        send(get("/api/calendars/health"), b, null).andExpect(jsonPath("$[*].id", not(hasItem(aCal))));
+        send(post("/api/calendars/sync-all"), b, null).andExpect(jsonPath("$.total").value(0));
+
+        // invoices (earnings), including B's own property combined with A's room
+        send(get("/api/invoices/properties"), b, null).andExpect(jsonPath("$[*].propertyId", not(hasItem(aProperty))));
+        send(get("/api/invoices/properties/" + aProperty + "/units"), b, null).andExpect(status().isNotFound());
+        send(get("/api/invoices/units/" + aUnit + "/reservations"), b, null).andExpect(status().isNotFound());
+        send(get("/api/invoices/properties/" + aProperty + "/missing-amounts"), b, null).andExpect(status().isNotFound());
+        send(get("/api/invoices/properties/" + bProperty + "/missing-amounts?unitId=" + aUnit), b, null).andExpect(status().isNotFound());
+        send(get("/api/invoices/properties/" + aProperty + "/export"), b, null).andExpect(status().isNotFound());
+        send(get("/api/invoices/properties/" + bProperty + "/export?unitId=" + aUnit), b, null).andExpect(status().isNotFound());
+
+        // booking conflicts and notification settings
+        send(get("/api/conflicts"), b, null).andExpect(jsonPath("$[*].id", not(hasItem(aConflict))));
+        send(post("/api/conflicts/" + aConflict + "/dismiss"), b, null).andExpect(status().isNotFound());
+        send(put("/api/notifications/settings"), b, "{\"enabled\":false}").andExpect(status().isOk());
+
+        // A's data is untouched
+        send(get("/api/properties/" + aProperty), a, null).andExpect(jsonPath("$.name").value("House"));
+        send(get("/api/properties/" + aProperty + "/units"), a, null).andExpect(jsonPath("$.length()").value(2));
+        send(get("/api/reservations/" + aRes), a, null)
+                .andExpect(jsonPath("$.status").value("CONFIRMED")).andExpect(jsonPath("$.unitId").value(aUnit));
+        send(get("/api/units/" + aUnit + "/calendars"), a, null).andExpect(jsonPath("$.length()").value(1));
+        send(get("/api/conflicts"), a, null).andExpect(jsonPath("$[*].id", hasItem(aConflict)));
+        send(get("/api/notifications/settings"), a, null).andExpect(jsonPath("$.enabled").value(true));
+    }
+
+    @Test
+    void swaggerIsNotPublicWhenDisabled() throws Exception {
+        send(get("/v3/api-docs"), null, null).andExpect(status().isUnauthorized());
+        send(get("/swagger-ui/index.html"), null, null).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unexpectedLibraryMessagesAreNotEchoed() throws Exception {
+        // BCrypt refuses passwords over 72 bytes with its own IllegalArgumentException: never echo library wording
+        String email = uniqueEmail();
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isAccepted());
+        markVerified(email);
+        send(post("/api/auth/login"), null, "{\"email\":\"" + email + "\",\"password\":\"" + "x".repeat(80) + "\"}")
+                .andExpect(jsonPath("$.message", not(containsString("72"))));
+    }
+
     // ---------- reservations ----------
 
     @Test
@@ -368,6 +567,53 @@ class ApiIntegrationTest {
         assertFalse(ics.contains("+389"));
 
         mvc.perform(get("/api/ical/unknown-token.ics")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void feedIsLimitedPerFeedAndGuessingIsLimitedPerIp() throws Exception {
+        String token = registerAndGetToken();
+        String body = send(get("/api/properties/" + createProperty(token, 1) + "/units"), token, null)
+                .andReturn().getResponse().getContentAsString();
+        String feed = "/api/ical/" + JsonPath.read(body, "$[0].token") + ".ics";
+        for (int i = 0; i < 120; i++) mvc.perform(get(feed)).andExpect(status().isOk());
+        mvc.perform(get(feed)).andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));
+
+        String guesser = "198.51.100." + (int) (Math.random() * 250);
+        for (int i = 0; i < 30; i++) {
+            mvc.perform(get("/api/ical/" + UUID.randomUUID() + ".ics").with(r -> { r.setRemoteAddr(guesser); return r; }))
+                    .andExpect(status().isNotFound());
+        }
+        mvc.perform(get("/api/ical/" + UUID.randomUUID() + ".ics").with(r -> { r.setRemoteAddr(guesser); return r; }))
+                .andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));
+    }
+
+    @Test
+    void unsubscribeIsLimitedPerIp() throws Exception {
+        String ip = "192.0.2." + (int) (Math.random() * 250);
+        for (int i = 0; i < 30; i++) {
+            mvc.perform(get("/api/notifications/unsubscribe?token=bogus").with(r -> { r.setRemoteAddr(ip); return r; }))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(get("/api/notifications/unsubscribe?token=bogus").with(r -> { r.setRemoteAddr(ip); return r; }))
+                .andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"))
+                .andExpect(content().string(containsString("Please try again later")));
+    }
+
+    @Test
+    void registerAndResendAreLimitedPerTypedAddress() throws Exception {
+        String email = uniqueEmail();
+        for (int i = 0; i < 5; i++) {
+            send(post("/api/auth/register"), null, registerJson(i % 2 == 0 ? email : email.toUpperCase()))
+                    .andExpect(status().isAccepted());
+        }
+        send(post("/api/auth/register"), null, registerJson(email)).andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After")).andExpect(jsonPath("$.retryAfterSeconds").isNumber());
+
+        String ghost = "ghost-" + uniqueEmail();
+        for (int i = 0; i < 5; i++) {
+            send(post("/api/auth/resend-code"), null, "{\"email\":\"" + ghost + "\"}").andExpect(status().isOk());
+        }
+        send(post("/api/auth/resend-code"), null, "{\"email\":\"" + ghost + "\"}").andExpect(status().isTooManyRequests());
     }
 
     // ---------- external calendars ----------

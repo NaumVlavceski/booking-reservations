@@ -4,7 +4,7 @@ import {errorMessage, fieldErrors, logError} from "../lib/errors";
 import {Navigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
-    allReservationsQuery, createReservation, deleteReservation, getReservation, restoreReservation,
+    allReservationsQuery, createReservation, deleteReservation, eraseGuest, getReservation, restoreReservation,
     getReservations,
     type ReservationRequest,
     updateReservation
@@ -19,7 +19,8 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import {useToast} from "../lib/toast";
 import {formatStay} from "../lib/dates";
 import StayDatesPicker from "../components/StayDatesPicker";
-import {AlertCircleIcon, CheckIcon} from "../components/icons";
+import {AlertCircleIcon, CheckIcon, TrashIcon} from "../components/icons";
+import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import {TextAreaField, TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
@@ -52,6 +53,7 @@ export default function ReservationFormPage() {
     const statusOptions = STATUS_OPTIONS;
     const toast = useToast();
     const [confirmCancel, setConfirmCancel] = useState(false);
+    const [confirmErase, setConfirmErase] = useState(false);
     const [moveOpen, setMoveOpen] = useState(false);
     const [copyOpen, setCopyOpen] = useState(false);
     const [datesMissing, setDatesMissing] = useState(false);
@@ -199,6 +201,18 @@ export default function ReservationFormPage() {
         },
     });
     const isCancelled = existing?.status === "CANCELLED";
+
+    // GDPR erasure of this guest: the server keeps dates and amounts; the reloaded booking refills the form.
+    const eraseMutation = useMutation({
+        mutationFn: () => eraseGuest(id!),
+        onSuccess: async (saved) => {
+            setConfirmErase(false);
+            queryClient.setQueryData(["reservations", "detail", id], saved);
+            await queryClient.invalidateQueries({queryKey: ["reservations"]});
+            toast.show("Guest details erased.");
+        },
+    });
+    const hasGuestDetails = Boolean(existing && (existing.guestName || existing.guestEmail || existing.guestPhone || existing.notes));
 
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -413,6 +427,25 @@ export default function ReservationFormPage() {
                                            spellCheck={false} enterKeyHint="next" error={errors.guestEmail}/>
                             </div>
                             <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3}/>
+                            {existing?.guestErasedAt && (
+                                <p className="text-body-sm text-subtle">
+                                    Guest details were erased on {new Date(existing.guestErasedAt).toLocaleDateString()}.
+                                </p>
+                            )}
+                            {isEditing && hasGuestDetails && (
+                                // Erasing reloads the booking, so it waits until nothing typed here is unsaved
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <Button variant="secondary" size="sm" icon={<TrashIcon size={16}/>}
+                                            disabled={isDirty || !connected}
+                                            onClick={() => {
+                                                eraseMutation.reset();
+                                                setConfirmErase(true);
+                                            }}>
+                                        Erase guest details
+                                    </Button>
+                                    {isDirty && <span className="text-caption text-subtle">Save or undo your changes first.</span>}
+                                </div>
+                            )}
                         </section>
                     </Card>
                 </form>
@@ -467,6 +500,25 @@ export default function ReservationFormPage() {
                 error={cancelMutation.isError ? errorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
                 onConfirm={() => cancelMutation.mutate()}
                 onCancel={() => setConfirmCancel(false)}
+            />
+
+            <ConfirmDialog
+                open={confirmErase}
+                title="Erase guest details?"
+                message={
+                    <>
+                        The guest's name, email, phone and notes are removed from this booking for good. The dates,
+                        room, status, number of guests and amounts stay for your records. Copies of this booking in
+                        other rooms keep their own details.
+                    </>
+                }
+                confirmLabel="Erase details"
+                pendingLabel="Erasing…"
+                cancelLabel="Keep details"
+                pending={eraseMutation.isPending}
+                error={eraseMutation.isError ? errorMessage(eraseMutation.error, "Couldn't erase the guest details.") : null}
+                onConfirm={() => eraseMutation.mutate()}
+                onCancel={() => setConfirmErase(false)}
             />
         </div>
     )

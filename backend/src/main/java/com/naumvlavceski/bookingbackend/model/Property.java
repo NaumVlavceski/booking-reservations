@@ -12,8 +12,6 @@ import java.util.UUID;
 
 @Entity
 @Data
-@FilterDef(name = "ownerFilter", parameters = @ParamDef(name = "ownerId", type = UUID.class))
-@Filter(name = "ownerFilter", condition = "owner_id = :ownerId")
 public class Property {
 
     @Id

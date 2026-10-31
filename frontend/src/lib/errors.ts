@@ -102,8 +102,10 @@ export function errorReason(error: unknown): string {
             return datesTakenMessage(error);
         case "validation":
             return fieldErrors(error) ? MESSAGES.validation : serverMessage(error) ?? MESSAGES.badRequest;
+        // For rateLimited the server says how long to wait ("Please wait about 15 minutes...")
         case "badRequest":
         case "conflict":
+        case "rateLimited":
             return serverMessage(error) ?? MESSAGES[kind];
         default:
             return MESSAGES[kind];
@@ -134,13 +136,22 @@ export function isConnectionError(error: unknown): boolean {
     return kind === "network" || kind === "timeout";
 }
 
-/** Technical details for developers. Never shown in the UI. */
+/**
+ * Technical details for developers. Never shown in the UI. Production builds log only the method, the path without
+ * its query (search terms are guest names) and the status: response bodies can hold personal data such as an email.
+ */
 export function logError(error: unknown, where?: string) {
     const err = apiError(error);
     if (err) {
         const {method, url} = err.config ?? {};
-        console.error(`[RoomTrack]${where ? ` ${where}:` : ""} ${method?.toUpperCase() ?? ""} ${url ?? ""}`,
-            err.response?.status ?? err.code, err.response?.data ?? err.message);
+        const path = import.meta.env.DEV ? url ?? "" : (url ?? "").split("?")[0];
+        const status = err.response?.status ?? err.code;
+        if (import.meta.env.DEV) {
+            console.error(`[RoomTrack]${where ? ` ${where}:` : ""} ${method?.toUpperCase() ?? ""} ${path}`,
+                status, err.response?.data ?? err.message);
+        } else {
+            console.error(`[RoomTrack]${where ? ` ${where}:` : ""} ${method?.toUpperCase() ?? ""} ${path}`, status);
+        }
     } else {
         console.error(`[RoomTrack]${where ? ` ${where}:` : ""}`, error);
     }

@@ -6,6 +6,10 @@ export interface RegisterRequest {
     email: string;
     password: string;
     fullName: string;
+    /** The Terms of Service and Privacy Policy were accepted, in these versions (src/legal/versions.ts). */
+    acceptedTerms: boolean;
+    termsVersion: string;
+    privacyVersion: string;
 }
 
 export interface LoginRequest {

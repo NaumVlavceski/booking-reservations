@@ -14,6 +14,7 @@ import java.util.UUID;
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     Optional<AppUser> findByEmail(String email);
     Optional<AppUser> findFirstByOwnerId(UUID ownerId);
+    List<AppUser> findAllByOwnerId(UUID ownerId);
     List<AppUser> findAllByOwnerIdAndActiveTrue(UUID ownerId);
     boolean existsByEmail(String email);
     Optional<AppUser> findFirstByEmailIgnoreCase(String email);

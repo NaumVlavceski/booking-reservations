@@ -92,4 +92,10 @@ public class ReservationController {
         reservationService.delete(ownerId, id);
         return ResponseEntity.noContent().build();
     }
+
+    /** GDPR erasure for one guest: name, contact details and notes go; dates and amounts stay. */
+    @PostMapping("/{id}/erase-guest")
+    public ReservationResponse eraseGuest(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
+        return reservationService.eraseGuest(ownerId, id);
+    }
 }

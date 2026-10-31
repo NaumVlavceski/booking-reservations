@@ -3,6 +3,7 @@ package com.naumvlavceski.bookingbackend.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import lombok.ToString;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Data
+@ToString(exclude = "passwordHash")
 public class AppUser {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -44,6 +46,11 @@ public class AppUser {
     private int tokenVersion = 0;
 
     private java.time.OffsetDateTime emailVerifiedAt;
+
+    /** When the Terms and Privacy Policy were accepted, and which versions (frontend src/legal/versions.ts). */
+    private java.time.OffsetDateTime termsAcceptedAt;
+    private String termsVersion;
+    private String privacyVersion;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

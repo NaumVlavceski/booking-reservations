@@ -43,6 +43,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PasswordResetIntegrationTest {
     private static final Pattern CODE = Pattern.compile("\\b(\\d{6})\\b");
     private static final String PASSWORD = "Pw-" + UUID.randomUUID();
+    // Registration needs the Terms and Privacy Policy accepted (versions as shown by the frontend)
+    static final String ACCEPT_TERMS = "\"acceptedTerms\":true,\"termsVersion\":\"2026-10-30\",\"privacyVersion\":\"2026-10-30\"";
     private static final String NEW_PASSWORD = "New-" + UUID.randomUUID();
 
     @Autowired MockMvc mvc;
@@ -57,7 +59,9 @@ class PasswordResetIntegrationTest {
     private ResultActions send(MockHttpServletRequestBuilder req, String token, String body, String ip) throws Exception {
         if (token != null) req.header("Authorization", "Bearer " + token);
         if (body != null) req.contentType(MediaType.APPLICATION_JSON).content(body);
-        req.header("X-Forwarded-For", ip != null ? ip : UUID.randomUUID().toString());
+        // The client address as Tomcat resolved it (only a trusted proxy may set it via X-Forwarded-For)
+        String clientIp = ip != null ? ip : UUID.randomUUID().toString();
+        req.with(r -> { r.setRemoteAddr(clientIp); return r; });
         return mvc.perform(req);
     }
 
@@ -73,7 +77,7 @@ class PasswordResetIntegrationTest {
     private String verifiedUser() throws Exception {
         String email = uniqueEmail();
         send(post("/api/auth/register"), "{\"contactPhone\":\"1\",\"email\":\"" + email
-                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}").andExpect(status().isAccepted());
+                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"," + ACCEPT_TERMS + "}").andExpect(status().isAccepted());
         AppUser user = appUsers.findFirstByEmailIgnoreCase(email).orElseThrow();
         user.setEmailVerifiedAt(OffsetDateTime.now());
         appUsers.save(user);
@@ -216,7 +220,7 @@ class PasswordResetIntegrationTest {
     @Test
     void registrationPasswordRuleIsUnchanged() throws Exception {
         send(post("/api/auth/register"), "{\"contactPhone\":\"1\",\"email\":\"" + uniqueEmail()
-                + "\",\"password\":\"short\",\"fullName\":\"Tester\"}")
+                + "\",\"password\":\"short\",\"fullName\":\"Tester\"," + ACCEPT_TERMS + "}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Password size must be between 8 and 72"));
     }
@@ -254,7 +258,7 @@ class PasswordResetIntegrationTest {
     void unverifiedAccountsGetNoCode() throws Exception {
         String email = uniqueEmail();
         send(post("/api/auth/register"), "{\"contactPhone\":\"1\",\"email\":\"" + email
-                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}").andExpect(status().isAccepted());
+                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"," + ACCEPT_TERMS + "}").andExpect(status().isAccepted());
         forgot(email);
         assertEquals(0, resetEmailsTo(email));
     }

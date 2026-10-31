@@ -24,7 +24,9 @@ public record ReservationResponse(
         BigDecimal totalAmount,
         String notes,
         boolean priceNeedsReview,
-        OffsetDateTime cancelledAt
+        OffsetDateTime cancelledAt,
+        /** Set when the owner erased the guest's personal details; dates and amounts stay. */
+        OffsetDateTime guestErasedAt
 ) {
 
 }

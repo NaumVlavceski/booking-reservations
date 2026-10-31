@@ -12,6 +12,7 @@ import {TextField} from "../components/ui/Field";
 import PasswordField from "../components/ui/PasswordField";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
+import LegalLinks from "../components/LegalLinks";
 
 const MESSAGES: ValidationMessages = {
     email: {valueMissing: "Enter your email address.", typeMismatch: "Enter an email address like name@example.com."},
@@ -28,9 +29,11 @@ export default function LoginPage() {
     // Set by the forgot-password page; dropped from history once read so a reload doesn't repeat it
     const location = useLocation();
     const [passwordChanged] = useState(() => Boolean((location.state as { passwordChanged?: boolean } | null)?.passwordChanged));
+    // Set by the account page after "Delete my account"
+    const [accountDeleted] = useState(() => Boolean((location.state as { accountDeleted?: boolean } | null)?.accountDeleted));
     useEffect(() => {
-        if (passwordChanged) navigate(location.pathname, {replace: true, state: null});
-    }, [passwordChanged, navigate, location.pathname]);
+        if (passwordChanged || accountDeleted) navigate(location.pathname, {replace: true, state: null});
+    }, [passwordChanged, accountDeleted, navigate, location.pathname]);
 
     const mutation = useMutation({
         mutationFn: login,
@@ -73,13 +76,21 @@ export default function LoginPage() {
         <AuthLayout
             title="Log in"
             subtitle="Manage every booking in one place"
-            footer={<p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>}
+            footer={<>
+                <p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>
+                <LegalLinks/>
+            </>}
         >
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
                 {passwordChanged && !mutation.isError && (
                     <Callout tone="success" role="status">Password changed, please sign in.</Callout>
                 )}
-                {sessionExpired && !passwordChanged && !mutation.isError && (
+                {accountDeleted && !mutation.isError && (
+                    <Callout tone="success" role="status">
+                        Your account and everything in it were deleted. We sent a confirmation to your email address.
+                    </Callout>
+                )}
+                {sessionExpired && !passwordChanged && !accountDeleted && !mutation.isError && (
                     <Callout tone="info" role="status">Your session expired, please log in again.</Callout>
                 )}
                 <TextField

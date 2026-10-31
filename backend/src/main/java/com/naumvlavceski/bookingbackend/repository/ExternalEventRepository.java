@@ -10,5 +10,6 @@ import java.util.UUID;
 public interface ExternalEventRepository extends JpaRepository<ExternalEvent, UUID> {
     Optional<ExternalEvent> findByExternalCalendarIdAndUid(UUID externalCalendarId, String uid);
     List<ExternalEvent> findAllByExternalCalendarId(UUID externalCalendarId);
+    List<ExternalEvent> findAllByReservationId(UUID reservationId);
 
 }

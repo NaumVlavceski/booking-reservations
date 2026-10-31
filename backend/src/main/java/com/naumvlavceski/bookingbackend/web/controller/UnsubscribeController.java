@@ -1,8 +1,11 @@
 package com.naumvlavceski.bookingbackend.web.controller;
 
 import com.naumvlavceski.bookingbackend.mail.UnsubscribeLinks;
+import com.naumvlavceski.bookingbackend.ratelimit.RateLimits;
 import com.naumvlavceski.bookingbackend.repository.OwnerRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,9 +27,12 @@ import org.springframework.web.util.HtmlUtils;
 public class UnsubscribeController {
     private final UnsubscribeLinks links;
     private final OwnerRepository ownerRepository;
+    private final RateLimits rateLimits;
 
     @GetMapping(produces = MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> confirmPage(@RequestParam String token) {
+    public ResponseEntity<String> confirmPage(@RequestParam String token, HttpServletRequest request) {
+        ResponseEntity<String> limited = limited(request);
+        if (limited != null) return limited;
         if (links.verify(token).isEmpty()) return page(400, "Invalid link", "This unsubscribe link is not valid.", null);
         return page(200, "Unsubscribe from RoomTrack emails",
                 "You will stop receiving booking notification emails (new, changed and cancelled reservations, calendar problems).",
@@ -34,7 +40,9 @@ public class UnsubscribeController {
     }
 
     @PostMapping(produces = MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> unsubscribe(@RequestParam String token) {
+    public ResponseEntity<String> unsubscribe(@RequestParam String token, HttpServletRequest request) {
+        ResponseEntity<String> limited = limited(request);
+        if (limited != null) return limited;
         var ownerId = links.verify(token);
         if (ownerId.isEmpty()) return page(400, "Invalid link", "This unsubscribe link is not valid.", null);
         ownerRepository.findById(ownerId.get()).ifPresent(owner -> {
@@ -46,6 +54,16 @@ public class UnsubscribeController {
         return page(200, "You are unsubscribed",
                 "You will no longer receive booking notification emails. You can turn them back on any time in RoomTrack settings.",
                 null);
+    }
+
+    /** Per-IP limit (app.rate-limit.unsubscribe-per-ip), answered as a page with Retry-After; null when allowed. */
+    private ResponseEntity<String> limited(HttpServletRequest request) {
+        long wait = rateLimits.acquire("unsubscribe:" + RateLimits.clientIp(request), rateLimits.limits().unsubscribePerIp());
+        if (wait == 0) return null;
+        ResponseEntity<String> page = page(429, "Please try again later",
+                "Too many requests from your network. Please wait a few minutes and open the link again.", null);
+        return ResponseEntity.status(429).contentType(MediaType.TEXT_HTML)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(wait)).body(page.getBody());
     }
 
     private static ResponseEntity<String> page(int status, String title, String message, String confirmToken) {

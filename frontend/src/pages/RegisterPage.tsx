@@ -9,8 +9,12 @@ import {TextField} from "../components/ui/Field";
 import PasswordField from "../components/ui/PasswordField";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
+import LegalLinks from "../components/LegalLinks";
+import {AlertCircleIcon} from "../components/icons";
+import {LEGAL_VERSIONS} from "../legal/versions";
 
 const MESSAGES: ValidationMessages = {
+    acceptedTerms: {valueMissing: "Please accept the Terms of Service and the Privacy Policy to create an account."},
     fullName: {valueMissing: "Enter your full name."},
     email: {valueMissing: "Enter your email address.", typeMismatch: "Enter an email address like name@example.com."},
     password: {
@@ -27,6 +31,7 @@ export default function RegisterPage() {
         email: "",
         password: "",
         fullName: "",
+        acceptedTerms: false,
     });
     const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
 
@@ -45,11 +50,12 @@ export default function RegisterPage() {
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!validate(e.currentTarget)) return;
-        mutation.mutate(form);
+        // The versions on screen right now are the ones being accepted (stored with the time by the server)
+        mutation.mutate({...form, termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy});
     }
 
     function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setForm({...form, [e.target.name]: e.target.value});
+        setForm({...form, [e.target.name]: e.target.type === "checkbox" ? e.target.checked : e.target.value});
         recheck(e.target);
     }
 
@@ -57,7 +63,10 @@ export default function RegisterPage() {
         <AuthLayout
             title="Create your account"
             subtitle="Start managing your rentals in minutes"
-            footer={<p>Already have an account? <Link to="/login" className="link inline-flex min-h-11 items-center">Log in</Link></p>}
+            footer={<>
+                <p>Already have an account? <Link to="/login" className="link inline-flex min-h-11 items-center">Log in</Link></p>
+                <LegalLinks/>
+            </>}
         >
             <form id="register-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
@@ -77,6 +86,29 @@ export default function RegisterPage() {
                                onChange={handleChange} required minLength={8} maxLength={72}
                                autoComplete="new-password" enterKeyHint="go"
                                hint="At least 8 characters." error={errors.password}/>
+
+                <div>
+                    <label htmlFor="acceptedTerms" className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-body-sm text-muted">
+                        <input type="checkbox" id="acceptedTerms" name="acceptedTerms" required
+                               checked={form.acceptedTerms} onChange={handleChange}
+                               aria-invalid={errors.acceptedTerms ? true : undefined}
+                               aria-describedby={errors.acceptedTerms ? "acceptedTerms-error" : undefined}
+                               className="mt-0.5 size-5 shrink-0 cursor-pointer accent-primary"/>
+                        <span>
+                            {/* New tab: following a link must not lose what was typed in the form */}
+                            I agree to the{" "}
+                            <Link to="/terms" target="_blank" rel="noopener" className="link">Terms of Service</Link>
+                            {" "}and the{" "}
+                            <Link to="/privacy" target="_blank" rel="noopener" className="link">Privacy Policy</Link>.
+                        </span>
+                    </label>
+                    {errors.acceptedTerms && (
+                        <p id="acceptedTerms-error" className="field-error">
+                            <AlertCircleIcon className="mt-0.5"/>
+                            <span>{errors.acceptedTerms}</span>
+                        </p>
+                    )}
+                </div>
 
                 {mutation.isError && (
                     <Callout tone="danger" role="alert">

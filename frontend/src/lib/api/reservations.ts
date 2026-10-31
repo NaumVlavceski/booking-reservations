@@ -18,6 +18,8 @@ export interface ReservationResponse {
     notes: string;
     priceNeedsReview: boolean;
     cancelledAt: string | null;
+    /** When the owner erased the guest's personal details (null if never). */
+    guestErasedAt: string | null;
 }
 
 export interface ReservationRequest{
@@ -129,5 +131,10 @@ export async function moveReservation(id: string, unitId: string): Promise<Reser
 }
 export async function copyReservation(id: string, unitIds: string[]): Promise<ReservationResponse[]> {
     const res = await apiClient.post<ReservationResponse[]>(`/api/reservations/${id}/copy`, {unitIds});
+    return res.data;
+}
+/** Removes the guest's name, email, phone and notes from a booking for good; dates, room and amounts stay. */
+export async function eraseGuest(id: string): Promise<ReservationResponse> {
+    const res = await apiClient.post<ReservationResponse>(`/api/reservations/${id}/erase-guest`);
     return res.data;
 }

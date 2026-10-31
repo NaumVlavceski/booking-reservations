@@ -251,7 +251,6 @@
     cursor: grab;
     overflow-anchor: none;
 }
-
 @media (hover: hover) and (pointer: fine) {
     .cal-scroller::-webkit-scrollbar {
         width: 10px;

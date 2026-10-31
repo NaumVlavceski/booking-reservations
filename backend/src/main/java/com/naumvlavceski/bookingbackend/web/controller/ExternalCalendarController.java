@@ -39,8 +39,7 @@ public class ExternalCalendarController {
 
     @GetMapping("/units/{unitId}/calendars")
     public List<ExternalCalendarResponse> list(@CurrentUserId UUID ownerId, @PathVariable UUID unitId) {
-        requireOwnedUnit(ownerId, unitId);
-        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Room not found"));
+        Unit unit = requireOwnedUnit(ownerId, unitId);
         return calendarRepository.findAllByUnitId(unitId).stream()
                 .map(c->ExternalCalendarResponse.from(c,unit.getName())).toList();
     }
@@ -48,8 +47,7 @@ public class ExternalCalendarController {
     @PostMapping("/units/{unitId}/calendars")
     public ResponseEntity<?> create(@CurrentUserId UUID ownerId, @PathVariable UUID unitId,
                                     @Valid @RequestBody ExternalCalendarRequest request) {
-        Unit unit = unitRepository.findById(unitId).orElseThrow(()->new NoSuchElementException("Room not found"));
-        requireOwnedUnit(ownerId, unitId);
+        Unit unit = requireOwnedUnit(ownerId, unitId);
         String icsUrl = PlatformDetector.normalize(request.icsUrl());
         ReservationSource platform = PlatformDetector.detect(icsUrl).orElse(null);
         if (platform == null) {
@@ -84,7 +82,7 @@ public class ExternalCalendarController {
     @PostMapping("/calendars/{id}/sync")
     public ResponseEntity<?> syncNow(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
         ExternalCalendar calendar = requireOwnedCalendar(ownerId, id);
-        Unit unit = unitRepository.findById(calendar.getUnitId()).orElseThrow(()->new NoSuchElementException("Room not found"));
+        Unit unit = requireOwnedUnit(ownerId, calendar.getUnitId());
         Instant last = calendar.getLastSyncedAt();
         if (last != null && last.isAfter(Instant.now().minus(SYNC_COOLDOWN))) {
             long wait = Math.max(1, SYNC_COOLDOWN.minus(Duration.between(last, Instant.now())).toSeconds());
@@ -134,15 +132,14 @@ public class ExternalCalendarController {
         ));
     }
 
-    private void requireOwnedUnit(UUID ownerId, UUID unitId) {
-        unitRepository.findByIdAndOwnerId(unitId, ownerId)
+    private Unit requireOwnedUnit(UUID ownerId, UUID unitId) {
+        return unitRepository.findByIdAndOwnerId(unitId, ownerId)
                 .orElseThrow(() -> new NoSuchElementException("Room not found"));
     }
 
     private ExternalCalendar requireOwnedCalendar(UUID ownerId, UUID id) {
-        ExternalCalendar c = calendarRepository.findById(id)
+        // Someone else's calendar and an unknown id get the same 404
+        return calendarRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new NoSuchElementException("Calendar not found"));
-        requireOwnedUnit(ownerId, c.getUnitId()); // someone else's calendar gets the same 404
-        return c;
     }
 }

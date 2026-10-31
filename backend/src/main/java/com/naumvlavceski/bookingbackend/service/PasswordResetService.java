@@ -51,7 +51,7 @@ public class PasswordResetService {
     private final RateLimiter rateLimiter;
     private final Clock clock;
     private final OneTimeCodes oneTimeCodes;
-    private final boolean mailEnabled;
+    private final boolean logCodes;
     private final Duration codeTtl;
     private final Duration tokenTtl;
     private final int maxAttempts;
@@ -66,7 +66,7 @@ public class PasswordResetService {
                                 RateLimiter rateLimiter,
                                 Clock clock,
                                 @Value("${app.auth.code-secret}") String secret,
-                                @Value("${app.mail.enabled:false}") boolean mailEnabled,
+                                @Value("#{@mailConfig.logsCodes()}") boolean logCodes,
                                 @Value("${app.auth.reset-code-ttl-minutes:10}") int codeTtlMinutes,
                                 @Value("${app.auth.reset-token-ttl-minutes:10}") int tokenTtlMinutes,
                                 @Value("${app.auth.code-max-attempts:5}") int maxAttempts,
@@ -79,7 +79,7 @@ public class PasswordResetService {
         this.rateLimiter = rateLimiter;
         this.clock = clock;
         this.oneTimeCodes = new OneTimeCodes(secret);
-        this.mailEnabled = mailEnabled;
+        this.logCodes = logCodes;
         this.codeTtl = Duration.ofMinutes(codeTtlMinutes);
         this.tokenTtl = Duration.ofMinutes(tokenTtlMinutes);
         this.maxAttempts = maxAttempts;
@@ -234,8 +234,8 @@ public class PasswordResetService {
     }
 
     private void sendCode(AppUser user, String code) {
-        if (!mailEnabled) {
-            // Local development only: there is no mail provider to read the code from
+        if (logCodes) {
+            // "local" profile with mail off only (see MailConfig): there is no inbox to read the code from
             log.info("[DEV ONLY] Password reset code for {}: {}", user.getEmail(), code);
         }
         String ttlText = codeTtl.toMinutes() + " minutes";

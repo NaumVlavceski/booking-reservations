@@ -1,0 +1,491 @@
+### Security pass: manual checks (IntelliJ HTTP client, or VS Code "REST Client" with the same syntax)
+# Run against the LOCAL backend: `local` profile with MAIL_ENABLED=false, so the 6-digit codes appear in the
+# backend console as "[DEV ONLY] ... code for <email>: 123456". Never point this file at production.
+# Change the two addresses each run (or delete the users) so registration starts fresh.
+
+@host = http://localhost:8080
+@emailA = owner-a-1@example.test
+@emailB = owner-b-1@example.test
+@password = Security-pass-123
+
+#####################################################################################################
+# PART 1: CROSS-TENANT ISOLATION. A creates data; B tries to read, change and delete it with A's ids.
+# Expected for every B request: 404 with {"code":"NOT_FOUND"} or an empty list / a list without A's ids.
+#####################################################################################################
+
+### 1. Register A
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "{{emailA}}", "password": "{{password}}", "fullName": "Owner A", "contactPhone": "1",
+ "acceptedTerms": true, "termsVersion": "2026-10-30", "privacyVersion": "2026-10-30"}
+
+### 2. Verify A: copy the code from the backend console
+POST {{host}}/api/auth/verify-email
+Content-Type: application/json
+
+{"email": "{{emailA}}", "code": "000000"}
+
+> {% client.global.set("tokenA", response.body.token); %}
+
+### 3. Register B
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "{{emailB}}", "password": "{{password}}", "fullName": "Owner B", "contactPhone": "1",
+ "acceptedTerms": true, "termsVersion": "2026-10-30", "privacyVersion": "2026-10-30"}
+
+### 4. Verify B: copy the code from the backend console
+POST {{host}}/api/auth/verify-email
+Content-Type: application/json
+
+{"email": "{{emailB}}", "code": "000000"}
+
+> {% client.global.set("tokenB", response.body.token); %}
+
+### 5. A: property with two rooms
+POST {{host}}/api/properties
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{"name": "A House", "address": "1 A Street", "unitCount": 2}
+
+> {% client.global.set("propA", response.body.id); %}
+
+### 6. A: rooms (keeps both ids)
+GET {{host}}/api/properties/{{propA}}/units
+Authorization: Bearer {{tokenA}}
+
+> {% client.global.set("unitA", response.body[0].id); client.global.set("unitA2", response.body[1].id); %}
+
+### 7. A: reservation with guest data
+POST {{host}}/api/reservations
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{"unitId": "{{unitA}}", "checkIn": "2040-01-01", "checkOut": "2040-01-04", "guestName": "Guest A",
+ "guestEmail": "guest-a@example.test", "guestPhone": "+389 70 000 000", "notes": "private note"}
+
+> {% client.global.set("resA", response.body.id); %}
+
+### 8. A: Booking.com calendar link (no network needed to save it)
+POST {{host}}/api/units/{{unitA}}/calendars
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{"icsUrl": "https://ical.booking.com/v1/export?t=manual-tenant-test"}
+
+> {% client.global.set("calA", response.body.id); %}
+
+### 9. B: own property, room and reservation (for the "B's object + A's id" combinations)
+POST {{host}}/api/properties
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"name": "B House", "unitCount": 1}
+
+> {% client.global.set("propB", response.body.id); %}
+
+### 10. B: own room
+GET {{host}}/api/properties/{{propB}}/units
+Authorization: Bearer {{tokenB}}
+
+> {% client.global.set("unitB", response.body[0].id); %}
+
+### 11. B: own reservation
+POST {{host}}/api/reservations
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitId": "{{unitB}}", "checkIn": "2040-02-01", "checkOut": "2040-02-03", "guestName": "Guest B"}
+
+> {% client.global.set("resB", response.body.id); %}
+
+### --- B attacks: properties (expect 404, 404, 404, [] , 404) ---
+GET {{host}}/api/properties/{{propA}}
+Authorization: Bearer {{tokenB}}
+
+###
+PUT {{host}}/api/properties/{{propA}}
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"name": "hacked", "address": "x"}
+
+###
+DELETE {{host}}/api/properties/{{propA}}
+Authorization: Bearer {{tokenB}}
+
+### expect 200 []
+GET {{host}}/api/properties/{{propA}}/units
+Authorization: Bearer {{tokenB}}
+
+###
+POST {{host}}/api/properties/{{propA}}/units
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"name": "hacked", "capacity": 1}
+
+### --- B attacks: rooms (expect 404 x3, then a list without A's rooms) ---
+GET {{host}}/api/units/{{unitA}}
+Authorization: Bearer {{tokenB}}
+
+###
+PUT {{host}}/api/units/{{unitA}}
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"name": "hacked", "capacity": 1}
+
+###
+DELETE {{host}}/api/units/{{unitA}}
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/units
+Authorization: Bearer {{tokenB}}
+
+### --- B attacks: reservations (expect 404 unless noted) ---
+GET {{host}}/api/reservations/{{resA}}
+Authorization: Bearer {{tokenB}}
+
+### A's reservation moved into B's room
+PUT {{host}}/api/reservations/{{resA}}
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitId": "{{unitB}}", "checkIn": "2040-03-01", "checkOut": "2040-03-02"}
+
+### B's reservation pointed at A's room
+PUT {{host}}/api/reservations/{{resB}}
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitId": "{{unitA}}", "checkIn": "2040-03-01", "checkOut": "2040-03-02"}
+
+###
+DELETE {{host}}/api/reservations/{{resA}}
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/reservations/{{resA}}/available-options
+Authorization: Bearer {{tokenB}}
+
+### move A's reservation
+POST {{host}}/api/reservations/{{resA}}/move
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitId": "{{unitB}}"}
+
+### move B's reservation into A's room (target unit)
+POST {{host}}/api/reservations/{{resB}}/move
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitId": "{{unitA2}}"}
+
+### copy A's reservation
+POST {{host}}/api/reservations/{{resA}}/copy
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitIds": ["{{unitB}}"]}
+
+### copy B's reservation into A's room
+POST {{host}}/api/reservations/{{resB}}/copy
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"unitIds": ["{{unitA2}}"]}
+
+### expect 200 []
+GET {{host}}/api/reservations/{{unitA}}/unit
+Authorization: Bearer {{tokenB}}
+
+### expect 200 []
+GET {{host}}/api/reservations?unitId={{unitA}}
+Authorization: Bearer {{tokenB}}
+
+### expect 200, no A reservation in items
+GET {{host}}/api/reservations/cancelled
+Authorization: Bearer {{tokenB}}
+
+### --- B attacks: calendars (expect 404 x4, then lists without A's calendar, sync-all total 0) ---
+GET {{host}}/api/units/{{unitA}}/calendars
+Authorization: Bearer {{tokenB}}
+
+###
+POST {{host}}/api/units/{{unitA}}/calendars
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"icsUrl": "https://ical.booking.com/v1/export?t=hacked"}
+
+###
+POST {{host}}/api/calendars/{{calA}}/sync
+Authorization: Bearer {{tokenB}}
+
+###
+DELETE {{host}}/api/calendars/{{calA}}
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/calendars/health
+Authorization: Bearer {{tokenB}}
+
+###
+POST {{host}}/api/calendars/sync-all
+Authorization: Bearer {{tokenB}}
+
+### --- B attacks: invoices / earnings (expect a list without A's property, then 404 x6) ---
+GET {{host}}/api/invoices/properties
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/invoices/properties/{{propA}}/units
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/invoices/units/{{unitA}}/reservations
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/invoices/properties/{{propA}}/missing-amounts
+Authorization: Bearer {{tokenB}}
+
+### B's property, A's room
+GET {{host}}/api/invoices/properties/{{propB}}/missing-amounts?unitId={{unitA}}
+Authorization: Bearer {{tokenB}}
+
+###
+GET {{host}}/api/invoices/properties/{{propA}}/export
+Authorization: Bearer {{tokenB}}
+
+### B's property, A's room
+GET {{host}}/api/invoices/properties/{{propB}}/export?unitId={{unitA}}
+Authorization: Bearer {{tokenB}}
+
+### --- B attacks: conflicts (a random/foreign id gets 404) and settings (only B's own) ---
+POST {{host}}/api/conflicts/00000000-0000-0000-0000-000000000001/dismiss
+Authorization: Bearer {{tokenB}}
+
+###
+PUT {{host}}/api/notifications/settings
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{"enabled": false}
+
+### --- Check A is untouched: property name "A House", reservation CONFIRMED in unitA, calendar listed, notifications true ---
+GET {{host}}/api/properties/{{propA}}
+Authorization: Bearer {{tokenA}}
+
+###
+GET {{host}}/api/reservations/{{resA}}
+Authorization: Bearer {{tokenA}}
+
+###
+GET {{host}}/api/units/{{unitA}}/calendars
+Authorization: Bearer {{tokenA}}
+
+###
+GET {{host}}/api/notifications/settings
+Authorization: Bearer {{tokenA}}
+
+### --- Swagger must not be public when it is disabled (expect 401). Your application-local.yml switches it ON,
+# so locally this is 200; run with springdoc.api-docs.enabled=false (or check production) to see the 401 ---
+GET {{host}}/v3/api-docs
+
+#####################################################################################################
+# PART 2: RATE LIMITS AND ACCOUNT ENUMERATION. Every refusal: 429, a Retry-After header (seconds) and
+# {"code":"RATE_LIMITED","message":"Too many attempts. Please wait ...","retryAfterSeconds":N}.
+# Limits live in application.yml under app.rate-limit; they reset when the backend restarts (in memory).
+# Locally all requests come from 127.0.0.1, so per-IP limits apply to everything you send from this file.
+#####################################################################################################
+
+### 2.1 Unknown address vs wrong password: same 401 body (only "timestamp" differs) and similar time.
+# Compare the response times IntelliJ shows for this and the next request (both ~ one BCrypt check).
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"email": "{{emailA}}", "password": "wrong-password"}
+
+### 2.2
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"email": "nobody-here@example.test", "password": "wrong-password"}
+
+### 2.3 Login per ACCOUNT: send 2.1 until you have 5 wrong tries in 15 minutes (2.1 was one), then even the
+# right password answers 429 for that address (temporary: it works again once the window moves on).
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"email": "{{emailA}}", "password": "{{password}}"}
+
+### 2.4 Login per IP: 20 failed tries in 15 minutes from one address, across any emails, then 429.
+# Run this one ~20 times (each run uses a new random address).
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"email": "probe-{{$random.uuid}}@example.test", "password": "x"}
+
+### 2.5 Register: the SAME 202 body for a new address and for {{emailA}}, which already has an account.
+# {{emailA}} gets a "You already have a RoomTrack account" email instead (at most one per hour), nothing changes.
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "{{emailA}}", "password": "Another-pass-123", "fullName": "Someone", "contactPhone": "1",
+ "acceptedTerms": true, "termsVersion": "2026-10-30", "privacyVersion": "2026-10-30"}
+
+### 2.6 Register per email (5 per hour) and per IP (5 per hour): run 2.5 five more times, the 6th is 429.
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "{{emailA}}", "password": "Another-pass-123", "fullName": "Someone", "contactPhone": "1",
+ "acceptedTerms": true, "termsVersion": "2026-10-30", "privacyVersion": "2026-10-30"}
+
+### 2.7 Resend code: 5 per hour per email and per IP, then 429. Same 200 message for unknown addresses.
+POST {{host}}/api/auth/resend-code
+Content-Type: application/json
+
+{"email": "nobody-here@example.test"}
+
+### 2.8 Verify email: every failure is the same 400 INVALID_CODE (unknown address, wrong or expired code,
+# already verified, 5 wrong tries on the code). The per-code limit of 5 tries is kept in the database.
+POST {{host}}/api/auth/verify-email
+Content-Type: application/json
+
+{"email": "nobody-here@example.test", "code": "123456"}
+
+### 2.9 Forgot password: 5 per hour per IP, then 429 (per typed email it quietly sends nothing more).
+POST {{host}}/api/auth/forgot-password
+Content-Type: application/json
+
+{"email": "nobody-here@example.test"}
+
+### 2.10 Verify reset code: 30 per hour per IP (app.rate-limit.auth-per-ip), 5 tries per code (database).
+POST {{host}}/api/auth/verify-reset-code
+Content-Type: application/json
+
+{"email": "nobody-here@example.test", "code": "123456"}
+
+### 2.11 Reset password: 30 per hour per IP; an unknown token is 400 RESET_TOKEN_INVALID.
+POST {{host}}/api/auth/reset-password
+Content-Type: application/json
+
+{"resetToken": "not-a-real-token", "newPassword": "New-password-123"}
+
+### 2.12 Calendar feed: 120 fetches per hour per feed, then 429. Use A's room token (GET /api/units/{{unitA}}).
+GET {{host}}/api/units/{{unitA}}
+Authorization: Bearer {{tokenA}}
+
+> {% client.global.set("feedA", response.body.token); %}
+
+###
+GET {{host}}/api/ical/{{feedA}}.ics
+
+### 2.13 Guessing feed tokens: 30 unknown tokens per hour per IP get 404, then 429 (real feeds keep working).
+GET {{host}}/api/ical/{{$random.uuid}}.ics
+
+### 2.14 Unsubscribe: 30 per hour per IP, then an HTML "Please try again later" page with 429 + Retry-After.
+GET {{host}}/api/notifications/unsubscribe?token=bogus
+
+### 2.15 X-Forwarded-For is only trusted from an internal proxy address (Caddy on the Docker network).
+# Locally you ARE 127.0.0.1, which counts as internal, so here each different X-Forwarded-For counts as its own
+# client (that is the trusted-proxy behaviour). The spoofing case (a direct client sending the header is ignored)
+# is proven by UntrustedProxyIntegrationTest / TrustedProxyIntegrationTest against the real embedded Tomcat.
+POST {{host}}/api/auth/forgot-password
+Content-Type: application/json
+X-Forwarded-For: 203.0.113.{{$random.integer(1, 250)}}
+
+{"email": "nobody-here@example.test"}
+
+#####################################################################################################
+# PART 3: TERMS AND PRIVACY ACCEPTANCE AT REGISTRATION (versions live in frontend/src/legal/versions.ts)
+#####################################################################################################
+
+### 3.1 Not accepted: 400 VALIDATION_FAILED with fieldErrors.acceptedTerms
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "consent-test-1@example.test", "password": "{{password}}", "fullName": "Consent Test", "contactPhone": "1",
+ "acceptedTerms": false, "termsVersion": "2026-10-30", "privacyVersion": "2026-10-30"}
+
+### 3.2 Missing version: 400 with fieldErrors.termsVersion
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "consent-test-1@example.test", "password": "{{password}}", "fullName": "Consent Test", "contactPhone": "1",
+ "acceptedTerms": true, "privacyVersion": "2026-10-30"}
+
+### 3.3 Accepted: 202; app_user gets terms_accepted_at (server time), terms_version and privacy_version
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"email": "consent-test-1@example.test", "password": "{{password}}", "fullName": "Consent Test", "contactPhone": "1",
+ "acceptedTerms": true, "termsVersion": "2026-10-30", "privacyVersion": "2026-10-30"}
+
+### 3.4 /api/me shows what the signed-in account accepted (A registered before this part: re-register A or use a new account)
+GET {{host}}/api/me
+Authorization: Bearer {{tokenA}}
+
+#####################################################################################################
+# PART 4: DOWNLOAD MY DATA, GUEST ERASURE, DELETE MY ACCOUNT (run against a throwaway local account)
+#####################################################################################################
+
+### 4.1 Download my data: 200, Content-Disposition attachment (roomtrack-data-YYYY-MM-DD.json), Cache-Control no-store.
+# Only A's data; no password hash, no calendar links. 5 per hour per user, then 429 with Retry-After.
+GET {{host}}/api/me/export
+Authorization: Bearer {{tokenA}}
+
+### 4.2 Guest erasure by ANOTHER owner: 404
+POST {{host}}/api/reservations/{{resA}}/erase-guest
+Authorization: Bearer {{tokenB}}
+
+### 4.3 Guest erasure by the owner: 200; guestName/guestEmail/guestPhone/notes null, guestErasedAt set,
+# dates, room, status, guestsCount and amounts unchanged. A's feed now says SUMMARY:Reserved for it.
+POST {{host}}/api/reservations/{{resA}}/erase-guest
+Authorization: Bearer {{tokenA}}
+
+### 4.4 Delete without signing in: 401
+POST {{host}}/api/me/delete
+Content-Type: application/json
+
+{"password": "{{password}}", "confirmation": "DELETE"}
+
+### 4.5 Delete with a wrong password (re-authentication): 400 {"code":"WRONG_PASSWORD"}, nothing deleted
+POST {{host}}/api/me/delete
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{"password": "not-my-password", "confirmation": "DELETE"}
+
+### 4.6 Delete without the typed word: 400 "Type DELETE to confirm.", nothing deleted
+POST {{host}}/api/me/delete
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{"password": "{{password}}", "confirmation": "yes"}
+
+### 4.7 Delete for real: 204. Everything of A is gone (owner, users, properties, rooms, bookings, calendars,
+# conflicts, codes, email_log rows), the console shows "Account deleted: owner <id> (... counts)" without
+# personal data, and a confirmation email goes out without an email_log row. 5 tries per 15 minutes.
+POST {{host}}/api/me/delete
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{"password": "{{password}}", "confirmation": "DELETE"}
+
+### 4.8 A's old token no longer works: 401 (also after someone registers the same address again)
+GET {{host}}/api/me
+Authorization: Bearer {{tokenA}}
+
+### 4.9 A's calendar feed link stopped working: 404
+GET {{host}}/api/ical/{{feedA}}.ics
+
+### 4.10 B is untouched: B's own data still there
+GET {{host}}/api/reservations/{{resB}}
+Authorization: Bearer {{tokenB}}

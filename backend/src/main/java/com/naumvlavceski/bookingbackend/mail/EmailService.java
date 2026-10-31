@@ -18,20 +18,33 @@ public class EmailService {
 
     @Async("mailExecutor")
     public void send(UUID ownerId, String type, EmailMessage msg) {
+        Delivery d = deliver(msg);
+        if (d != null) record(ownerId, type, msg, d.sent() ? "SENT" : "FAILED", d.attempts(), d.providerId(), d.error());
+    }
+
+    /**
+     * Same delivery, but no email_log row: for the "your account was deleted" email, whose recipient address must
+     * not stay behind in the log of an account that no longer exists.
+     */
+    @Async("mailExecutor")
+    public void sendWithoutLog(EmailMessage msg) {
+        Delivery d = deliver(msg);
+        if (d != null && !d.sent()) log.warn("Unlogged email could not be delivered after {} attempts", d.attempts());
+    }
+
+    private record Delivery(boolean sent, int attempts, String providerId, String error) {}
+
+    /** Up to 3 tries for errors worth retrying; null if the thread was interrupted. */
+    private Delivery deliver(EmailMessage msg) {
         int attempt = 0;
         while (true) {
             attempt++;
             try {
-                String id = sender.send(msg);
-                record(ownerId, type, msg, "SENT", attempt, id, null);
-                return;
+                return new Delivery(true, attempt, sender.send(msg), null);
             } catch (Exception e) {
-                if (attempt >= 3 || !retryable(e)) {
-                    record(ownerId, type, msg, "FAILED", attempt, null, e.getMessage());
-                    return;
-                }
+                if (attempt >= 3 || !retryable(e)) return new Delivery(false, attempt, null, e.getMessage());
                 try { Thread.sleep(1000L * attempt * attempt); }
-                catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
+                catch (InterruptedException ie) { Thread.currentThread().interrupt(); return null; }
             }
         }
     }

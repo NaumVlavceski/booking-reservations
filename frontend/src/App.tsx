@@ -24,6 +24,9 @@ import InvoiceMissingAmountsPage from "./pages/InvoiceMissingAmountsPage.tsx";
 import OnboardingPage from "./pages/OnboardingPage.tsx";
 import OnboardingGate from "./components/OnboardingGate.tsx";
 import CalendarGate from "./components/CalendarGate.tsx";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage.tsx";
+import TermsPage from "./pages/TermsPage.tsx";
+import AccountPage from "./pages/AccountPage.tsx";
 
 
 export default function App() {
@@ -33,6 +36,9 @@ export default function App() {
             <Route path="/register" element={<RegisterPage/>}/>
             <Route path="/verify-email" element={<VerifyEmailPage/>}/>
             <Route path="/forgot-password" element={<ForgotPasswordPage/>}/>
+            {/* Public: readable before signing up and from inside the app */}
+            <Route path="/privacy" element={<PrivacyPolicyPage/>}/>
+            <Route path="/terms" element={<TermsPage/>}/>
             <Route path="/" element={<Navigate to="/dashboard/calendar" replace/>}/>
             <Route element={<ProtectedRoute/>}>
                 <Route element={<DashboardLayout />}>
@@ -55,6 +61,7 @@ export default function App() {
                     <Route path="/dashboard/invoices/units/:unitId" element={<InvoiceUnitPage/>}/>
                     <Route path="/dashboard/invoices/properties/:propertyId/missing-amounts" element={<InvoiceMissingAmountsPage/>}/>
                     <Route path="/dashboard/help/connect-calendars" element={<ConnectCalendarsHelpPage/>}/>
+                    <Route path="/dashboard/account" element={<AccountPage/>}/>
                     <Route path="/dashboard/account/password" element={<ChangePasswordPage/>}/>
                     <Route path="*" element={<NotFoundPage/>}/>
                 </Route>

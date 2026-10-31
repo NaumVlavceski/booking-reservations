@@ -53,6 +53,15 @@ class ICalBuilderTest {
     }
 
     @Test
+    void aGuestNameCannotInjectLinesOrEvents() {
+        Reservation sneaky = reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT);
+        sneaky.setGuestName("Bob\r\nEND:VEVENT\r\nBEGIN:VEVENT\nSUMMARY:Fake; really, yes");
+        String ics = ICalBuilder.build(unit(), List.of(sneaky));
+        assertEquals(1, ics.lines().filter("BEGIN:VEVENT"::equals).count());
+        assertTrue(ics.contains("SUMMARY:Bob\\nEND:VEVENT\\nBEGIN:VEVENT\\nSUMMARY:Fake\\; really\\, yes\r\n"));
+    }
+
+    @Test
     void fallsBackToReservedWithoutAGuestName() {
         Reservation noName = reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT);
         noName.setGuestName("  ");
