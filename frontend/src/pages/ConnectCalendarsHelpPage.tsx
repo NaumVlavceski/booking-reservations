@@ -15,7 +15,7 @@ function HelpImage({file, alt}: Picture) {
     if (missing) {
         // Only while developing: show which picture is still to be added. Visitors just see no picture.
         return import.meta.env.DEV ? (
-            <p className="max-w-full rounded-xl border border-dashed border-default px-3 py-6 text-center text-caption text-subtle">
+            <p className="max-w-full rounded-control border border-dashed border-default px-3 py-6 text-center text-caption text-subtle">
                 Picture to add: public/help/{file}
             </p>
         ) : null;
@@ -30,7 +30,7 @@ function HelpImage({file, alt}: Picture) {
                     alt={alt}
                     loading="lazy"
                     onError={() => setMissing(true)}
-                    className="block h-auto max-h-64 w-auto max-w-full rounded-xl border border-subtle shadow-card"
+                    className="block h-auto max-h-64 w-auto max-w-full rounded-control border border-subtle shadow-card"
                 />
             </a>
         </figure>
@@ -62,7 +62,7 @@ function Step({n, title, important = false, images = [], children}: {
                 <h3 className="font-semibold text-fg">
                     <span className="sr-only">Step {n}: </span>
                     {important && (
-                        <span className="mr-2 rounded border border-warning-line bg-warning-soft px-1.5 py-0.5 text-overline text-warning uppercase">
+                        <span className="mr-2 rounded-tag border border-warning-line bg-warning-soft px-1.5 py-0.5 text-label text-warning">
                             Important
                         </span>
                     )}

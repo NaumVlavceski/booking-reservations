@@ -4,7 +4,7 @@ import {errorMessage, fieldErrors, logError} from "../lib/errors";
 import {Navigate, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
-    allReservationsQuery, createReservation, deleteReservation, eraseGuest, getReservation, restoreReservation,
+    allReservationsQuery, createReservation, deleteReservation, getReservation, restoreReservation,
     getReservations,
     type ReservationRequest,
     updateReservation
@@ -19,8 +19,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import {useToast} from "../lib/toast";
 import {formatStay} from "../lib/dates";
 import StayDatesPicker from "../components/StayDatesPicker";
-import {AlertCircleIcon, CheckIcon, TrashIcon} from "../components/icons";
-import Button from "../components/ui/Button";
+import {AlertCircleIcon, CheckIcon} from "../components/icons";
 import Card from "../components/ui/Card";
 import {TextAreaField, TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
@@ -53,7 +52,6 @@ export default function ReservationFormPage() {
     const statusOptions = STATUS_OPTIONS;
     const toast = useToast();
     const [confirmCancel, setConfirmCancel] = useState(false);
-    const [confirmErase, setConfirmErase] = useState(false);
     const [moveOpen, setMoveOpen] = useState(false);
     const [copyOpen, setCopyOpen] = useState(false);
     const [datesMissing, setDatesMissing] = useState(false);
@@ -202,18 +200,6 @@ export default function ReservationFormPage() {
     });
     const isCancelled = existing?.status === "CANCELLED";
 
-    // GDPR erasure of this guest: the server keeps dates and amounts; the reloaded booking refills the form.
-    const eraseMutation = useMutation({
-        mutationFn: () => eraseGuest(id!),
-        onSuccess: async (saved) => {
-            setConfirmErase(false);
-            queryClient.setQueryData(["reservations", "detail", id], saved);
-            await queryClient.invalidateQueries({queryKey: ["reservations"]});
-            toast.show("Guest details erased.");
-        },
-    });
-    const hasGuestDetails = Boolean(existing && (existing.guestName || existing.guestEmail || existing.guestPhone || existing.notes));
-
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setConflictMessage(null);
@@ -272,7 +258,7 @@ export default function ReservationFormPage() {
         return (
             <div className="mx-auto max-w-2xl">
                 <FormTopBar formId="reservation-form" saving={false} title={title} back={back}/>
-                <FormSkeleton label="Loading booking..." sections={3}/>
+                <FormSkeleton label="Loading booking..." sections={4} joined/>
             </div>
         );
     }
@@ -286,7 +272,7 @@ export default function ReservationFormPage() {
         );
     }
 
-    const priceField = (name: "pricePerGuest" | "nightlyRate" | "totalAmount", label: string) => (
+    const priceField = (name: "pricePerGuest" | "nightlyRate" | "totalAmount", label: string, className = "") => (
         <TextField
             label={label}
             id={name}
@@ -303,7 +289,7 @@ export default function ReservationFormPage() {
             }}
             disabled={pricesLocked}
             placeholder={pricesLocked ? "Pick dates" : ""}
-            className="num min-w-0"
+            className={`num min-w-0 ${className}`}
             error={errors[name]}
         />
     );
@@ -339,7 +325,7 @@ export default function ReservationFormPage() {
                 )}
 
                 {existing?.priceNeedsReview && !isCancelled && (
-                    <Callout tone="warning" role="alert" title="! Check the price.">
+                    <Callout tone="warning" role="alert" title="Check the price">
                         The dates of this booking were changed on {existing.source === "AIRBNB" ? "Airbnb" : "Booking.com"},
                         but the price (<span className="num">{existing.totalAmount}</span>) was left as you entered it. Update it if needed, then press Save.
                     </Callout>
@@ -408,10 +394,10 @@ export default function ReservationFormPage() {
                                 <h2 id="price-heading" className="text-title-3 text-fg">Price</h2>
                                 <p className="mt-0.5 text-body-sm text-muted">Enter any one field — the others calculate automatically.</p>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                                {priceField("pricePerGuest", "Per guest")}
+                            <div className="grid grid-cols-2 gap-3">
+                                {priceField("totalAmount", "Total", "price-total col-span-2")}
                                 {priceField("nightlyRate", "Per night")}
-                                {priceField("totalAmount", "Total")}
+                                {priceField("pricePerGuest", "Per guest")}
                             </div>
                         </section>
 
@@ -427,25 +413,6 @@ export default function ReservationFormPage() {
                                            spellCheck={false} enterKeyHint="next" error={errors.guestEmail}/>
                             </div>
                             <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3}/>
-                            {existing?.guestErasedAt && (
-                                <p className="text-body-sm text-subtle">
-                                    Guest details were erased on {new Date(existing.guestErasedAt).toLocaleDateString()}.
-                                </p>
-                            )}
-                            {isEditing && hasGuestDetails && (
-                                // Erasing reloads the booking, so it waits until nothing typed here is unsaved
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                    <Button variant="secondary" size="sm" icon={<TrashIcon size={16}/>}
-                                            disabled={isDirty || !connected}
-                                            onClick={() => {
-                                                eraseMutation.reset();
-                                                setConfirmErase(true);
-                                            }}>
-                                        Erase guest details
-                                    </Button>
-                                    {isDirty && <span className="text-caption text-subtle">Save or undo your changes first.</span>}
-                                </div>
-                            )}
                         </section>
                     </Card>
                 </form>
@@ -500,25 +467,6 @@ export default function ReservationFormPage() {
                 error={cancelMutation.isError ? errorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
                 onConfirm={() => cancelMutation.mutate()}
                 onCancel={() => setConfirmCancel(false)}
-            />
-
-            <ConfirmDialog
-                open={confirmErase}
-                title="Erase guest details?"
-                message={
-                    <>
-                        The guest's name, email, phone and notes are removed from this booking for good. The dates,
-                        room, status, number of guests and amounts stay for your records. Copies of this booking in
-                        other rooms keep their own details.
-                    </>
-                }
-                confirmLabel="Erase details"
-                pendingLabel="Erasing…"
-                cancelLabel="Keep details"
-                pending={eraseMutation.isPending}
-                error={eraseMutation.isError ? errorMessage(eraseMutation.error, "Couldn't erase the guest details.") : null}
-                onConfirm={() => eraseMutation.mutate()}
-                onCancel={() => setConfirmErase(false)}
             />
         </div>
     )

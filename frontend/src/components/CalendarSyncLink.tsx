@@ -21,7 +21,7 @@ export default function CalendarSyncLink({token}: { token: string }) {
     return (
         <Card as="section" aria-labelledby={`feed-title-${token}`} className="space-y-3">
             <div className="flex items-start gap-3">
-                <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-on-primary-soft">
+                <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-tile text-on-tile">
                     <LinkIcon size={20}/>
                 </span>
                 <div className="min-w-0">

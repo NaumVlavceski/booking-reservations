@@ -1,9 +1,6 @@
 import {Link} from "react-router-dom";
-import LegalLayout, {LegalList, LegalSection, Placeholder} from "../components/LegalLayout";
+import LegalLayout, {LegalList, LegalSection} from "../components/LegalLayout";
 import {LEGAL_VERSIONS} from "../legal/versions";
-
-// DRAFT text written from what the code actually does (see the security pass notes). Everything in a Placeholder
-// must be filled in, and the whole text reviewed by a qualified person, before launch.
 
 export default function PrivacyPolicyPage() {
     return (
@@ -20,8 +17,8 @@ export default function PrivacyPolicyPage() {
         >
             <LegalSection id="who" title="1. Who we are">
                 <p>
-                    RoomTrack is run by <Placeholder>Naum Vlavcheski Ohrid</Placeholder>. You can reach us about
-                    anything in this policy at <Placeholder>nvlavceski542@gmail.com</Placeholder>.
+                    RoomTrack is run by Naum Vlavcheski, Ohrid, North Macedonia. You can reach us about
+                    anything in this policy at nvlavceski542@gmail.com.
                 </p>
                 <p>
                     RoomTrack is a booking calendar for people who rent out rooms and apartments ("owners"). It plays
@@ -128,6 +125,10 @@ export default function PrivacyPolicyPage() {
                 <p>These providers process data for us, only to provide their service to RoomTrack:</p>
                 <LegalList>
                     <li>
+                        <strong>Oracle Cloud</strong> (hosting): runs our server and database and stores the backups,
+                        all encrypted at rest, in Germany (Frankfurt).
+                    </li>
+                    <li>
                         <strong>Resend</strong> (email delivery): receives the recipient address and the content of each
                         email we send. Booking notifications contain property and room names, dates and, when there is
                         one, the guest's name.
@@ -135,10 +136,6 @@ export default function PrivacyPolicyPage() {
                     <li>
                         <strong>Netlify</strong>: hosts the RoomTrack web app and forwards calendar-link requests from
                         roomtrack.app to our server, so it sees IP addresses and the addresses requested.
-                    </li>
-                    <li>
-                        <strong><Placeholder>DNS PROVIDER</Placeholder></strong>: runs the domain name system for
-                        roomtrack.app and sees the IP addresses that look the domain up.
                     </li>
                 </LegalList>
                 <p>
@@ -148,8 +145,8 @@ export default function PrivacyPolicyPage() {
                 </p>
                 <p>
                     Resend and Netlify are based in the United States, so some data may be processed outside your
-                    country. <Placeholder>TRANSFER SAFEGUARDS (for example the EU–US Data Privacy Framework or
-                    standard contractual clauses)</Placeholder>.
+                    country. Both offer data processing terms that include the European Commission's standard
+                    contractual clauses for these transfers.
                 </p>
             </LegalSection>
 
@@ -160,9 +157,10 @@ export default function PrivacyPolicyPage() {
                         account. Deleting your account takes effect immediately and cannot be undone.
                     </li>
                     <li>
-                        <strong>Guest details</strong>: until you erase them from a booking, delete the booking, or
-                        delete your account. Erasing a guest removes their name, contact details and notes and keeps
-                        only the dates, room and amounts, for your records. Nothing is erased automatically.
+                        <strong>Guest details</strong>: until you remove them from a booking, delete the booking, or
+                        delete your account. To remove them, clear the guest's name, contact details and notes in the
+                        booking and save it; the dates, room and amounts stay for your records. Nothing is deleted
+                        automatically.
                     </li>
                     <li><strong>Email log</strong>: 90 days.</li>
                     <li><strong>Sign-up and password-reset codes</strong>: at most 7 days (only as hashes).</li>
@@ -172,11 +170,11 @@ export default function PrivacyPolicyPage() {
                     </li>
                     <li>
                         <strong>Server logs</strong>: kept in size-limited files that are overwritten as new entries come
-                        in. <Placeholder>LOG RETENTION PERIOD</Placeholder>.
+                        in.
                     </li>
                     <li>
                         <strong>Backups</strong>: deleted data can remain in backups until they are replaced, for up to{" "}
-                        <Placeholder>BACKUP RETENTION PERIOD</Placeholder>. Backups are only used to restore the service
+                        7 days. Backups are only used to restore the service
                         after a failure.
                     </li>
                 </LegalList>
@@ -193,7 +191,7 @@ export default function PrivacyPolicyPage() {
                     <li>Repeated sign-in, sign-up and code attempts are limited.</li>
                     <li>The database cannot be reached from the internet.</li>
                     <li>Logs leave out passwords, codes, sign-in tokens, calendar keys and guest details.</li>
-                    <li>Only <Placeholder>WHO HAS SERVER ACCESS</Placeholder> can access the servers.</li>
+                    <li>Only Naum Vlavcheski can access the servers.</li>
                 </LegalList>
                 <p>No system is perfectly secure. If a breach affects your data, we will tell you without undue delay.</p>
             </LegalSection>
@@ -239,9 +237,9 @@ export default function PrivacyPolicyPage() {
                     <li><strong>stop booking notification emails</strong>, at any time.</li>
                 </LegalList>
                 <p>
-                    Write to <Placeholder>CONTACT EMAIL</Placeholder>. We answer within one month. You also have the
-                    right to complain to a data protection authority, in particular{" "}
-                    <Placeholder>DATA PROTECTION AUTHORITY AND ITS WEBSITE</Placeholder>.
+                    Write to nvlavceski542@gmail.com. We answer within one month. You also have the right to complain to
+                    a data protection authority, in particular the Personal Data Protection Agency of North Macedonia
+                    (dzlp.mk), or the authority in the EU country where you live.
                 </p>
                 <p>
                     <strong>If you are a guest</strong> of a RoomTrack owner, the owner decides about your data: please
@@ -264,9 +262,9 @@ export default function PrivacyPolicyPage() {
 
             <LegalSection id="contact" title="11. Contact">
                 <p>
-                    <Placeholder>OPERATOR NAME AND ADDRESS</Placeholder>
+                    Naum Vlavcheski, Ohrid, North Macedonia
                     <br/>
-                    <Placeholder>CONTACT EMAIL</Placeholder>
+                    nvlavceski542@gmail.com
                 </p>
             </LegalSection>
         </LegalLayout>

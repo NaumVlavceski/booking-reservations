@@ -1,103 +1,131 @@
 /*
  * RoomTrack design tokens.
  *
+ * The palette comes from the logo: navy ink, and lagoon teal for actions and for "today" in the calendar
+ * (the teal date and column the calendar has always used).
+ *
  * Light values on :root (the default); dark values on :root[data-theme="dark"], set by the theme switch.
  * Components never use these directly as hex: index.css maps them into the Tailwind theme as semantic
- * names (bg-surface, text-muted, border-subtle, bg-primary, ...). Contrast of every text/background pair
- * keeps at least WCAG 2.2 AA contrast (4.5:1 text, 3:1 controls) in both themes.
+ * names (bg-surface, text-muted, border-subtle, bg-primary, ...). Every text/background pair keeps at least
+ * WCAG 2.2 AA contrast (4.5:1 text, 3:1 controls) in both themes.
  */
 
 :root {
     color-scheme: light;
 
     /* Surfaces */
-    --rt-canvas: #F4F6F9;          /* app background behind cards */
+    --rt-canvas: #F3F5F6;          /* app background (cool limestone) */
     --rt-surface: #FFFFFF;         /* cards, bars, sheets */
     --rt-surface-raised: #FFFFFF;  /* popovers, menus, dialogs (lighter than surface in dark mode) */
-    --rt-surface-sunken: #F4F6F9;  /* wells inside a card: read-only fields, grouped details */
-    --rt-surface-hover: #EEF1F5;
-    --rt-surface-pressed: #E3E8EE;
-    --rt-scrim: rgb(11 20 36 / 0.48);
+    --rt-surface-sunken: #F1F3F5;  /* wells inside a card: read-only fields, grouped details */
+    --rt-surface-hover: #EEF1F3;
+    --rt-surface-pressed: #E3E7EB;
+    --rt-scrim: rgb(10 20 35 / 0.5);
 
     /* Lines */
-    --rt-border-subtle: #E3E8EE;   /* dividers, card outlines (decorative) */
-    --rt-border: #D3DAE3;          /* stronger dividers, table rules */
-    --rt-border-strong: #77859A;   /* input and control outlines: ≥ 3:1 on surface and canvas */
+    --rt-border-subtle: #E3E7EB;   /* dividers, card outlines (decorative) */
+    --rt-border: #D2D8DF;          /* stronger dividers, table rules */
+    --rt-border-strong: #738196;   /* input and control outlines: ≥ 3:1 on surface and canvas */
 
     /* Text */
-    --rt-fg: #142035;              /* navy ink from the logo */
-    --rt-fg-muted: #4D5B6F;
-    --rt-fg-subtle: #5E6D82;       /* captions, meta: still ≥ 4.5:1 on canvas */
-    --rt-fg-disabled: #9AA6B6;     /* disabled controls only (exempt from contrast rules) */
+    --rt-fg: #0F1E33;              /* navy ink from the logo */
+    --rt-fg-muted: #46556A;
+    --rt-fg-subtle: #56657A;       /* captions, meta: still ≥ 4.5:1 on canvas */
+    --rt-fg-disabled: #9AA5B3;     /* disabled controls only (exempt from contrast rules) */
     --rt-fg-inverse: #FFFFFF;
 
-    /* Brand: the logo's lagoon teal, deepened until white text passes AA */
-    --rt-primary: #0E7379;
-    --rt-primary-hover: #0B5F64;
-    --rt-primary-pressed: #094E52;
+    /* Brand: the logo's lagoon teal, deep enough for white text outdoors */
+    --rt-primary: #0A6B71;
+    --rt-primary-hover: #08595E;
+    --rt-primary-pressed: #074A4E;
     --rt-on-primary: #FFFFFF;
-    --rt-primary-soft: #E6F4F4;
-    --rt-on-primary-soft: #0B5D62;
-    --rt-primary-line: #9ED3D5;
-    --rt-focus: #1C8D93;           /* focus ring: ≥ 3:1 against surface and canvas */
-    --rt-brand-navy: #13233D;
+    --rt-primary-soft: #E5F2F2;
+    --rt-on-primary-soft: #08575C;
+    --rt-primary-line: #9CCFD1;
+    --rt-focus: #0A6B71;           /* focus ring: ≥ 3:1 against surface and canvas */
+    --rt-brand-navy: #0F1E33;
+
+    /* Today in the calendar: the brand teal date and a light teal column, as before the redesign. */
+    --rt-today: #0A6B71;
+    --rt-on-today: #FFFFFF;
+    --rt-today-soft: #BAECEF;      /* the today column in the calendar */
+
+    /* Neutral tiles (avatars, property initials): quiet, so teal stays for actions and selection */
+    --rt-tile: #E8ECF0;
+    --rt-on-tile: #2B3A50;
 
     /* Status */
-    --rt-success: #166534;
-    --rt-success-soft: #EAF6EE;
-    --rt-success-line: #9ED3B0;
+    --rt-success: #15603A;
+    --rt-success-soft: #E8F5EC;
+    --rt-success-line: #A6D9B8;
     --rt-success-solid: #15803D;
     --rt-on-success-solid: #FFFFFF;
 
-    --rt-warning: #8A4B06;
-    --rt-warning-soft: #FFF5E5;
-    --rt-warning-line: #F1C27D;
+    --rt-warning: #7F4505;
+    --rt-warning-soft: #FFF4E2;
+    --rt-warning-line: #F0C27E;
     --rt-warning-solid: #B45309;
     --rt-on-warning-solid: #FFFFFF;
 
-    --rt-danger: #B42318;
-    --rt-danger-soft: #FDEDEB;
+    --rt-danger: #AE2216;
+    --rt-danger-soft: #FDECEA;
     --rt-danger-line: #F2B8B2;
     --rt-danger-solid: #C42B1C;
     --rt-on-danger-solid: #FFFFFF;
 
-    --rt-info: #1E4FAF;
-    --rt-info-soft: #EBF1FD;
-    --rt-info-line: #AFC6F3;
-    --rt-info-solid: #2558C5;
+    /* Info is a quiet slate, so it never reads as Booking.com blue. */
+    --rt-info: #2B4A72;
+    --rt-info-soft: #EDF2F8;
+    --rt-info-line: #B9CBE2;
+    --rt-info-solid: #36598A;
     --rt-on-info-solid: #FFFFFF;
 
-    /* Reservation sources and statuses (calendar bars, badges). Paid and Blocked win over the source. */
-    --rt-src-booking-fill: #DBEAFE;
-    --rt-src-booking-line: #3B82F6;
-    --rt-src-booking-fg: #1E40AF;
-    --rt-src-airbnb-fill: #FFE1E6;
-    --rt-src-airbnb-line: #E8476A;
-    --rt-src-airbnb-fg: #9F1239;
-    --rt-src-airbnb-texture: rgb(232 71 106 / 0.28);
-    --rt-src-direct-fill: #FDECC8;
-    --rt-src-direct-line: #B45309;
-    --rt-src-direct-fg: #78350F;
-    --rt-src-paid-fill: #D1FAE5;
-    --rt-src-paid-line: #059669;
-    --rt-src-paid-fg: #065F46;
-    --rt-src-blocked-fill: #E5E7EB;
-    --rt-src-blocked-line: #6B7280;
-    --rt-src-blocked-fg: #374151;
-    --rt-src-blocked-texture: #C3C9D2;
+    /* Reservation sources and statuses (calendar bars, badges). Paid and Blocked win over the source.
+       Direct is orange, clearly apart from Booking.com blue; deeper and redder than the warning amber. */
+    --rt-src-booking-fill: #DCE8FB;
+    --rt-src-booking-line: #2F6FD6;
+    --rt-src-booking-fg: #163E86;
+    --rt-src-airbnb-fill: #FCE4EA;
+    --rt-src-airbnb-line: #D6405F;
+    --rt-src-airbnb-fg: #8C1735;
+    --rt-src-airbnb-texture: rgb(214 64 95 / 0.28);
+    --rt-src-direct-fill: #FDDCC6;
+    --rt-src-direct-line: #C2571A;
+    --rt-src-direct-fg: #7A2E0B;
+    --rt-src-paid-fill: #D5F2E3;
+    --rt-src-paid-line: #1F8A57;
+    --rt-src-paid-fg: #0C5133;
+    --rt-src-blocked-fill: #E6E8EB;
+    --rt-src-blocked-line: #6B7480;
+    --rt-src-blocked-fg: #353C46;
+    --rt-src-blocked-texture: #C5CAD1;
     --rt-amount-missing: #DC2626;
 
     /* Calendar grid */
-    --rt-cal-line: #E3E8EE;
-    --rt-cal-row-line: #ECEFF3;
-    --rt-cal-weekend: #F3F5F8;
-    --rt-cal-today: #baecef;
-    --rt-cal-group: #F7F9FB;
+    --rt-cal-line: #E3E7EB;
+    --rt-cal-row-line: #ECEFF2;
+    --rt-cal-weekend: #F5F6F8;
+    --rt-cal-today: var(--rt-today-soft);
+    --rt-cal-group: #F6F8F9;
 
-    /* Elevation */
-    --rt-shadow-1: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.06);
-    --rt-shadow-2: 0 2px 4px -2px rgb(16 24 40 / 0.06), 0 10px 20px -6px rgb(16 24 40 / 0.12);
-    --rt-shadow-3: 0 8px 12px -6px rgb(16 24 40 / 0.10), 0 24px 48px -12px rgb(16 24 40 / 0.24);
+    /* Shape: radius follows importance, not one value everywhere */
+    --rt-radius-tag: 6px;          /* small square marks: checkboxes, keyboard hints */
+    --rt-radius-control: 10px;     /* buttons, inputs, menu items */
+    --rt-radius-card: 16px;        /* cards, lists, callouts */
+    --rt-radius-sheet: 24px;       /* sheets, dialogs */
+
+    /* Elevation: only things that float get a shadow. Cards in the page flow are outlined. */
+    --rt-shadow-1: 0 1px 2px rgb(15 30 51 / 0.06);
+    --rt-shadow-2: 0 2px 4px -2px rgb(15 30 51 / 0.08), 0 12px 24px -8px rgb(15 30 51 / 0.16);
+    --rt-shadow-3: 0 8px 12px -6px rgb(15 30 51 / 0.12), 0 24px 48px -12px rgb(15 30 51 / 0.26);
+
+    /* Layers */
+    --rt-z-sticky: 20;             /* page and form headers */
+    --rt-z-nav: 30;                /* tab bar, rail, sidebar, save bar */
+    --rt-z-popover: 40;            /* menus */
+    --rt-z-sheet: 60;
+    --rt-z-toast: 70;              /* above sheets: "Saved" must show even while one is closing */
+    --rt-z-skip: 80;
 
     /* Motion */
     --rt-ease: cubic-bezier(0.2, 0, 0, 1);
@@ -110,33 +138,40 @@
 /* Dark theme: switched on with the toggle in the menu (saved per account, see lib/theme.ts). */
 :root[data-theme="dark"] {
     color-scheme: dark;
-    --rt-canvas: #0B121D;
-    --rt-surface: #111A27;
-    --rt-surface-raised: #172231;
-    --rt-surface-sunken: #0D1520;
-    --rt-surface-hover: #1B2737;
-    --rt-surface-pressed: #223042;
-    --rt-scrim: rgb(2 6 12 / 0.64);
+    --rt-canvas: #0A1220;
+    --rt-surface: #101A29;
+    --rt-surface-raised: #162233;
+    --rt-surface-sunken: #0C1523;
+    --rt-surface-hover: #1A2636;
+    --rt-surface-pressed: #223043;
+    --rt-scrim: rgb(2 6 12 / 0.66);
 
-    --rt-border-subtle: #1F2B3B;
-    --rt-border: #2A384B;
-    --rt-border-strong: #607189;
+    --rt-border-subtle: #1E2A3A;
+    --rt-border: #2A3749;
+    --rt-border-strong: #64758D;
 
-    --rt-fg: #E8EDF4;
-    --rt-fg-muted: #AFBACA;
+    --rt-fg: #E9EEF5;
+    --rt-fg-muted: #AEB9C9;
     --rt-fg-subtle: #95A2B5;
     --rt-fg-disabled: #5A677A;
-    --rt-fg-inverse: #0B121D;
+    --rt-fg-inverse: #0A1220;
 
-    --rt-primary: #45B8BE;
-    --rt-primary-hover: #63C7CC;
-    --rt-primary-pressed: #82D4D8;
-    --rt-on-primary: #05282B;
-    --rt-primary-soft: #0F2D31;
-    --rt-on-primary-soft: #93E0E3;
+    --rt-primary: #4CBFC4;
+    --rt-primary-hover: #6ACBCF;
+    --rt-primary-pressed: #88D6D9;
+    --rt-on-primary: #04282A;
+    --rt-primary-soft: #0E2C30;
+    --rt-on-primary-soft: #94DFE2;
     --rt-primary-line: #1F5A5E;
-    --rt-focus: #63C7CC;
-    --rt-brand-navy: #E8EDF4;
+    --rt-focus: #6FD0D4;
+    --rt-brand-navy: #E9EEF5;
+
+    --rt-today: #4CBFC4;
+    --rt-on-today: #04282A;
+    --rt-today-soft: #19515A;
+
+    --rt-tile: #1E2A3A;
+    --rt-on-tile: #C9D3E0;
 
     --rt-success: #5BD69C;
     --rt-success-soft: #0E2A1F;
@@ -156,39 +191,38 @@
     --rt-danger-solid: #D33B40;
     --rt-on-danger-solid: #FFFFFF;
 
-    --rt-info: #93B9FF;
-    --rt-info-soft: #12213D;
-    --rt-info-line: #2C4A7E;
-    --rt-info-solid: #6EA0FF;
-    --rt-on-info-solid: #061733;
+    --rt-info: #A9C1E6;
+    --rt-info-soft: #142238;
+    --rt-info-line: #2E4565;
+    --rt-info-solid: #7FA2D6;
+    --rt-on-info-solid: #0A1730;
 
-    --rt-src-booking-fill: #1A2F55;
-    --rt-src-booking-line: #5B95F5;
-    --rt-src-booking-fg: #CFE0FF;
-    --rt-src-airbnb-fill: #4A1A2A;
-    --rt-src-airbnb-line: #F06A88;
-    --rt-src-airbnb-fg: #FFD3DD;
-    --rt-src-airbnb-texture: rgb(240 106 136 / 0.30);
-    --rt-src-direct-fill: #44300F;
-    --rt-src-direct-line: #E5A23A;
-    --rt-src-direct-fg: #FBE3B5;
-    --rt-src-paid-fill: #0F3B2C;
-    --rt-src-paid-line: #3FBF8A;
-    --rt-src-paid-fg: #C7F2DD;
-    --rt-src-blocked-fill: #26303D;
+    --rt-src-booking-fill: #182E52;
+    --rt-src-booking-line: #5E97F2;
+    --rt-src-booking-fg: #D3E2FF;
+    --rt-src-airbnb-fill: #45192A;
+    --rt-src-airbnb-line: #EE6B88;
+    --rt-src-airbnb-fg: #FFD6DF;
+    --rt-src-airbnb-texture: rgb(238 107 136 / 0.30);
+    --rt-src-direct-fill: #4A2412;
+    --rt-src-direct-line: #F08A4B;
+    --rt-src-direct-fg: #FFDCC7;
+    --rt-src-paid-fill: #0E3A2A;
+    --rt-src-paid-line: #43BE89;
+    --rt-src-paid-fg: #C9F1DD;
+    --rt-src-blocked-fill: #252E3A;
     --rt-src-blocked-line: #7C899B;
     --rt-src-blocked-fg: #D5DCE5;
-    --rt-src-blocked-texture: #36414F;
+    --rt-src-blocked-texture: #364150;
     --rt-amount-missing: #DC2626;
 
-    --rt-cal-line: #1F2B3B;
-    --rt-cal-row-line: #1A2533;
-    --rt-cal-weekend: #0E1724;
-    --rt-cal-today: #19515a;
-    --rt-cal-group: #142030;
+    --rt-cal-line: #1E2A3A;
+    --rt-cal-row-line: #192433;
+    --rt-cal-weekend: #0D1624;
+    --rt-cal-group: #132031;
 
     --rt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.40);
-    --rt-shadow-2: 0 2px 4px -2px rgb(0 0 0 / 0.40), 0 10px 20px -6px rgb(0 0 0 / 0.50);
+    --rt-shadow-2: 0 2px 4px -2px rgb(0 0 0 / 0.40), 0 12px 24px -8px rgb(0 0 0 / 0.55);
     --rt-shadow-3: 0 8px 12px -6px rgb(0 0 0 / 0.50), 0 24px 48px -12px rgb(0 0 0 / 0.70);
 }
 

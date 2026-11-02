@@ -9,11 +9,11 @@ interface CardProps {
     "aria-labelledby"?: string;
 }
 
-/** The one card style: surface, subtle outline, level-1 shadow, 16px radius. */
+/** The one card style: surface and a subtle outline, no shadow (it sits in the page; only floating things cast one). */
 export default function Card({as: Tag = "div", className = "", children, padding = "md", ...rest}: CardProps) {
     return (
         <Tag
-            className={`rounded-2xl border border-subtle bg-surface shadow-card ${padding === "md" ? "p-4 sm:p-5" : "overflow-hidden"} ${className}`}
+            className={`rounded-card border border-subtle bg-surface ${padding === "md" ? "p-4 sm:p-5" : "overflow-hidden"} ${className}`}
             {...rest}
         >
             {children}

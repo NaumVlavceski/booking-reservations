@@ -122,7 +122,7 @@ public class AccountService {
                         "guestsCount", r.getGuestsCount(), "pricePerGuest", r.getPricePerGuest(),
                         "nightlyRate", r.getNightlyRate(), "totalAmount", r.getTotalAmount(), "notes", r.getNotes(),
                         "priceNeedsReview", r.isPriceNeedsReview(), "cancelledAt", r.getCancelledAt(),
-                        "guestErasedAt", r.getGuestErasedAt(), "createdAt", r.getCreatedAt(), "updatedAt", r.getUpdatedAt()))
+                        "createdAt", r.getCreatedAt(), "updatedAt", r.getUpdatedAt()))
                 .toList());
 
         out.put("bookingConflicts", syncConflictRepository.findAllByOwnerIdOrderByCreatedAtDesc(ownerId).stream()

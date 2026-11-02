@@ -65,7 +65,7 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
     }
 
     const allSelected = Boolean(options && options.length > 0 && selected.length === options.length);
-    const rowClass = (active: boolean) => `flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium transition-colors ${
+    const rowClass = (active: boolean) => `flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium transition-colors ${
         active ? "bg-primary-soft text-on-primary-soft" : "text-fg hover:bg-surface-hover"
     }`;
     const Icon = isCopy ? CopyIcon : MoveIcon;
@@ -80,7 +80,7 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
             description={isCopy
                 ? `${currentRoom ? `From ${currentRoom}. ` : ""}The booking is copied to each room you pick, without prices. ${rule}`
                 : currentRoom ? `Now in ${currentRoom}. ${rule}` : undefined}
-            icon={<span className="flex size-11 items-center justify-center rounded-full bg-primary-soft text-on-primary-soft"><Icon size={20}/></span>}
+            icon={<span className="flex size-11 items-center justify-center rounded-full bg-tile text-on-tile"><Icon size={20}/></span>}
             dismissible={!busy}
             footer={
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

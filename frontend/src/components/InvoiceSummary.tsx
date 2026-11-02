@@ -18,14 +18,14 @@ export default function InvoiceSummary({label, period, totals, currency}: Invoic
     return (
         <section
             aria-label="Total"
-            className="bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.5rem)] z-10 mt-4 rounded-2xl border border-subtle bg-surface-raised px-4 py-3 shadow-popover sm:static sm:px-5 sm:py-4 sm:shadow-card"
+            className="bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.5rem)] z-10 mt-4 rounded-card border border-subtle bg-surface-raised px-4 py-3 shadow-popover sm:static sm:px-5 sm:py-4 sm:shadow-card"
         >
             <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-overline text-subtle uppercase">{label}</p>
+                    <p className="text-label text-muted">{label}</p>
                     <p className="num truncate text-caption text-muted">{period}</p>
                 </div>
-                <p className="num shrink-0 text-title-1 text-fg">{formatEarnings(totals.earnings, currency)}</p>
+                <p className="num shrink-0 text-display text-fg sm:text-figure">{formatEarnings(totals.earnings, currency)}</p>
             </div>
             <p className="num mt-1 text-body-sm text-muted">
                 {plural(totals.totalDays, "day")} · {plural(totals.reservationCount, "booking")}

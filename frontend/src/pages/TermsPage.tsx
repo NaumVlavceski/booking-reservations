@@ -1,9 +1,6 @@
 import {Link} from "react-router-dom";
-import LegalLayout, {LegalList, LegalSection, Placeholder} from "../components/LegalLayout";
+import LegalLayout, {LegalList, LegalSection} from "../components/LegalLayout";
 import {LEGAL_VERSIONS} from "../legal/versions";
-
-// DRAFT text written from what the code actually does (see the security pass notes). Everything in a Placeholder
-// must be filled in, and the whole text reviewed by a qualified person, before launch.
 
 export default function TermsPage() {
     return (
@@ -19,8 +16,8 @@ export default function TermsPage() {
         >
             <LegalSection id="agreement" title="1. The agreement">
                 <p>
-                    These terms are an agreement between you and <Placeholder>OPERATOR NAME AND ADDRESS</Placeholder>{" "}
-                    ("we"), which runs RoomTrack. By creating an account you accept them, together with the{" "}
+                    These terms are an agreement between you and Naum Vlavcheski, Ohrid, North Macedonia ("we"), who
+                    runs RoomTrack. By creating an account you accept them, together with the{" "}
                     <Link to="/privacy" className="link">Privacy Policy</Link>. If you use RoomTrack for a business, you
                     accept them for that business and confirm you may do so.
                 </p>
@@ -31,7 +28,7 @@ export default function TermsPage() {
                     <li>You must be an adult and give a real name and an email address you control.</li>
                     <li>
                         Keep your password to yourself. You are responsible for what happens in your account, so tell
-                        us at <Placeholder>CONTACT EMAIL</Placeholder> if you think someone else has used it.
+                        us at nvlavceski542@gmail.com if you think someone else has used it.
                     </li>
                     <li>
                         Keep your calendar links private. Anyone who has a room's link can see its booked dates and the
@@ -104,16 +101,19 @@ export default function TermsPage() {
                     <li>help you answer your guests' requests to see, correct or delete their details;</li>
                     <li>tell you without undue delay if a breach affects them;</li>
                     <li>
-                        delete them when you delete them, erase them from a booking, or delete your account (backups as
+                        delete them when you delete them, remove them from a booking, or delete your account (backups as
                         described in the Privacy Policy);
                     </li>
                     <li>give you the information you need to show that these commitments are kept.</li>
                 </LegalList>
-                <p><Placeholder>DECIDE WHETHER A SEPARATE DATA PROCESSING AGREEMENT IS OFFERED</Placeholder></p>
+                <p>This section is our data processing agreement with you.</p>
             </LegalSection>
 
             <LegalSection id="price" title="6. Price">
-                <p><Placeholder>PRICING: FREE, OR PLANS, PAYMENT AND REFUND TERMS</Placeholder></p>
+                <p>
+                    RoomTrack is free to use. If we ever introduce paid features, we will tell you in advance, and
+                    nothing will be charged without your agreement.
+                </p>
             </LegalSection>
 
             <LegalSection id="availability" title="7. Availability and changes to RoomTrack">
@@ -143,8 +143,7 @@ export default function TermsPage() {
                 <p>
                     RoomTrack is provided as it is. To the extent the law allows, we are not liable for indirect losses
                     or lost income, including from double bookings or bookings missed because a calendar sync was
-                    late or failed. <Placeholder>LIABILITY CAP</Placeholder>. Nothing in these terms limits liability
-                    that cannot be limited by law.
+                    late or failed. Nothing in these terms limits liability that cannot be limited by law.
                 </p>
             </LegalSection>
 
@@ -157,14 +156,17 @@ export default function TermsPage() {
             </LegalSection>
 
             <LegalSection id="law" title="11. Law and disputes">
-                <p><Placeholder>GOVERNING LAW AND COURTS</Placeholder></p>
+                <p>
+                    These terms are governed by the law of North Macedonia. Disputes go to the competent court in Ohrid.
+                    If you live in another country, you keep any protection its law gives you that cannot be waived.
+                </p>
             </LegalSection>
 
             <LegalSection id="contact" title="12. Contact">
                 <p>
-                    <Placeholder>OPERATOR NAME AND ADDRESS</Placeholder>
+                    Naum Vlavcheski, Ohrid, North Macedonia
                     <br/>
-                    <Placeholder>CONTACT EMAIL</Placeholder>
+                    nvlavceski542@gmail.com
                 </p>
             </LegalSection>
         </LegalLayout>

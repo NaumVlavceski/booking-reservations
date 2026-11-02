@@ -13,12 +13,8 @@ import PageHeader from "../components/ui/PageHeader";
 import {ButtonLink} from "../components/ui/Button";
 import Fab from "../components/ui/Fab";
 import Menu from "../components/ui/Menu";
+import Avatar from "../components/ui/Avatar";
 import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
-
-function initials(name: string) {
-    const words = name.trim().split(/\s+/);
-    return (words[0]?.[0] ?? "").concat(words[1]?.[0] ?? "").toUpperCase();
-}
 
 export default function PropertiesPage() {
     const {data: properties, isLoading, isError, error, refetch, isRefetching} = useQuery(propertiesQuery);
@@ -89,9 +85,7 @@ export default function PropertiesPage() {
                                     to={`/dashboard/properties/${property.id}`}
                                     className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 sm:gap-4 sm:pl-5"
                                 >
-                                    <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-body-sm font-bold text-on-primary-soft">
-                                        {initials(property.name)}
-                                    </span>
+                                    <Avatar name={property.name}/>
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-title-3 text-fg">{property.name}</span>
                                         {property.address && <span className="block truncate text-body-sm text-muted">{property.address}</span>}

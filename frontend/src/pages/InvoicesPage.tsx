@@ -5,12 +5,8 @@ import {invoicePropertiesQuery} from "../lib/api/invoices";
 import {plural} from "../lib/plural";
 import {ChevronRightIcon, HouseIcon, PlusIcon} from "../components/icons";
 import PageHeader from "../components/ui/PageHeader";
+import Avatar from "../components/ui/Avatar";
 import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
-
-function initials(name: string) {
-    const words = name.trim().split(/\s+/);
-    return (words[0]?.[0] ?? "").concat(words[1]?.[0] ?? "").toUpperCase();
-}
 
 /** Invoices, step 1: pick a property. With only one property there is nothing to pick, so skip ahead. */
 export default function InvoicesPage() {
@@ -45,9 +41,7 @@ export default function InvoicesPage() {
                                 to={`/dashboard/invoices/properties/${property.propertyId}`}
                                 className="flex items-center gap-3 py-3.5 pr-3 pl-4 sm:gap-4 sm:pl-5"
                             >
-                                <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-body-sm font-bold text-on-primary-soft">
-                                    {initials(property.propertyName)}
-                                </span>
+                                <Avatar name={property.propertyName}/>
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-title-3 text-fg">{property.propertyName}</span>
                                     <span className="num block text-caption text-subtle">{plural(property.unitCount, "room")}</span>

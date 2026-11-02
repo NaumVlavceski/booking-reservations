@@ -108,7 +108,7 @@ export default function Sheet({
     if (!rendered) return null;
 
     return createPortal(
-        <div className={`fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6 ${closing ? "pointer-events-none" : ""}`}>
+        <div className={`fixed inset-0 z-(--rt-z-sheet) flex items-end justify-center sm:items-center sm:p-6 ${closing ? "pointer-events-none" : ""}`}>
             <div
                 aria-hidden="true"
                 className={`absolute inset-0 bg-scrim ${closing ? "animate-fade-out" : "animate-fade-in"}`}
@@ -121,7 +121,7 @@ export default function Sheet({
                 aria-labelledby={titleId}
                 aria-describedby={description ? descriptionId : undefined}
                 tabIndex={-1}
-                className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-subtle bg-surface-raised shadow-overlay outline-none sm:max-h-[85dvh] sm:rounded-3xl ${
+                className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-sheet border border-subtle bg-surface-raised shadow-overlay outline-none sm:max-h-[85dvh] sm:rounded-sheet ${
                     closing ? "animate-sheet-out sm:animate-pop-out" : "animate-sheet-in sm:animate-pop-in"
                 } ${
                     size === "md" ? "sm:max-w-lg" : "sm:max-w-md"

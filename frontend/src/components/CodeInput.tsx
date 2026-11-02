@@ -81,7 +81,7 @@ export default function CodeInput({digits, onChange, label, invalid, disabled, a
                     aria-label={`Digit ${i + 1} of ${CODE_LENGTH}`}
                     aria-invalid={invalid || undefined}
                     disabled={disabled}
-                    className={`num h-14 w-11 min-w-0 rounded-xl border bg-surface text-center text-2xl font-semibold text-fg transition-[border-color,box-shadow] focus:ring-3 focus:outline-none disabled:bg-surface-sunken disabled:text-muted sm:w-12 ${
+                    className={`num h-14 w-11 min-w-0 rounded-control border bg-surface text-center text-2xl font-semibold text-fg transition-[border-color,box-shadow] focus:ring-3 focus:outline-none disabled:bg-surface-sunken disabled:text-muted sm:w-12 ${
                         invalid
                             ? "border-danger ring-1 ring-danger focus:ring-danger/30"
                             : "border-strong focus:border-primary focus:ring-focus/30"

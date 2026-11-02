@@ -188,14 +188,14 @@ export default function CancelledReservationsPage() {
                     <Card padding="none" className={`hidden transition-opacity lg:block ${isFetching ? "opacity-60" : ""}`}>
                         <table className="w-full text-left text-body-sm">
                             <caption className="sr-only">{summary}</caption>
-                            <thead className="border-b border-subtle bg-surface-sunken text-caption text-subtle uppercase">
+                            <thead className="border-b border-subtle bg-surface-sunken text-caption text-subtle">
                                 <tr>
-                                    <th scope="col" className="px-5 py-3 font-semibold tracking-wide">Guest</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Stay</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Room</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Source</th>
-                                    <th scope="col" className="px-3 py-3 text-right font-semibold tracking-wide">Total</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Cancelled</th>
+                                    <th scope="col" className="px-5 py-3 font-semibold">Guest</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Stay</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Room</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Source</th>
+                                    <th scope="col" className="px-3 py-3 text-right font-semibold">Total</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Cancelled</th>
                                     <th scope="col" className="px-5 py-3"><span className="sr-only">Actions</span></th>
                                 </tr>
                             </thead>

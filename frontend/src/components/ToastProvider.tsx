@@ -56,7 +56,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
     const card = toast && (
         <div
             key={toast.id}
-            className={`pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-2xl py-2 pr-2 pl-4 text-body-sm font-semibold shadow-overlay ring-1 ring-black/10 ${tone.box}`}
+            className={`pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-card py-2 pr-2 pl-4 text-body-sm font-semibold shadow-overlay ring-1 ring-(--rt-border) ${tone.box}`}
         >
             <span className="shrink-0">{tone.icon}</span>
             <span className="min-w-0 flex-1 py-1.5">{toast.message}</span>
@@ -67,7 +67,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
                         toast.action!.onClick();
                         dismiss();
                     }}
-                    className={`min-h-11 shrink-0 rounded-xl px-3 font-bold hover:bg-current/10 ${tone.action}`}
+                    className={`min-h-11 shrink-0 rounded-control px-3 font-bold hover:bg-current/10 ${tone.action}`}
                 >
                     {toast.action.label}
                 </button>
@@ -76,7 +76,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
                 type="button"
                 onClick={dismiss}
                 aria-label="Dismiss message"
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl opacity-80 hover:bg-current/10 hover:opacity-100"
+                className="flex size-11 shrink-0 items-center justify-center rounded-control opacity-80 hover:bg-current/10 hover:opacity-100"
             >
                 <CloseIcon size={18}/>
             </button>
@@ -86,7 +86,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
     return (
         <ToastContext.Provider value={api}>
             {children}
-            <div className={`pointer-events-none fixed inset-x-0 z-[70] flex flex-col items-center gap-2 px-4 ${OFFSET[bottomChrome(pathname)]}`}>
+            <div className={`pointer-events-none fixed inset-x-0 z-(--rt-z-toast) flex flex-col items-center gap-2 px-4 ${OFFSET[bottomChrome(pathname)]}`}>
                 <div role="status" aria-live="polite" className="contents">{notices}</div>
                 <div role="status" aria-live="polite" className="contents">{!isError && card}</div>
                 <div role="alert" className="contents">{isError && card}</div>

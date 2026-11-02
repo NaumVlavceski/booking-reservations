@@ -31,28 +31,28 @@ export default function LegalLayout({title, version, summary, children}: LegalLa
 
     return (
         <main className="min-h-dvh px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+3rem)] sm:px-6 sm:py-12">
-            <div className="mx-auto w-full max-w-3xl">
+            {/* max-w-2xl keeps lines under ~80 characters for comfortable reading. */}
+            <div className="mx-auto w-full max-w-2xl">
                 <div className="flex items-center justify-between gap-3">
-                    <Link to={back.to} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-xl pr-3 pl-1 text-body-sm font-semibold text-muted transition-colors hover:bg-surface-hover hover:text-fg">
+                    <Link to={back.to} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-control pr-3 pl-1 text-body-sm font-semibold text-muted transition-colors hover:bg-surface-hover hover:text-fg">
                         <ChevronLeftIcon size={18}/>
                         {back.label}
                     </Link>
                     {/* White tile: the logo's artwork is drawn for a light background, in both themes. */}
-                    <span className="rounded-xl bg-white p-1.5 shadow-card ring-1 ring-black/5">
+                    <span className="rounded-control bg-white p-1.5 ring-1 ring-(--rt-border-subtle)">
                         <AppLogo size={28}/>
                     </span>
                 </div>
 
                 <header className="mt-6 sm:mt-8">
-                    <p className="text-overline text-subtle uppercase">RoomTrack</p>
-                    <h1 className="mt-1 text-title-1 text-fg sm:text-display">{title}</h1>
+                    <h1 className="text-display text-fg">{title}</h1>
                     <p className="mt-2 text-body-sm text-subtle">
-                        Last updated {versionDate(version)} <span aria-hidden="true">·</span> Version {version}
+                        Last updated {versionDate(version)}, version {version}
                     </p>
                     <div className="mt-4 text-body text-muted">{summary}</div>
                 </header>
 
-                <article className="mt-8 rounded-3xl border border-subtle bg-surface p-5 shadow-card sm:p-8">
+                <article className="mt-8 rounded-sheet border border-subtle bg-surface p-5 sm:p-8">
                     <div className="space-y-8">{children}</div>
                 </article>
 

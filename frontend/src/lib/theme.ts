@@ -7,7 +7,7 @@ export type Theme = "light" | "dark";
 const LAST_KEY = "roomtrack.theme";
 const accountKey = (email: string) => `roomtrack.theme.${email.trim().toLowerCase()}`;
 // Browser bar colour per theme (tokens.css --rt-surface).
-const BAR_COLOR: Record<Theme, string> = {light: "#FFFFFF", dark: "#111A27"};
+const BAR_COLOR: Record<Theme, string> = {light: "#FFFFFF", dark: "#101A29"};
 
 const listeners = new Set<() => void>();
 

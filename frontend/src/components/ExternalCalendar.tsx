@@ -97,7 +97,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
         <Card as="section" aria-labelledby={`import-title-${unitId}`} className="space-y-4">
             <div className="flex items-start gap-3">
                 <span aria-hidden="true"
-                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-on-primary-soft">
+                      className="flex size-10 shrink-0 items-center justify-center rounded-control bg-tile text-on-tile">
                     <SyncIcon size={20}/>
                 </span>
                 <div className="min-w-0">
@@ -116,7 +116,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
             {isLoading && (
                 <div role="status" aria-live="polite">
                     <span className="sr-only">Loading connected channels…</span>
-                    <Skeleton className="h-16 w-full rounded-xl"/>
+                    <Skeleton className="h-16 w-full rounded-control"/>
                 </div>
             )}
             {isError && !calendars && (
@@ -135,7 +135,7 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                     {calendars.map((c) => {
                         const syncing = syncMutation.isPending && syncMutation.variables?.id === c.id;
                         return (
-                            <li key={c.id} className="rounded-xl border border-subtle bg-surface-sunken p-3 sm:p-4">
+                            <li key={c.id} className="rounded-control border border-subtle bg-surface-sunken p-3 sm:p-4">
                                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                                     <div className="flex min-w-0 items-center gap-2">
                                         <span className="text-title-3 text-fg">{PLATFORM_NAME[c.platform]}</span>

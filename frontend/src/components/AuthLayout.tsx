@@ -17,26 +17,27 @@ export default function AuthLayout({title, subtitle, children, footer}: AuthLayo
     return (
         <main className="flex min-h-dvh flex-col items-center px-4 pt-[calc(env(safe-area-inset-top)+2.5rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)] sm:justify-center sm:py-12">
             <div className="w-full max-w-md">
-                <div className="mb-6 flex flex-col items-center gap-4 text-center sm:mb-8">
+                {/* The brand once, as a lockup; the page title does the talking. Left-aligned like the rest of the app. */}
+                <div className="mb-8 flex items-center gap-3">
                     {/* White tile: the logo's artwork is drawn for a light background, in both themes. */}
-                    <span className="rounded-2xl bg-white p-2.5 shadow-card ring-1 ring-black/5">
-                        <AppLogo size={48}/>
+                    <span className="rounded-control bg-white p-1.5 ring-1 ring-(--rt-border-subtle)">
+                        <AppLogo size={36}/>
                     </span>
-                    <div>
-                        <p className="text-overline text-subtle uppercase">RoomTrack</p>
-                        <h1 className="mt-1 text-title-1 text-fg">{title}</h1>
-                        {subtitle && <div className="mt-1.5 text-body-sm text-muted sm:text-body">{subtitle}</div>}
-                    </div>
+                    <span aria-hidden="true" className="text-title-3 font-bold text-fg">RoomTrack</span>
+                </div>
+                <div className="mb-5 px-1 sm:mb-6">
+                    <h1 className="text-display text-fg">{title}</h1>
+                    {subtitle && <div className="mt-1.5 text-body text-muted">{subtitle}</div>}
                 </div>
                 {!online && (
                     <Callout tone="warning" role="status" className="mb-4" title="You're offline">
                         Connect to the internet to continue.
                     </Callout>
                 )}
-                <div className="rounded-3xl border border-subtle bg-surface p-5 shadow-card sm:p-8">
+                <div className="rounded-sheet border border-subtle bg-surface p-5 sm:p-8">
                     {children}
                 </div>
-                {footer && <div className="mt-6 space-y-2 text-center text-body-sm text-muted">{footer}</div>}
+                {footer && <div className="mt-6 space-y-2 px-1 text-body-sm text-muted">{footer}</div>}
             </div>
         </main>
     );

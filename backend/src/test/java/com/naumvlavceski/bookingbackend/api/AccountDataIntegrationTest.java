@@ -24,7 +24,6 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -194,34 +193,5 @@ class AccountDataIntegrationTest {
         for (int i = 0; i < 5; i++) send(get("/api/me/export"), a.token(), null).andExpect(status().isOk());
         send(get("/api/me/export"), a.token(), null).andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"));
-    }
-
-    // ---------- guest erasure ----------
-
-    @Test
-    void erasingAGuestKeepsDatesAndAmountsAndOnlyTheOwnerCanDoIt() throws Exception {
-        Owner a = owner(email());
-        Owner b = owner(email());
-        String[] aData = fill(a);
-
-        send(post("/api/reservations/" + aData[2] + "/erase-guest"), b.token(), null).andExpect(status().isNotFound());
-
-        send(post("/api/reservations/" + aData[2] + "/erase-guest"), a.token(), null)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.guestName").doesNotExist())
-                .andExpect(jsonPath("$.guestEmail").doesNotExist())
-                .andExpect(jsonPath("$.guestPhone").doesNotExist())
-                .andExpect(jsonPath("$.notes").doesNotExist())
-                .andExpect(jsonPath("$.guestErasedAt").exists())
-                .andExpect(jsonPath("$.checkIn").value("2041-05-01"))
-                .andExpect(jsonPath("$.totalAmount").value(300))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"));
-
-        String feedToken = JsonPath.read(send(get("/api/units/" + aData[1]), a.token(), null)
-                .andReturn().getResponse().getContentAsString(), "$.token");
-        mvc.perform(get("/api/ical/" + feedToken + ".ics"))
-                .andExpect(content().string(containsString("SUMMARY:Reserved")))
-                .andExpect(content().string(not(containsString("Guest Secret"))));
-        assertEquals(0, count("select count(*) from reservation where guest_name = 'Guest Secret' and owner_id = ?", a.ownerId()));
     }
 }

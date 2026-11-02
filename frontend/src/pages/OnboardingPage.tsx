@@ -139,7 +139,7 @@ function SetupProgress({step}: { step: OnboardingStep }) {
 function StepBar({onBack, children}: { onBack?: () => void; children: ReactNode }) {
     const online = useOnlineStatus();
     return (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
+        <div className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
             <div className="mx-auto flex max-w-2xl flex-col gap-2">
                 {!online && (
                     <p role="status" className="flex items-center justify-center gap-2 text-body-sm font-medium text-muted sm:justify-end">

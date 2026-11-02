@@ -184,7 +184,7 @@ export default function UnitFormPage() {
 
                 {isEditing && existing?.token && (
                     <section aria-labelledby="channels-heading" className="space-y-3 pt-2">
-                        <h2 id="channels-heading" className="px-1 text-overline text-subtle uppercase">Channels</h2>
+                        <h2 id="channels-heading" className="px-1 text-label text-muted">Channels</h2>
                         <ChannelGuideLink/>
                         <CalendarSyncLink token={existing.token}/>
                         <ExternalCalendars unitId={existing.id}/>

@@ -65,7 +65,7 @@ export default function InvoicePropertyPage() {
                         to={`/dashboard/invoices/properties/${data.propertyId}/missing-amounts${search}`}
                     />
 
-                    <h2 className="mb-2 px-1 text-overline text-subtle uppercase">{plural(data.units.length, "room")}</h2>
+                    <h2 className="mb-2 px-1 text-label text-muted">{plural(data.units.length, "room")}</h2>
                     <ul className="stack-list">
                         {data.units.map((unit) => {
                             // Each room's share of the property total, as a thin bar under its name.

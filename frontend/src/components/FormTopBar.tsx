@@ -66,7 +66,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
 
     return (
         <>
-            <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:mx-0 sm:mb-6 sm:rounded-2xl sm:border sm:bg-surface/95 sm:shadow-card sm:backdrop-blur-md">
+            <header className="sticky top-0 z-(--rt-z-sticky) -mx-4 mb-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:mx-0 sm:mb-6 sm:rounded-card sm:border sm:bg-surface/95 sm:shadow-card sm:backdrop-blur-md">
                 <div className="grid min-h-14 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center px-1 sm:min-h-16 sm:px-2">
                     {back ? (
                         <Link to={back.to} onClick={handleBackClick} aria-label="Back" className="icon-btn">
@@ -109,7 +109,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
             </header>
 
             {/* Save, pinned to the bottom of the screen (next to the sidebar/rail from sm up). */}
-            {!hideSave && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
+            {!hideSave && <div className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
                 <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
                     {!online && (
                         <p role="status" className="flex items-center justify-center gap-2 text-body-sm font-medium text-muted">

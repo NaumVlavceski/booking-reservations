@@ -74,7 +74,7 @@ export default function InvoiceUnitPage() {
                         </EmptyState>
                     ) : (
                         <>
-                            <h2 className="mb-2 px-1 text-overline text-subtle uppercase">{plural(data.reservations.totalElements, "booking")}</h2>
+                            <h2 className="mb-2 px-1 text-label text-muted">{plural(data.reservations.totalElements, "booking")}</h2>
                             <ul className="stack-list">
                                 {data.reservations.items.map((r) => (
                                     <li key={r.reservationId} className="transition-colors hover:bg-surface-hover">

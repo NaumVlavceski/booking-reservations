@@ -1,21 +1,16 @@
-// The logo image has padding around the artwork; crop to the artwork box (x 380-880, y 280-1000 of 1264px).
-const CROP = { x: 380, y: 280, w: 500, h: 720, full: 1264 };
+// public/logo-mark.png is the logo's artwork, cropped from the former 1264px logo.png (still in git history) and
+// scaled to 111 x 168: 3x the default size, sharp on phone screens, 21 KB.
+const RATIO = 111 / 168;
 
 export default function AppLogo({ size = 56 }: { size?: number }) {
-    const scale = size / CROP.h;
     return (
-        <div
-            role="img"
-            aria-label="RoomTrack"
-            className="shrink-0"
-            style={{
-                width: CROP.w * scale,
-                height: size,
-                backgroundImage: "url(/logo.png)",
-                backgroundRepeat: "no-repeat",
-                backgroundSize: `${CROP.full * scale}px ${CROP.full * scale}px`,
-                backgroundPosition: `-${CROP.x * scale}px -${CROP.y * scale}px`,
-            }}
+        <img
+            src="/logo-mark.png"
+            alt="RoomTrack"
+            width={Math.round(size * RATIO)}
+            height={size}
+            decoding="async"
+            className="block shrink-0"
         />
     );
 }

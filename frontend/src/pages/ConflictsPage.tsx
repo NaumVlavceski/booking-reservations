@@ -90,7 +90,7 @@ export default function ConflictsPage() {
                         return (
                             <Card as="li" key={c.id} className="border-danger-line">
                                 <div className="flex items-start gap-3">
-                                    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft text-danger">
+                                    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-danger-soft text-danger">
                                         <AlertIcon size={18}/>
                                     </span>
                                     <div className="min-w-0 flex-1">
@@ -107,14 +107,14 @@ export default function ConflictsPage() {
                                 </div>
 
                                 <dl className="mt-4 grid gap-2 text-body-sm sm:grid-cols-2">
-                                    <div className="rounded-xl border border-danger-line bg-danger-soft px-3.5 py-3">
+                                    <div className="rounded-control border border-danger-line bg-danger-soft px-3.5 py-3">
                                         <dt className="text-caption font-semibold text-danger">{platform} says</dt>
                                         <dd className="num mt-0.5 font-semibold text-fg">
                                             {incoming} <span className="font-normal text-muted">· {nights(c.incomingStart, c.incomingEnd)}</span>
                                         </dd>
                                         {note && <dd className="mt-0.5 text-muted">“{note}”</dd>}
                                     </div>
-                                    <div className="rounded-xl border border-subtle bg-surface-sunken px-3.5 py-3">
+                                    <div className="rounded-control border border-subtle bg-surface-sunken px-3.5 py-3">
                                         <dt className="text-caption font-semibold text-muted">Your calendar has</dt>
                                         <dd className="mt-0.5 font-semibold text-fg">
                                             {existing ? (

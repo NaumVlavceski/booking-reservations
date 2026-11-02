@@ -5,7 +5,7 @@ import {AlertIcon} from "./icons";
 export default function SyncProblem({error, platform}: { error: string | null; platform: string }) {
     const problem = describeSyncError(error, platform);
     return (
-        <div className="flex items-start gap-3 rounded-xl border border-danger-line bg-danger-soft px-3.5 py-3 text-body-sm">
+        <div className="flex items-start gap-3 rounded-control border border-danger-line bg-danger-soft px-3.5 py-3 text-body-sm">
             <AlertIcon size={18} className="mt-0.5 shrink-0 text-danger"/>
             <div className="min-w-0 flex-1">
                 <p className="font-semibold text-fg">{problem.title}</p>

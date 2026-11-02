@@ -69,7 +69,7 @@ export default function DateFilter({label, value, onChange, placeholder = "Any d
                         type="button"
                         onClick={() => onChange("")}
                         aria-label={`Clear ${label.toLowerCase()}`}
-                        className="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-hover hover:text-fg"
+                        className="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-muted transition-colors hover:bg-surface-hover hover:text-fg"
                     >
                         <CloseIcon size={16}/>
                     </button>
@@ -81,7 +81,7 @@ export default function DateFilter({label, value, onChange, placeholder = "Any d
                 <div
                     role="dialog"
                     aria-label={label}
-                    className="rdp-theme absolute top-full right-0 z-20 mt-1.5 animate-pop-in rounded-2xl border border-subtle bg-surface-raised p-2 shadow-popover"
+                    className="rdp-theme absolute top-full right-0 z-(--rt-z-popover) mt-1.5 animate-pop-in rounded-card border border-subtle bg-surface-raised p-2 shadow-popover"
                 >
                     <DayPicker
                         mode="single"

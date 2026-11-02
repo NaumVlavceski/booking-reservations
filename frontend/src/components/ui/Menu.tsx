@@ -65,7 +65,7 @@ export default function Menu({label, items, trigger, triggerClassName = "icon-bt
         }
     }
 
-    const itemClass = "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium outline-none transition-colors hover:bg-surface-hover focus-visible:bg-surface-hover";
+    const itemClass = "flex min-h-11 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium outline-none transition-colors hover:bg-surface-hover focus-visible:bg-surface-hover";
 
     return (
         <div ref={rootRef} className="relative">
@@ -88,7 +88,7 @@ export default function Menu({label, items, trigger, triggerClassName = "icon-bt
                     role="menu"
                     aria-label={label}
                     onKeyDown={onKeyDown}
-                    className={`absolute right-0 z-40 min-w-52 animate-pop-in rounded-2xl border border-subtle bg-surface-raised p-1.5 shadow-popover ${
+                    className={`absolute right-0 z-(--rt-z-popover) min-w-52 animate-pop-in rounded-card border border-subtle bg-surface-raised p-1.5 shadow-popover ${
                         openUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
                     }`}
                 >

@@ -31,7 +31,7 @@ export function ListSkeleton({rows = 3, label}: { rows?: number; label: string }
             <div className="stack-list">
                 {Array.from({length: rows}, (_, i) => (
                     <div key={i} className="flex items-center gap-3 px-4 py-4 sm:px-5">
-                        <Skeleton className="size-10 shrink-0 rounded-xl"/>
+                        <Skeleton className="size-10 shrink-0 rounded-control"/>
                         <div className="min-w-0 flex-1 space-y-2">
                             <Skeleton className="h-4 w-2/5"/>
                             <Skeleton className="h-3 w-3/5"/>
@@ -45,17 +45,25 @@ export function ListSkeleton({rows = 3, label}: { rows?: number; label: string }
 }
 
 /** Stand-in for a form while the record loads. */
-export function FormSkeleton({label, sections = 2}: { label: string; sections?: number }) {
+export function FormSkeleton({label, sections = 2, joined = false}: {
+    label: string;
+    sections?: number;
+    /** The form is one card with divider lines between its sections (the booking form), not a card per section. */
+    joined?: boolean;
+}) {
+    const blocks = Array.from({length: sections}, (_, i) => (
+        <div key={i} className={joined ? "space-y-4 p-4 sm:p-5" : "space-y-4"}>
+            <Skeleton className="h-4 w-1/3"/>
+            <Skeleton className="h-12 w-full rounded-control"/>
+            <Skeleton className="h-12 w-full rounded-control"/>
+        </div>
+    ));
     return (
         <div role="status" aria-live="polite" className="space-y-4">
             <span className="sr-only">{label}</span>
-            {Array.from({length: sections}, (_, i) => (
-                <Card key={i} className="space-y-4">
-                    <Skeleton className="h-4 w-1/3"/>
-                    <Skeleton className="h-12 w-full rounded-xl"/>
-                    <Skeleton className="h-12 w-full rounded-xl"/>
-                </Card>
-            ))}
+            {joined
+                ? <Card padding="none" className="divide-y divide-subtle">{blocks}</Card>
+                : blocks.map((block, i) => <Card key={i}>{block}</Card>)}
             <SlowLoadingHint/>
         </div>
     );
@@ -75,7 +83,7 @@ export function EmptyState({icon, title, children, action, className = ""}: Empt
     return (
         <Card className={`flex flex-col items-center gap-2 px-6 py-10 text-center sm:py-14 ${className}`}>
             {icon && (
-                <span className="mb-2 flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-on-primary-soft">
+                <span className="mb-2 flex size-12 items-center justify-center rounded-card bg-tile text-on-tile">
                     {icon}
                 </span>
             )}
@@ -103,7 +111,7 @@ export function ErrorState({title = "Couldn't load this", error, children, onRet
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
     return (
         <Card className={`flex flex-col items-center gap-2 px-6 py-10 text-center ${className}`}>
-            <span aria-hidden="true" className="mb-2 flex size-12 items-center justify-center rounded-2xl bg-danger-soft text-danger">
+            <span aria-hidden="true" className="mb-2 flex size-12 items-center justify-center rounded-card bg-danger-soft text-danger">
                 {offline ? <WifiOffIcon size={22}/> : <AlertIcon size={22}/>}
             </span>
             <div role="alert">

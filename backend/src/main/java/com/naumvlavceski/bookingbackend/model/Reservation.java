@@ -65,9 +65,6 @@ public class Reservation {
 
     private OffsetDateTime cancelledAt;
 
-    /** Set when the owner erased this guest's personal details (see ReservationService.eraseGuest). */
-    private OffsetDateTime guestErasedAt;
-
     @CreationTimestamp
     private LocalDateTime createdAt;
 

@@ -441,15 +441,6 @@ Authorization: Bearer {{tokenA}}
 GET {{host}}/api/me/export
 Authorization: Bearer {{tokenA}}
 
-### 4.2 Guest erasure by ANOTHER owner: 404
-POST {{host}}/api/reservations/{{resA}}/erase-guest
-Authorization: Bearer {{tokenB}}
-
-### 4.3 Guest erasure by the owner: 200; guestName/guestEmail/guestPhone/notes null, guestErasedAt set,
-# dates, room, status, guestsCount and amounts unchanged. A's feed now says SUMMARY:Reserved for it.
-POST {{host}}/api/reservations/{{resA}}/erase-guest
-Authorization: Bearer {{tokenA}}
-
 ### 4.4 Delete without signing in: 401
 POST {{host}}/api/me/delete
 Content-Type: application/json

@@ -35,7 +35,7 @@ export default function OfflineScreen({offline, calendarSaved}: { offline: boole
     return (
         <div className="pt-[env(safe-area-inset-top)] sm:pt-0">
             <Card className="mx-auto mt-6 flex max-w-lg flex-col items-center gap-3 px-6 py-12 text-center sm:mt-12">
-                <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-2xl bg-primary-soft text-on-primary-soft">
+                <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-card bg-tile text-on-tile">
                     <WifiOffIcon size={28}/>
                 </span>
                 <div role="alert">

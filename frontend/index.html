@@ -6,6 +6,8 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The interface font (self-hosted, see index.css): fetch the Latin file with the page, not after the CSS. -->
+    <link rel="preload" href="/fonts/golos-text-latin-v1.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FFFFFF" />
     <!-- Home-screen app on iPhone: own window, dark status bar text on the light top bar, short name under the icon. -->
@@ -18,7 +20,7 @@
       try {
         if (localStorage.getItem("roomtrack.theme") === "dark") {
           document.documentElement.dataset.theme = "dark";
-          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111A27");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#101A29");
         }
       } catch (e) {}
     </script>

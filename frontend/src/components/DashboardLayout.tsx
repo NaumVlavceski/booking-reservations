@@ -14,17 +14,13 @@ import {
     ChannelsIcon,
     ChevronRightIcon,
     CompassIcon,
-    FileTextIcon,
     HelpIcon,
     HouseIcon,
-    LockIcon,
     LogoutIcon,
     MoreHorizontalIcon,
     PersonIcon,
     ReceiptIcon,
-    ShieldIcon,
 } from "./icons";
-import LegalLinks from "./LegalLinks";
 import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
 import ThemeToggle from "./ThemeToggle";
@@ -38,11 +34,11 @@ import ErrorBoundary from "./ErrorBoundary";
 import InstallAppButton, {IosInstallSheet} from "./InstallApp";
 import Sheet from "./ui/Sheet";
 import {CountBubble} from "./ui/Badge";
+import Avatar from "./ui/Avatar";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
 const HELP_PATH = "/dashboard/help/connect-calendars";
-const PASSWORD_PATH = "/dashboard/account/password";
 const ACCOUNT_PATH = "/dashboard/account";
 
 function isChannels(pathname: string) {
@@ -51,11 +47,6 @@ function isChannels(pathname: string) {
 
 function isCalendarArea(pathname: string) {
     return pathname.startsWith("/dashboard/calendar") || pathname.startsWith("/dashboard/reservations");
-}
-
-function initials(name: string | undefined) {
-    const words = (name ?? "RoomTrack").trim().split(/\s+/);
-    return (words[0][0] + (words[1]?.[0] ?? "")).toUpperCase();
 }
 
 /** "4 warnings" for screen readers; the visible bubble is decorative. */
@@ -113,14 +104,15 @@ export default function DashboardLayout() {
 
     return (
         <div className="min-h-dvh">
-            <a href="#main" className="sr-only z-[80] rounded-xl bg-surface-raised px-4 py-3 font-semibold text-fg shadow-popover focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
+            <a href="#main" className="sr-only z-(--rt-z-skip) rounded-control bg-surface-raised px-4 py-3 font-semibold text-fg shadow-popover focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
                 Skip to content
             </a>
 
             {/* Desktop: sidebar with everything in view. */}
-            <aside aria-label="Main menu" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
+            <aside aria-label="Main menu" className="fixed inset-y-0 left-0 z-(--rt-z-nav) hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
                 <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-                    <span className="shrink-0 rounded-xl p-1"><AppLogo size={28}/></span>
+                    {/* White tile: the logo's artwork is drawn for a light background, in both themes. */}
+                    <span className="shrink-0 rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo size={28}/></span>
                     <p className="min-w-0 truncate text-title-3 text-fg">RoomTrack</p>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-4">
@@ -153,16 +145,11 @@ export default function DashboardLayout() {
                     <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
                     <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
-                    <SidebarLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} active={pathname === PASSWORD_PATH}>
-                        Change password
-                    </SidebarLink>
                     <SidebarLink to={ACCOUNT_PATH} icon={PersonIcon} active={pathname === ACCOUNT_PATH}>
                         Account and privacy
                     </SidebarLink>
-                    <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2">
-                        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-caption font-bold text-on-primary-soft">
-                            {initials(me?.fullName)}
-                        </span>
+                    <div className="mt-2 flex items-center gap-3 rounded-control px-3 py-2">
+                        <Avatar name={me?.fullName} size="sm"/>
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-body-sm font-semibold text-fg">{me?.fullName}</p>
                             {me?.email && <p className="truncate text-caption text-subtle">{me.email}</p>}
@@ -171,14 +158,13 @@ export default function DashboardLayout() {
                             <LogoutIcon size={20}/>
                         </button>
                     </div>
-                    <LegalLinks/>
                 </div>
             </aside>
 
             {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */}
-            <nav aria-label="Main" className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
-                <Link to="/dashboard/calendar" className="mb-4 rounded-xl p-1" aria-label="RoomTrack, calendar">
-                    <span className="block rounded-xl  p-1 ring-1 ring-black/5"><AppLogo size={30}/></span>
+            <nav aria-label="Main" className="fixed inset-y-0 left-0 z-(--rt-z-nav) hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
+                <Link to="/dashboard/calendar" className="mb-4 rounded-control p-1" aria-label="RoomTrack, calendar">
+                    <span className="block rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo size={30}/></span>
                 </Link>
                 {destinations.map((d) => (
                     <RailItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
@@ -213,7 +199,7 @@ export default function DashboardLayout() {
 
             {/* Phones: bottom tab bar (forms replace it with their Save bar). */}
             {chrome === "tabs" && (
-                <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+                <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
                     {destinations.map((d) => (
                         <TabItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
                     ))}
@@ -223,9 +209,7 @@ export default function DashboardLayout() {
 
             <Sheet open={isMoreOpen} onClose={closeMore} title="More" titleHidden showClose closeLabel="Close menu">
                 <div className="flex items-center gap-3 pr-10 pb-4">
-                    <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-body-sm font-bold text-on-primary-soft">
-                        {initials(me?.fullName)}
-                    </span>
+                    <Avatar name={me?.fullName}/>
                     <div className="min-w-0">
                         <p className="truncate text-title-3 text-fg">{me?.fullName}</p>
                         {me?.email && <p className="truncate text-body-sm text-muted">{me.email}</p>}
@@ -256,12 +240,7 @@ export default function DashboardLayout() {
                         }}/>
                         <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
-                        <SheetLink to={PASSWORD_PATH} state={fromHere} icon={LockIcon} onClick={closeMore} chevron>Change password</SheetLink>
                         <SheetLink to={ACCOUNT_PATH} icon={PersonIcon} onClick={closeMore} chevron>Account and privacy</SheetLink>
-                    </SheetGroup>
-                    <SheetGroup>
-                        <SheetLink to="/privacy" icon={ShieldIcon} onClick={closeMore} chevron>Privacy Policy</SheetLink>
-                        <SheetLink to="/terms" icon={FileTextIcon} onClick={closeMore} chevron>Terms of Service</SheetLink>
                     </SheetGroup>
                     <SheetGroup>
                         <button type="button" onClick={handleLogout} className={sheetRow}>
@@ -284,10 +263,10 @@ function SetupStepCount({step}: { step: number }) {
     );
 }
 
-const sheetRow ="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
+const sheetRow ="flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
 
 function SheetGroup({children}: { children: ReactNode }) {
-    return <div className="rounded-2xl bg-surface-sunken p-1">{children}</div>;
+    return <div className="rounded-card bg-surface-sunken p-1">{children}</div>;
 }
 
 function SheetLink({to, state, icon: Icon, onClick, chevron, trailing, children}: {
@@ -323,7 +302,7 @@ function SidebarLink({to, state, icon: Icon, active, trailing, children}: {
             to={to}
             state={state}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-body-sm font-medium transition-colors ${
+            className={`flex min-h-11 items-center gap-3 rounded-control px-3 py-2 text-body-sm font-medium transition-colors ${
                 active ? "bg-primary-soft font-semibold text-on-primary-soft" : "text-muted hover:bg-surface-hover hover:text-fg"
             }`}
         >
@@ -359,7 +338,7 @@ function Destination({to, onClick, active, expanded, className, children}: Omit<
 function TabItem({to, onClick, label, icon: Icon, active, expanded, count = 0}: DestinationProps) {
     return (
         <Destination to={to} onClick={onClick} active={active} expanded={expanded}
-                     className="relative flex h-16 flex-col items-center justify-center gap-1 text-[0.6875rem] leading-3.5 font-semibold">
+                     className="relative flex h-16 flex-col items-center justify-center gap-1 text-micro">
             <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
                 active ? "bg-primary-soft text-on-primary-soft" : "text-subtle"
             }`}>
@@ -374,7 +353,7 @@ function TabItem({to, onClick, label, icon: Icon, active, expanded, count = 0}: 
 function RailItem({to, onClick, label, icon: Icon, active, expanded, count = 0}: DestinationProps) {
     return (
         <Destination to={to} onClick={onClick} active={active} expanded={expanded}
-                     className="relative flex w-16 flex-col items-center gap-1 rounded-2xl py-2 text-caption font-semibold">
+                     className="relative flex w-16 flex-col items-center gap-1 rounded-card py-2 text-caption font-semibold">
             <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
                 active ? "bg-primary-soft text-on-primary-soft" : "text-subtle hover:bg-surface-hover"
             }`}>

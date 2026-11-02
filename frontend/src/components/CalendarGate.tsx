@@ -59,7 +59,7 @@ function CalendarSkeleton() {
                 <div className="flex h-[74px] border-b border-subtle">
                     <div className="w-[104px] shrink-0 border-r border-subtle sm:w-[120px]"/>
                     <div className="flex flex-1 items-end gap-3 px-3 pb-3">
-                        {Array.from({length: 7}, (_, i) => <Skeleton key={i} className="h-8 flex-1 rounded-lg"/>)}
+                        {Array.from({length: 7}, (_, i) => <Skeleton key={i} className="h-8 flex-1 rounded-tag"/>)}
                     </div>
                 </div>
                 {[0.55, 0.35, 0.7, 0.45].map((width, i) => (
@@ -69,7 +69,7 @@ function CalendarSkeleton() {
                             <Skeleton className="h-3 w-10"/>
                         </div>
                         <div className="flex-1 px-3">
-                            <Skeleton className="h-7 rounded-lg" style={{width: `${width * 100}%`, marginLeft: `${i * 9}%`}}/>
+                            <Skeleton className="h-7 rounded-tag" style={{width: `${width * 100}%`, marginLeft: `${i * 9}%`}}/>
                         </div>
                     </div>
                 ))}

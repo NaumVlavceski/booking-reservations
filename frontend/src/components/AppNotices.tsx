@@ -107,7 +107,7 @@ function NoticeCard({icon, children, action, onClose, closeLabel}: {
     closeLabel: string;
 }) {
     return (
-        <div className="pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-2xl border border-subtle bg-surface-raised py-2 pr-2 pl-4 text-body-sm font-semibold text-fg shadow-overlay">
+        <div className="pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-card border border-subtle bg-surface-raised py-2 pr-2 pl-4 text-body-sm font-semibold text-fg shadow-overlay">
             <span aria-hidden="true" className="shrink-0 text-on-primary-soft">{icon}</span>
             <span className="min-w-0 flex-1 py-1.5">{children}</span>
             {action}
@@ -116,7 +116,7 @@ function NoticeCard({icon, children, action, onClose, closeLabel}: {
                 onClick={onClose}
                 aria-label={closeLabel}
                 title={closeLabel}
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface-hover hover:text-fg"
+                className="flex size-11 shrink-0 items-center justify-center rounded-control text-muted hover:bg-surface-hover hover:text-fg"
             >
                 <CloseIcon size={18}/>
             </button>

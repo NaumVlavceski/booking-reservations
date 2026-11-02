@@ -27,14 +27,14 @@ export function SegmentedControl<T extends string>({name, value, options, onChan
             role="radiogroup"
             aria-label={labelId ? undefined : label}
             aria-labelledby={labelId}
-            className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-subtle bg-surface-sunken p-1"
+            className="grid auto-cols-fr grid-flow-col gap-1 rounded-card border border-subtle bg-surface-sunken p-1"
         >
             {options.map((option) => {
                 const checked = option.value === value;
                 return (
                     <label
                         key={option.value}
-                        className={`relative flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 text-body-sm font-semibold transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus ${
+                        className={`relative flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-control px-2 text-body-sm font-semibold transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus ${
                             checked
                                 ? "bg-surface text-fg shadow-card ring-1 ring-[var(--rt-border)]"
                                 : "text-muted hover:bg-surface-hover hover:text-fg"
@@ -67,14 +67,14 @@ interface NavOption {
 /** Two or three sibling pages switched like segments (e.g. Conflicts | Sync status). */
 export function SegmentedNav({items, label}: { items: NavOption[]; label: string }) {
     return (
-        <nav aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-subtle bg-surface-sunken p-1">
+        <nav aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-card border border-subtle bg-surface-sunken p-1">
             {items.map((item) => (
                 <NavLink
                     key={item.to}
                     to={item.to}
                     end
                     className={({isActive}) =>
-                        `flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-body-sm font-semibold transition-colors duration-150 ${
+                        `flex min-h-11 items-center justify-center gap-2 rounded-control px-3 text-body-sm font-semibold transition-colors duration-150 ${
                             isActive
                                 ? "bg-surface text-fg shadow-card ring-1 ring-[var(--rt-border)]"
                                 : "text-muted hover:bg-surface-hover hover:text-fg"

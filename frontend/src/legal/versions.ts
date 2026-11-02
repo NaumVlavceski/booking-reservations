@@ -7,8 +7,8 @@
 // "please accept the updated Terms" step can find the accounts that still have to.
 
 export const LEGAL_VERSIONS = {
-    terms: "2026-10-30",
-    privacy: "2026-10-30",
+    terms: "2026-10-31",
+    privacy: "2026-10-31",
 } as const;
 
 /** "30 October 2026" for "Last updated" lines. */
