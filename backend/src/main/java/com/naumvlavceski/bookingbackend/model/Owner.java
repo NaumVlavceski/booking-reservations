@@ -32,6 +32,11 @@ public class Owner {
     @Column(nullable = false)
     private boolean notificationsEnabled = true;
 
+    /** A temporary demo (see DemoAccounts): deleted after its lifetime, and a few account actions are off. */
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean demo = false;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

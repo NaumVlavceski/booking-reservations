@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.demo.DemoGuard;
 import com.naumvlavceski.bookingbackend.dto.PropertyRequest;
 import com.naumvlavceski.bookingbackend.dto.PropertyResponse;
 import com.naumvlavceski.bookingbackend.model.Owner;
@@ -26,6 +27,7 @@ public class PropertyService {
     private final PropertyRepository propertyRepository;
     private final OwnerRepository ownerRepository;
     private final UnitRepository unitRepository;
+    private final DemoGuard demoGuard;
 
     public List<PropertyResponse> findAllForOwner(UUID ownerId){
         return propertyRepository.findAllByOwnerId(ownerId).stream()
@@ -43,6 +45,7 @@ public class PropertyService {
         if (unitCount < 0 || unitCount > MAX_INITIAL_UNITS) {
             throw new IllegalArgumentException("Number of rooms must be between 0 and " + MAX_INITIAL_UNITS);
         }
+        demoGuard.requireRoomForProperty(ownerId, unitCount);
 
         Owner owner = ownerRepository.findById(ownerId).orElseThrow(()->new NoSuchElementException("Owner not found"));
         Property property = new Property();

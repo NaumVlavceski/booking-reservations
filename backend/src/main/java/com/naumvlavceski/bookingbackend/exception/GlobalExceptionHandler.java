@@ -74,6 +74,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
+    // 403 keeps the user signed in (the frontend only signs out on 401)
+    @ExceptionHandler(DemoRestrictedException.class)
+    public ResponseEntity<Map<String, Object>> handleDemoRestricted(DemoRestrictedException ex) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), "DEMO_RESTRICTED");
+    }
+
     // 400 on purpose, never 401/403: the frontend signs people out on those
     @ExceptionHandler(VerificationException.class)
     public ResponseEntity<Map<String, Object>> handleVerification(VerificationException ex) {

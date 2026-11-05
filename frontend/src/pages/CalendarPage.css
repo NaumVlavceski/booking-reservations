@@ -798,6 +798,28 @@
 }
 
 
+/* The demo's colour key, between the toolbar and the calendar. */
+.cal-color-key {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    overflow-x: auto;
+    background: var(--rt-surface);
+    border-bottom: 1px solid var(--rt-border-subtle);
+}
+
+@media (min-width: 640px) {
+    .cal-color-key {
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        padding: 0;
+        background: none;
+        border-bottom: none;
+    }
+}
+
 /* LAYOUT: app chrome around the calendar per breakpoint (see DashboardLayout's <main> padding). */
 @media (min-width: 640px) {
     .cal-root {

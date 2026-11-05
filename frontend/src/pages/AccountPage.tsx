@@ -7,6 +7,7 @@ import {tokenStorage} from "../lib/auth/tokenStorage";
 import {clearOfflineCalendar} from "../lib/offlineCalendar";
 import {useFromHere} from "../lib/useReturnTo";
 import {useToast} from "../lib/toast";
+import {leaveDemo} from "../lib/demo";
 import PageHeader from "../components/ui/PageHeader";
 import {SectionCard} from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -90,6 +91,15 @@ export default function AccountPage() {
             <PageHeader title="Account" description="Your details, a copy of your data, and deleting your account." alerts={false}/>
 
             <div className="space-y-4">
+                {me?.demo && (
+                    <Callout tone="info" title="This is your private demo">
+                        Everything in it is sample data, and only you can see it. It is deleted automatically 1 hour
+                        after you started it. Changing the password, deleting the account, booking emails and
+                        connecting Booking.com are turned off here.{" "}
+                        <Link to="/register" onClick={() => leaveDemo(queryClient)} className="link">Create your own account</Link> to
+                        keep your data.
+                    </Callout>
+                )}
                 <SectionCard id="account-details" title="Your details">
                     <dl className="grid gap-3 text-body-sm sm:grid-cols-2">
                         <div>

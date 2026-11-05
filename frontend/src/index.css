@@ -186,6 +186,7 @@
     --animate-pop-out: pop-out var(--rt-dur-base) var(--rt-ease) both;
     --animate-spin-slow: spin 800ms linear infinite;
     --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+    --animate-pulse-ring: pulse-ring 1.6s var(--rt-ease-out) infinite;
 }
 
 @keyframes fade-in {
@@ -214,6 +215,11 @@
 
 @keyframes shimmer {
     50% { opacity: 0.55; }
+}
+
+@keyframes pulse-ring {
+    from { box-shadow: 0 0 0 0 var(--rt-success-solid); }
+    to { box-shadow: 0 0 0 0.75rem transparent; }
 }
 
 @media (prefers-reduced-motion: reduce) {

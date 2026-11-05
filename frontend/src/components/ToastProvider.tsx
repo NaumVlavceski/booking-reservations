@@ -31,6 +31,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
     const [toast, setToast] = useState<ActiveToast | null>(null);
     const timerRef = useRef<number | undefined>(undefined);
     const nextId = useRef(0);
+    const cardRef = useRef<HTMLDivElement>(null);
     const {pathname} = useLocation();
 
     const dismiss = useCallback(() => {
@@ -43,11 +44,24 @@ export default function ToastProvider({children, notices}: { children: ReactNode
         nextId.current += 1;
         setToast({id: nextId.current, message, ...options});
         // Toasts with an action (Undo) or bad news stay longer, so there's time to read and tap.
-        const duration = options.durationMs ?? (options.action ? 7000 : options.tone === "error" ? 6000 : 4000);
+        const duration = options.durationMs ?? (options.action ? 5000 : options.tone === "error" ? 4000 : 2000);
         timerRef.current = window.setTimeout(() => setToast(null), duration);
     }, []);
 
     useEffect(() => () => window.clearTimeout(timerRef.current), []);
+
+    // Pressing anywhere else closes the toast, and that press still does what it was for. It listens for the press
+    // (not the click) so the click that made this toast appear can't close it, and in the capture phase so a page
+    // that stops the event can't keep it open.
+    const hasToast = toast !== null;
+    useEffect(() => {
+        if (!hasToast) return;
+        const closeOnOutsidePress = (e: PointerEvent) => {
+            if (!cardRef.current?.contains(e.target as Node)) dismiss();
+        };
+        document.addEventListener("pointerdown", closeOnOutsidePress, true);
+        return () => document.removeEventListener("pointerdown", closeOnOutsidePress, true);
+    }, [hasToast, dismiss]);
 
     const api = useMemo(() => ({show}), [show]);
     const tone = TONE[toast?.tone ?? "success"];
@@ -56,6 +70,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
     const card = toast && (
         <div
             key={toast.id}
+            ref={cardRef}
             className={`pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-card py-2 pr-2 pl-4 text-body-sm font-semibold shadow-overlay ring-1 ring-(--rt-border) ${tone.box}`}
         >
             <span className="shrink-0">{tone.icon}</span>

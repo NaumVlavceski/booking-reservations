@@ -3,6 +3,7 @@ package com.naumvlavceski.bookingbackend.web.controller;
 import com.naumvlavceski.bookingbackend.mail.UnsubscribeLinks;
 import com.naumvlavceski.bookingbackend.ratelimit.RateLimits;
 import com.naumvlavceski.bookingbackend.repository.OwnerRepository;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +22,7 @@ import org.springframework.web.util.HtmlUtils;
  * and must not be able to unsubscribe someone. The POST does the work, and is also what mail
  * clients call for one-click unsubscribe (RFC 8058).
  */
+@Hidden
 @RestController
 @RequestMapping("/api/notifications/unsubscribe")
 @RequiredArgsConstructor

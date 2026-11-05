@@ -13,7 +13,7 @@ interface ApiErrorBody {
 }
 
 export type ErrorKind =
-    | "network" | "timeout" | "session" | "forbidden" | "notFound" | "datesTaken" | "conflict"
+    | "network" | "timeout" | "session" | "forbidden" | "demo" | "notFound" | "datesTaken" | "conflict"
     | "validation" | "rateLimited" | "server" | "badRequest" | "unknown";
 
 const MESSAGES: Record<ErrorKind, string> = {
@@ -21,6 +21,7 @@ const MESSAGES: Record<ErrorKind, string> = {
     timeout: "This is taking longer than usual. Please try again.",
     session: "Your session expired. Please sign in again.",
     forbidden: "You don't have access to this.",
+    demo: "This is turned off in the demo account.",
     notFound: "We couldn't find that. It may have been deleted.",
     datesTaken: "Those dates are already booked. Pick other dates or another room.",
     conflict: "This was changed in the meantime. Reload the page and try again.",
@@ -60,6 +61,7 @@ export function errorKind(error: unknown): ErrorKind {
         case "NOT_FOUND": return "notFound";
         case "CONFLICT": return "conflict";
         case "INTERNAL": return "server";
+        case "DEMO_RESTRICTED": return "demo";
     }
     if (status === 401) return isAuthCall(err) ? "badRequest" : "session";
     if (status === 403) return "forbidden";
@@ -102,10 +104,12 @@ export function errorReason(error: unknown): string {
             return datesTakenMessage(error);
         case "validation":
             return fieldErrors(error) ? MESSAGES.validation : serverMessage(error) ?? MESSAGES.badRequest;
-        // For rateLimited the server says how long to wait ("Please wait about 15 minutes...")
+        // For rateLimited the server says how long to wait ("Please wait about 15 minutes..."); for demo, whether
+        // the action is off or the demo is full
         case "badRequest":
         case "conflict":
         case "rateLimited":
+        case "demo":
             return serverMessage(error) ?? MESSAGES[kind];
         default:
             return MESSAGES[kind];

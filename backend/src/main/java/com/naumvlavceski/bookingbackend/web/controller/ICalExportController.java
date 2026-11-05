@@ -7,6 +7,7 @@ import com.naumvlavceski.bookingbackend.model.Unit;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import com.naumvlavceski.bookingbackend.ratelimit.RateLimits;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+// Not in the API docs: the token in the address is the only key, so no example of it is published
+@Hidden
 @RestController
 @RequestMapping("/api/ical")
 @RequiredArgsConstructor

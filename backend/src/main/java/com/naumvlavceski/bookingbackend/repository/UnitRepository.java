@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UnitRepository extends JpaRepository<Unit, UUID> {
+    long countByOwnerId(UUID ownerId);
+
     List<Unit> findAllByOwnerId(UUID ownerId);
     List<Unit> findAllByPropertyIdAndOwnerId(UUID propertyId, UUID ownerId);
     Optional<Unit> findByIdAndOwnerId(UUID id, UUID ownerId);

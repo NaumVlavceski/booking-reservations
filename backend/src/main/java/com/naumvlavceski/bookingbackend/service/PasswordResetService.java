@@ -190,8 +190,9 @@ public class PasswordResetService {
     }
 
     private boolean eligible(AppUser user) {
-        // Only verified accounts (every account from before verification existed was marked verified)
-        return user.isActive() && user.getEmailVerifiedAt() != null;
+        // Only verified accounts (every account from before verification existed was marked verified). Never the
+        // public demo account: its password is public and set by configuration, and its address has no inbox.
+        return user.isActive() && user.getEmailVerifiedAt() != null && !user.getOwner().isDemo();
     }
 
     private static VerificationException invalidCode() {

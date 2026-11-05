@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.demo.DemoGuard;
 import com.naumvlavceski.bookingbackend.exception.DatesTakenException;
 import com.naumvlavceski.bookingbackend.dto.MoveOptionResponse;
 import com.naumvlavceski.bookingbackend.dto.PageResponse;
@@ -28,6 +29,7 @@ import java.util.*;
 public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UnitRepository unitRepository;
+    private final DemoGuard demoGuard;
 
     public List<ReservationResponse> findAllForOwner(UUID ownerId, UUID unitId, ReservationStatus status) {
         List<Reservation> reservations = reservationRepository.findAllByOwnerId(ownerId);
@@ -72,6 +74,7 @@ public class ReservationService {
         }
         ReservationStatus status = request.status() != null ? request.status() : ReservationStatus.CONFIRMED;
         if (status != ReservationStatus.CANCELLED) rejectIfTaken(unit, request.checkIn(), request.checkOut(), NO_ID);
+        demoGuard.requireRoomForReservations(ownerId, 1);
         Reservation reservation = new Reservation();
         reservation.setUnit(unit);
         reservation.setOwnerId(ownerId);
@@ -161,6 +164,7 @@ public class ReservationService {
         UUID propertyId = source.getUnit().getProperty().getId();
         LocalDate start = source.getStayRange().lower();
         LocalDate end = source.getStayRange().upper();
+        demoGuard.requireRoomForReservations(ownerId, (int) targetsUnitsIds.stream().distinct().count());
         List<ReservationResponse> copies = new ArrayList<>();
         for (UUID targetUnitId : targetsUnitsIds.stream().distinct().toList()) {
             Unit unit = unitRepository.findByIdAndOwnerId(targetUnitId,ownerId)

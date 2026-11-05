@@ -64,7 +64,6 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
         else setSelected((s) => s.includes(unitId) ? s.filter((id) => id !== unitId) : [...s, unitId]);
     }
 
-    const allSelected = Boolean(options && options.length > 0 && selected.length === options.length);
     const rowClass = (active: boolean) => `flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium transition-colors ${
         active ? "bg-primary-soft text-on-primary-soft" : "text-fg hover:bg-surface-hover"
     }`;
@@ -124,14 +123,6 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
                     <p className="text-body text-muted">No other room in this property is free on these dates.</p>
                 ) : (
                     <div role={isCopy ? "group" : "radiogroup"} aria-label={isCopy ? "Copy to" : "Move to"} className="space-y-1">
-                        {isCopy && options && options.length > 1 && (
-                            <button type="button" role="checkbox" aria-checked={allSelected}
-                                    onClick={() => setSelected(allSelected ? [] : options.map((o) => o.unitId))}
-                                    className={rowClass(allSelected)}>
-                                <span className="min-w-0 flex-1 truncate">Select all</span>
-                                {allSelected && <CheckIcon size={18} strokeWidth={2.5}/>}
-                            </button>
-                        )}
                         {options?.map((o) => {
                             const active = selected.includes(o.unitId);
                             return (

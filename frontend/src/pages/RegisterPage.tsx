@@ -10,6 +10,8 @@ import PasswordField from "../components/ui/PasswordField";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
 import LegalLinks from "../components/LegalLinks";
+import TryDemo from "../components/TryDemo";
+import {DEMO_ENABLED} from "../lib/demo";
 import {AlertCircleIcon} from "../components/icons";
 import {LEGAL_VERSIONS} from "../legal/versions";
 
@@ -120,6 +122,7 @@ export default function RegisterPage() {
                     Create account
                 </Button>
             </form>
+            {DEMO_ENABLED && <TryDemo className="mt-6"/>}
         </AuthLayout>
     );
 }

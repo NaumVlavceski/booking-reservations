@@ -40,7 +40,9 @@ services:
       APP_CORS_ALLOWED_ORIGINS: ${FRONTEND_URL}
       APP_FRONTEND_URL: ${FRONTEND_URL}
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
-      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      APP_DOCS_ENABLED: ${APP_DOCS_ENABLED:-false}
+      APP_DOCS_SERVER_URL: ${APP_DOCS_SERVER_URL:-https://api.roomtrack.app}
+      APP_DEMO_ENABLED: ${APP_DEMO_ENABLED:-true}
       MAIL_ENABLED: ${MAIL_ENABLED:-true}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-RoomTrack <onboarding@resend.dev>}

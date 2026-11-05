@@ -1,5 +1,7 @@
 package com.naumvlavceski.bookingbackend.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-public record LoginRequest(@NotBlank String email, @NotBlank String password) {}
+public record LoginRequest(@Schema(example = "owner@example.com") @NotBlank String email,
+                           @Schema(example = "correct horse battery") @NotBlank String password) {}

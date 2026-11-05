@@ -15,6 +15,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
+    long countByOwnerId(UUID ownerId);
+
     List<Reservation> findAllByOwnerId(UUID ownerId);
 
     List<Reservation> findAllByUnitIdAndOwnerId(UUID unitId, UUID ownerId);

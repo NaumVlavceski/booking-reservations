@@ -51,7 +51,8 @@ public class SecurityConfig {
                             "/api/ical/**",
                             "/api/notifications/unsubscribe"
                     ).permitAll();
-                    if (apiDocsEnabled) auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll();
+                    // app.docs.enabled (APP_DOCS_ENABLED) drives springdoc.api-docs.enabled, see application.yml
+                    if (apiDocsEnabled) auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll();
                     auth.anyRequest().authenticated();
                 })
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

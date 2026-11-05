@@ -1,5 +1,7 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.demo.DemoGuard;
+import com.naumvlavceski.bookingbackend.exception.DemoRestrictedException;
 import com.naumvlavceski.bookingbackend.exception.VerificationException;
 import com.naumvlavceski.bookingbackend.mail.EmailMessage;
 import com.naumvlavceski.bookingbackend.mail.EmailService;
@@ -154,6 +156,8 @@ public class AccountService {
     public void deleteAccount(UUID userId, String password, String confirmation) {
         rateLimits.enforce("account-deletion:" + userId, rateLimits.limits().accountDeletion());
         AppUser user = appUserRepository.findById(userId).orElseThrow(() -> new NoSuchElementException("User not found"));
+        // A demo has no password its visitor knows; it is deleted on its own when its lifetime ends (DemoAccounts)
+        if (user.getOwner().isDemo()) throw new DemoRestrictedException(DemoGuard.RESTRICTED);
         // 400, never 401: the frontend signs people out on a 401
         if (!authService.passwordMatches(password, user.getPasswordHash())) {
             throw new VerificationException(VerificationException.WRONG_PASSWORD, "Your password is not correct.");
@@ -163,6 +167,23 @@ public class AccountService {
         }
 
         UUID ownerId = user.getOwner().getId();
+        Deleted deleted = deleteOwnerData(ownerId);
+        // Ids and counts only: no names, addresses or guest details
+        log.info("Account deleted: owner {} ({} users, {} properties, {} rooms, {} reservations, {} email log rows)",
+                ownerId, deleted.users().size(), deleted.properties(), deleted.rooms(), deleted.reservations(),
+                deleted.emailLogRows());
+        afterCommit(() -> deleted.users().forEach(u -> emailService.sendWithoutLog(deletedEmail(u.getEmail()))));
+    }
+
+    /** What {@link #deleteOwnerData} removed. */
+    public record Deleted(List<AppUser> users, int properties, int rooms, int reservations, int emailLogRows) {}
+
+    /**
+     * Deletes the owner with everything that belongs to it (the list in {@link #deleteAccount}), without any checks,
+     * logging or email. Also used to delete expired demos.
+     */
+    @Transactional
+    public Deleted deleteOwnerData(UUID ownerId) {
         List<AppUser> users = appUserRepository.findAllByOwnerId(ownerId);
         List<UUID> userIds = users.stream().map(AppUser::getId).toList();
         List<String> emails = users.stream().map(u -> u.getEmail().toLowerCase(Locale.ROOT)).toList();
@@ -186,11 +207,7 @@ public class AccountService {
         delete("delete from PasswordReset r where r.userId in :userIds", Map.of("userIds", userIds));
         delete("delete from AppUser u where u.owner.id = :ownerId", Map.of("ownerId", ownerId));
         delete("delete from Owner o where o.id = :ownerId", Map.of("ownerId", ownerId));
-
-        // Ids and counts only: no names, addresses or guest details
-        log.info("Account deleted: owner {} ({} users, {} properties, {} rooms, {} reservations, {} email log rows)",
-                ownerId, userIds.size(), properties, rooms, reservations, emailLogRows);
-        afterCommit(() -> users.forEach(u -> emailService.sendWithoutLog(deletedEmail(u.getEmail()))));
+        return new Deleted(users, properties, rooms, reservations, emailLogRows);
     }
 
     private int delete(String jpql, Map<String, Object> params) {

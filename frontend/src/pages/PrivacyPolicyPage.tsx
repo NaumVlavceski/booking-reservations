@@ -165,6 +165,9 @@ export default function PrivacyPolicyPage() {
                     <li><strong>Email log</strong>: 90 days.</li>
                     <li><strong>Sign-up and password-reset codes</strong>: at most 7 days (only as hashes).</li>
                     <li>
+                        <strong>The demo</strong>: its account and data are deleted 1 hour after it starts.
+                    </li>
+                    <li>
                         <strong>Records used to limit repeated attempts</strong> (IP addresses and typed email
                         addresses): kept in memory only, for at most one hour.
                     </li>
@@ -210,6 +213,7 @@ export default function PrivacyPolicyPage() {
                         collapsed in the calendar, setup progress, whether you have seen the Booking.com notes, and when
                         the "install the app" tip was last shown.
                     </li>
+                    <li>In the demo: which of its tasks you have done.</li>
                     <li>
                         For the current tab only: a note that your session expired and the page to return to after you
                         sign in again.

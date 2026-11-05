@@ -44,6 +44,12 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
     return res.data;
 }
 
+/** A new private demo with sample data, already signed in. No sign-up; the server deletes it after 1 hour. */
+export async function startDemo(): Promise<AuthResponse> {
+    const res = await apiClient.post<AuthResponse>("/api/auth/demo");
+    return res.data;
+}
+
 export async function verifyEmail(data: VerifyEmailRequest): Promise<AuthResponse> {
     const res = await apiClient.post<AuthResponse>("/api/auth/verify-email", data);
     return res.data;

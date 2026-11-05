@@ -8,6 +8,7 @@ import {ONBOARDING_PATH, ONBOARDING_STEPS, useOnboardingState} from "../lib/onbo
 import {useFromHere} from "../lib/useReturnTo";
 import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
+import DemoTasks from "./DemoTasks";
 import {
     CalendarIcon,
     CalendarXIcon,
@@ -36,6 +37,8 @@ import Sheet from "./ui/Sheet";
 import {CountBubble} from "./ui/Badge";
 import Avatar from "./ui/Avatar";
 
+const DEMO_NOTE = "Demo · sample data";
+
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
 const HELP_PATH = "/dashboard/help/connect-calendars";
@@ -60,6 +63,7 @@ export default function DashboardLayout() {
     const {pathname} = location;
     const queryClient = useQueryClient();
     const {data: me} = useQuery(meQuery);
+    const demo = Boolean(me?.demo);
     // A setup left half-way stays one tap away (it ends once skipped or finished).
     const {state: setup} = useOnboardingState();
     const setupStep = setup?.status === "active" && pathname !== ONBOARDING_PATH ? setup.step : null;
@@ -97,35 +101,58 @@ export default function DashboardLayout() {
     }
 
     const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname.startsWith(ACCOUNT_PATH);
-    const destinations: { key: string; to: string; label: string; icon: IconType; active: boolean; count?: number }[] = [
-        {key: "calendar", to: "/dashboard/calendar", label: "Calendar", icon: CalendarIcon, active: isCalendarArea(pathname)},
-        {key: "channels", to: "/dashboard/conflicts", label: "Channels", icon: ChannelsIcon, active: isChannels(pathname), count: alertCount},
+    const destinations: {
+        key: string;
+        to: string;
+        label: string;
+        icon: IconType;
+        active: boolean;
+        count?: number
+    }[] = [
+        {
+            key: "calendar",
+            to: "/dashboard/calendar",
+            label: "Calendar",
+            icon: CalendarIcon,
+            active: isCalendarArea(pathname)
+        },
+        {
+            key: "channels",
+            to: "/dashboard/conflicts",
+            label: "Channels",
+            icon: ChannelsIcon,
+            active: isChannels(pathname),
+            count: alertCount
+        },
     ];
 
     return (
         <div className="min-h-dvh">
-            <a href="#main" className="sr-only z-(--rt-z-skip) rounded-control bg-surface-raised px-4 py-3 font-semibold text-fg shadow-popover focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
-                Skip to content
-            </a>
-
-            {/* Desktop: sidebar with everything in view. */}
-            <aside aria-label="Main menu" className="fixed inset-y-0 left-0 z-(--rt-z-nav) hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
+            <aside aria-label="Main menu"
+                   className="fixed inset-y-0 left-0 z-(--rt-z-nav) hidden w-64 flex-col border-r border-subtle bg-surface lg:flex">
                 <div className="flex items-center gap-3 px-5 pt-6 pb-5">
                     {/* White tile: the logo's artwork is drawn for a light background, in both themes. */}
-                    <span className="shrink-0 rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo size={28}/></span>
+                    <span className="shrink-0 rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo
+                        size={28}/></span>
                     <p className="min-w-0 truncate text-title-3 text-fg">RoomTrack</p>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-4">
                     <nav aria-label="Main" className="space-y-0.5">
                         {setupStep && (
-                            <SidebarLink to={ONBOARDING_PATH} icon={CompassIcon} active={false} trailing={<SetupStepCount step={setupStep}/>}>
+                            <SidebarLink to={ONBOARDING_PATH} icon={CompassIcon} active={false}
+                                         trailing={<SetupStepCount step={setupStep}/>}>
                                 Finish setup
                             </SidebarLink>
                         )}
-                        <SidebarLink to="/dashboard/calendar" icon={CalendarIcon} active={isCalendarArea(pathname)}>Calendar</SidebarLink>
-                        <SidebarLink to="/dashboard/properties" icon={HouseIcon} active={pathname.startsWith("/dashboard/properties")}>Properties</SidebarLink>
-                        <SidebarLink to="/dashboard/cancelled" icon={CalendarXIcon} active={pathname.startsWith("/dashboard/cancelled")}>Cancelled bookings</SidebarLink>
-                        <SidebarLink to="/dashboard/invoices" icon={ReceiptIcon} active={pathname.startsWith("/dashboard/invoices")}>Invoices</SidebarLink>
+                        <SidebarLink to="/dashboard/calendar" icon={CalendarIcon}
+                                     active={isCalendarArea(pathname)}>Calendar</SidebarLink>
+                        <SidebarLink to="/dashboard/properties" icon={HouseIcon}
+                                     active={pathname.startsWith("/dashboard/properties")}>Properties</SidebarLink>
+                        <SidebarLink to="/dashboard/cancelled" icon={CalendarXIcon}
+                                     active={pathname.startsWith("/dashboard/cancelled")}>Cancelled
+                            bookings</SidebarLink>
+                        <SidebarLink to="/dashboard/invoices" icon={ReceiptIcon}
+                                     active={pathname.startsWith("/dashboard/invoices")}>Invoices</SidebarLink>
                     </nav>
                     {/*<SidebarGroup label="Channels">*/}
                     {/*    <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}*/}
@@ -139,37 +166,54 @@ export default function DashboardLayout() {
                     {/*</SidebarGroup>*/}
                 </div>
                 <div className="space-y-0.5 border-t border-subtle px-3 pt-3 pb-4">
-                    <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon} active={pathname.startsWith("/dashboard/help")}>
+                    <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon}
+                                 active={pathname.startsWith("/dashboard/help")}>
                         Channel setup guide
                     </SidebarLink>
                     <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
                     <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
-                    <SidebarLink to={ACCOUNT_PATH} icon={PersonIcon} active={pathname === ACCOUNT_PATH}>
-                        Account and privacy
-                    </SidebarLink>
+                    {!demo && (
+                        <SidebarLink to={ACCOUNT_PATH} icon={PersonIcon} active={pathname === ACCOUNT_PATH}>
+                            Account and privacy
+                        </SidebarLink>
+                    )}
                     <div className="mt-2 flex items-center gap-3 rounded-control px-3 py-2">
                         <Avatar name={me?.fullName} size="sm"/>
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-body-sm font-semibold text-fg">{me?.fullName}</p>
-                            {me?.email && <p className="truncate text-caption text-subtle">{me.email}</p>}
+                            {/* A demo's address is a made-up one; the note says what it is instead */}
+                            {me?.email && !demo && <p className="truncate text-caption text-subtle">{me.email}</p>}
+                            {demo && <p className="text-caption text-info">{DEMO_NOTE}</p>}
                         </div>
-                        <button type="button" onClick={handleLogout} className="icon-btn text-muted" aria-label="Log out" title="Log out">
+                        <button type="button" onClick={handleLogout} className="icon-btn text-muted"
+                                aria-label="Log out"
+                                title="Log out">
                             <LogoutIcon size={20}/>
                         </button>
                     </div>
+
+                    {/* Desktop: sidebar with everything in view. */}
+                    <a href="#main"
+                       className="sr-only z-(--rt-z-skip) rounded-control bg-surface-raised px-4 py-3 font-semibold text-fg shadow-popover focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
+                        Skip to content
+                    </a>
                 </div>
             </aside>
 
-            {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */}
-            <nav aria-label="Main" className="fixed inset-y-0 left-0 z-(--rt-z-nav) hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
+            {/* Tablets: a slim rail with the same four destinations as the phone tab bar. */
+            }
+            <nav aria-label="Main"
+                 className="fixed inset-y-0 left-0 z-(--rt-z-nav) hidden w-20 flex-col items-center gap-1 border-r border-subtle bg-surface pt-[calc(env(safe-area-inset-top)+1rem)] sm:flex lg:hidden">
                 <Link to="/dashboard/calendar" className="mb-4 rounded-control p-1" aria-label="RoomTrack, calendar">
-                    <span className="block rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo size={30}/></span>
+            <span className="block rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo
+                size={30}/></span>
                 </Link>
                 {destinations.map((d) => (
                     <RailItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
                 ))}
-                <RailItem label="More" icon={MoreHorizontalIcon} active={moreActive} expanded={isMoreOpen} onClick={() => setMoreOpenedAt(location.key)}/>
+                <RailItem label="More" icon={MoreHorizontalIcon} active={moreActive} expanded={isMoreOpen}
+                          onClick={() => setMoreOpenedAt(location.key)}/>
             </nav>
 
             <main
@@ -197,50 +241,66 @@ export default function DashboardLayout() {
                 )}
             </main>
 
-            {/* Phones: bottom tab bar (forms replace it with their Save bar). */}
-            {chrome === "tabs" && (
-                <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
-                    {destinations.map((d) => (
-                        <TabItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
-                    ))}
-                    <TabItem label="More" icon={MoreHorizontalIcon} active={moreActive} expanded={isMoreOpen} onClick={() => setMoreOpenedAt(location.key)}/>
-                </nav>
-            )}
+            {/* Phones: bottom tab bar (forms replace it with their Save bar). */
+            }
+            {
+                chrome === "tabs" && (
+                    <nav aria-label="Main"
+                         className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+                        {destinations.map((d) => (
+                            <TabItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
+                        ))}
+                        <TabItem label="More" icon={MoreHorizontalIcon} active={moreActive} expanded={isMoreOpen}
+                                 onClick={() => setMoreOpenedAt(location.key)}/>
+                    </nav>
+                )
+            }
+
+            {
+                demo && me?.email && <DemoTasks email={me.email} hiddenOnPhone={chrome !== "tabs"}/>
+            }
 
             <Sheet open={isMoreOpen} onClose={closeMore} title="More" titleHidden showClose closeLabel="Close menu">
                 <div className="flex items-center gap-3 pr-10 pb-4">
                     <Avatar name={me?.fullName}/>
                     <div className="min-w-0">
                         <p className="truncate text-title-3 text-fg">{me?.fullName}</p>
-                        {me?.email && <p className="truncate text-body-sm text-muted">{me.email}</p>}
+                        {me?.email && !demo && <p className="truncate text-body-sm text-muted">{me.email}</p>}
+                        {demo && <p className="text-caption text-info">{DEMO_NOTE}</p>}
                     </div>
                 </div>
                 <div className="space-y-3">
                     {setupStep && (
                         <SheetGroup>
-                            <SheetLink to={ONBOARDING_PATH} icon={CompassIcon} onClick={closeMore} trailing={<SetupStepCount step={setupStep}/>} chevron>
+                            <SheetLink to={ONBOARDING_PATH} icon={CompassIcon} onClick={closeMore}
+                                       trailing={<SetupStepCount step={setupStep}/>} chevron>
                                 Finish setup
                             </SheetLink>
                         </SheetGroup>
                     )}
                     <SheetGroup>
-                        <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore} chevron>Properties</SheetLink>
-                        <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled bookings</SheetLink>
-                        <SheetLink to="/dashboard/invoices" icon={ReceiptIcon} onClick={closeMore} chevron>Invoices</SheetLink>
+                        <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore}
+                                   chevron>Properties</SheetLink>
+                        <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled
+                            bookings</SheetLink>
+                        <SheetLink to="/dashboard/invoices" icon={ReceiptIcon} onClick={closeMore}
+                                   chevron>Invoices</SheetLink>
                         {/*<SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}*/}
                         {/*           trailing={<CountBubble count={conflictCount}/>}>Booking conflicts{warnings(conflictCount)}</SheetLink>*/}
                         {/*<SheetLink to="/dashboard/sync-health" icon={SyncIcon} onClick={closeMore}*/}
                         {/*           trailing={<CountBubble count={failingCount} tone="warning"/>}>Sync status{warnings(failingCount)}</SheetLink>*/}
                     </SheetGroup>
                     <SheetGroup>
-                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect Booking.com</SheetLink>
+                        <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect
+                            Booking.com</SheetLink>
                         <InstallAppButton onShowIosSteps={() => {
                             closeMore();
                             setIosStepsOpen(true);
                         }}/>
                         <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
-                        <SheetLink to={ACCOUNT_PATH} icon={PersonIcon} onClick={closeMore} chevron>Account and privacy</SheetLink>
+                        <SheetLink to={ACCOUNT_PATH} icon={PersonIcon} onClick={closeMore} chevron>Account and
+                            privacy</SheetLink>
                     </SheetGroup>
                     <SheetGroup>
                         <button type="button" onClick={handleLogout} className={sheetRow}>
@@ -252,7 +312,8 @@ export default function DashboardLayout() {
             </Sheet>
             <IosInstallSheet open={iosStepsOpen} onClose={() => setIosStepsOpen(false)}/>
         </div>
-    );
+    )
+        ;
 }
 
 function SetupStepCount({step}: { step: number }) {
@@ -263,7 +324,7 @@ function SetupStepCount({step}: { step: number }) {
     );
 }
 
-const sheetRow ="flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
+const sheetRow = "flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
 
 function SheetGroup({children}: { children: ReactNode }) {
     return <div className="rounded-card bg-surface-sunken p-1">{children}</div>;
@@ -324,14 +385,22 @@ interface DestinationProps {
     expanded?: boolean;
 }
 
-function Destination({to, onClick, active, expanded, className, children}: Omit<DestinationProps, "label" | "icon" | "count"> & {
+function Destination({
+                         to,
+                         onClick,
+                         active,
+                         expanded,
+                         className,
+                         children
+                     }: Omit<DestinationProps, "label" | "icon" | "count"> & {
     className: string;
     children: ReactNode;
 }) {
     return to ? (
         <Link to={to} aria-current={active ? "page" : undefined} className={className}>{children}</Link>
     ) : (
-        <button type="button" onClick={onClick} aria-haspopup="dialog" aria-expanded={expanded} className={className}>{children}</button>
+        <button type="button" onClick={onClick} aria-haspopup="dialog" aria-expanded={expanded}
+                className={className}>{children}</button>
     );
 }
 

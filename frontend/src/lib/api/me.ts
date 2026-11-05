@@ -9,6 +9,8 @@ export interface MeResponse {
     termsVersion: string | null;
     privacyVersion: string | null;
     termsAcceptedAt: string | null;
+    /** A temporary "Try the demo" account: sample data, deleted after 1 hour, a few actions turned off. */
+    demo: boolean;
 }
 
 export async function getMe(): Promise<MeResponse> {

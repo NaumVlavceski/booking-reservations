@@ -1,6 +1,8 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.demo.DemoGuard;
 import com.naumvlavceski.bookingbackend.dto.AuthResponse;
+import com.naumvlavceski.bookingbackend.exception.DemoRestrictedException;
 import com.naumvlavceski.bookingbackend.dto.LoginRequest;
 import com.naumvlavceski.bookingbackend.dto.MeResponse;
 import com.naumvlavceski.bookingbackend.dto.RegisterRequest;
@@ -71,7 +73,7 @@ public class AuthService {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
         return new MeResponse(user.getEmail(), user.getFullName(),
-                user.getTermsVersion(), user.getPrivacyVersion(), user.getTermsAcceptedAt());
+                user.getTermsVersion(), user.getPrivacyVersion(), user.getTermsAcceptedAt(), user.getOwner().isDemo());
     }
 
     /**
@@ -87,7 +89,7 @@ public class AuthService {
             passwordEncoder.encode(request.password()); // the same work as a real sign-up
             AppUser user = existing.get();
             if (user.isActive() && user.getEmailVerifiedAt() == null) verificationService.resend(email);
-            else if (user.isActive()) sendAlreadyRegisteredNotice(user);
+            else if (user.isActive() && !user.getOwner().isDemo()) sendAlreadyRegisteredNotice(user);
             return new RegistrationResponse(email, true);
         }
 
@@ -161,6 +163,8 @@ public class AuthService {
         rateLimits.enforce("change-password:" + userId, rateLimits.limits().changePassword());
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
+        // A demo has no password its visitor knows, and must not turn into a lasting account
+        if (user.getOwner().isDemo()) throw new DemoRestrictedException(DemoGuard.RESTRICTED);
         // 400, never 401: the frontend signs people out on a 401
         if (!passwordMatches(currentPassword, user.getPasswordHash())) {
             throw new VerificationException(VerificationException.WRONG_PASSWORD, "Your current password is not correct.");

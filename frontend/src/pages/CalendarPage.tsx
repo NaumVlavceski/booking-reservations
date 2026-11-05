@@ -13,6 +13,7 @@ import "react-day-picker/style.css";
 import {propertiesQuery, type PropertyResponse} from "../lib/api/properties";
 import {allUnitsQuery, type UnitResponse} from "../lib/api/units";
 import {allReservationsQuery} from "../lib/api/reservations";
+import {meQuery} from "../lib/api/me";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
 import {useConnected} from "../lib/apiReachability";
@@ -20,6 +21,7 @@ import {useToast} from "../lib/toast";
 import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon} from "../components/icons";
 import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
+import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
 import {amountDue, layoutBarLabel} from "../lib/barLabel";
 import {formatStay} from "../lib/dates";
 import {easeOutQuad, flingTail} from "../lib/fling";
@@ -51,6 +53,21 @@ const FLING_MAX_TAIL_DAYS = 7;
 const FLING_MIN_SPEED = 0.4;
 const FLING_WATCH_MS = 3000;
 const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
+
+/**
+ * Demo only: what the bar colours mean, for someone seeing the calendar for the first time. Real accounts have no key
+ * (owner's decision). Sits between the toolbar and the calendar.
+ */
+function DemoColorKey() {
+    return (
+        <div className="cal-color-key" role="note" aria-label="What the colours in the calendar mean">
+            <SourceBadge source="BOOKING"/>
+            <SourceBadge source="DIRECT"/>
+            <StatusBadge status="PAID"/>
+            <StatusBadge status="BLOCK"/>
+        </div>
+    );
+}
 
 function guardEdgeBounce(el: HTMLElement): () => void {
     if (typeof CSS !== "undefined" && CSS.supports?.("overscroll-behavior", "none")) return () => {};
@@ -253,6 +270,7 @@ export default function CalendarPage() {
     function toggleMenu(menu: "date" | "more") {
         setOpenMenu((current) => (current === menu ? null : menu));
     }
+    const {data: me} = useQuery(meQuery);
 
     const LABEL_WIDTH = isMobile ? 104 : 120;
     const viewportWidth = Math.max(0, scrollerWidth - LABEL_WIDTH);
@@ -863,7 +881,7 @@ export default function CalendarPage() {
                     </div>
                 </div>
             </div>
-
+            {me?.demo && <DemoColorKey/>}
             {isLoading ? (
                 <div className="cal-loading">Loading calendar...</div>
             ) : units && units.length === 0 ? (

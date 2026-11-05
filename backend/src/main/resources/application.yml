@@ -71,6 +71,13 @@ app:
     unsubscribe-per-ip:
       max: 30
       window: 1h
+    # Swagger UI and the spec (only reachable when app.docs.enabled); one page load is about ten requests
+    docs-per-ip:
+      max: 300
+      window: 1h
+    demo-per-ip:
+      max: 10
+      window: 1h
   jwt:
     secret: ${APP_JWT_SECRET:}
     idle-timeout-ms: ${APP_JWT_IDLE_TIMEOUT_MS}
@@ -81,8 +88,25 @@ app:
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:RoomTrack <onboarding@resend.dev>}
     log-retention-days: ${EMAIL_LOG_RETENTION_DAYS:90}
+  # Public API documentation. Off unless APP_DOCS_ENABLED=true; server-url is the address "Try it out" calls
+  # (empty: worked out from the request, which behind Caddy is already https://api.roomtrack.app).
+  docs:
+    enabled: ${APP_DOCS_ENABLED:false}
+    server-url: ${APP_DOCS_SERVER_URL:}
+  # "Try the demo" (POST /api/auth/demo, see DemoAccounts). On by default; docker-compose.yml passes
+  # APP_DEMO_ENABLED and turns it off there unless .env says true. Each visitor gets a
+  # private copy of the sample data, deleted after `lifetime`; at most `max-active` demos exist at once.
+  demo:
+    enabled: ${APP_DEMO_ENABLED:true}
+    lifetime: 1h
+    max-active: 300
 springdoc:
   api-docs:
-    enabled: ${SWAGGER_ENABLED:false}
+    enabled: ${app.docs.enabled}
   swagger-ui:
-    enabled: ${SWAGGER_ENABLED:false}
+    enabled: ${app.docs.enabled}
+    # The token typed into "Authorize" is not kept in the browser after the page closes
+    persist-authorization: false
+    display-request-duration: true
+    default-models-expand-depth: 0
+  default-produces-media-type: application/json
