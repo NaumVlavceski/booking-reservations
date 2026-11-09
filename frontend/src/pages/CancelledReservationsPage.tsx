@@ -5,6 +5,7 @@ import {Link} from "react-router-dom";
 import {getCancelledReservations, restoreReservation, type ReservationResponse} from "../lib/api/reservations";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
+import {bookingLabel, guestNameOf} from "../lib/bookingLabel";
 import {errorMessage} from "../lib/errors";
 import {formatStay, formatWhen} from "../lib/dates";
 import {useDebouncedValue} from "../lib/useDebouncedValue";
@@ -48,7 +49,7 @@ export default function CancelledReservationsPage() {
         mutationFn: (r: ReservationResponse) => restoreReservation(r),
         onSuccess: async (_data, r) => {
             await queryClient.invalidateQueries({queryKey: ["reservations"]});
-            toast.show(`${r.guestName || "Booking"} is back on the calendar.`);
+            toast.show(`${guestNameOf(r) || "Booking"} is back on the calendar.`);
         },
         onError: (error) => {
             const message = isAxiosError(error) && error.response?.status === 409
@@ -94,7 +95,7 @@ export default function CancelledReservationsPage() {
                     onClick={() => restoreMutation.mutate(r)}
                     disabled={restoreMutation.isPending && !restoring}
                     loading={restoring} loadingLabel="Restoring…"
-                    aria-label={`Restore ${r.guestName || "booking"}`}>
+                    aria-label={`Restore ${guestNameOf(r) || "booking"}`}>
                 Restore
             </Button>
         );
@@ -165,7 +166,7 @@ export default function CancelledReservationsPage() {
                             return (
                                 <li key={r.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                     <Link to={`/dashboard/reservations/${r.id}`} className="min-w-0 flex-1">
-                                        <span className="block truncate text-title-3 text-fg">{r.guestName || "No guest name"}</span>
+                                        <span className="block truncate text-title-3 text-fg">{bookingLabel(r)}</span>
                                         <span className="num block truncate text-body-sm text-muted">
                                             {formatStay(r.checkIn, r.checkOut)}
                                             {unit && ` · ${unit.name}`}
@@ -207,7 +208,7 @@ export default function CancelledReservationsPage() {
                                         <tr key={r.id} className="transition-colors hover:bg-surface-hover">
                                             <td className="max-w-56 px-5 py-3">
                                                 <Link to={`/dashboard/reservations/${r.id}`} className="block truncate font-semibold text-fg hover:text-primary hover:underline">
-                                                    {r.guestName || "No guest name"}
+                                                    {bookingLabel(r)}
                                                 </Link>
                                             </td>
                                             <td className="num px-3 py-3 whitespace-nowrap text-fg">{formatStay(r.checkIn, r.checkOut)}</td>

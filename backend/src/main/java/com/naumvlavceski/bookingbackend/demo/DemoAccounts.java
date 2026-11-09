@@ -173,35 +173,35 @@ public class DemoAccounts {
         var b = new Batch(today);
         // Studio 1: back-to-back stays (check-out day = next check-in day), a stay without an amount yet,
         // an imported stay whose dates changed after its price was entered, and a cancelled one
-        b.add(studio1, -21, -17, ReservationStatus.PAID, ReservationSource.DIRECT, "Ana Kovač", 2, "240.00", "60.00");
-        b.add(studio1, -17, -13, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Jonas Weber", 2, "300.00", null);
-        b.add(studio1, -5, -1, ReservationStatus.PAID, ReservationSource.DIRECT, "Marko Ilievski", 2, "220.00", "55.00");
-        b.add(studio1, -1, 3, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Sofia Rossi", 2, "280.00", null);
-        b.add(studio1, 5, 9, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Petra Novak", 1, null, null);
-        b.add(studio1, 10, 14, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Lukas Schmidt", 2, "320.00", null)
+        b.add(studio1, -21, -17, ReservationStatus.PAID, ReservationSource.DIRECT, "Ana Kovač", 2, "240.00", "60.00", "30.00");
+        b.add(studio1, -17, -13, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Jonas Weber", 2, "300.00", "75.00", "37.50");
+        b.add(studio1, -5, -1, ReservationStatus.PAID, ReservationSource.DIRECT, "Marko Ilievski", 2, "220.00", "55.00", "27.50");
+        b.add(studio1, -1, 3, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Sofia Rossi", 2, "280.00", "70.00", "35.00");
+        b.add(studio1, 5, 9, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Petra Novak", 1, null, null, null);
+        b.add(studio1, 10, 14, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Lukas Schmidt", 2, "320.00", "80.00", "40.00")
                 .setPriceNeedsReview(true);
-        b.add(studio1, 20, 25, ReservationStatus.CANCELLED, ReservationSource.DIRECT, "Ivan Horvat", 2, "350.00", "70.00");
+        b.add(studio1, 20, 25, ReservationStatus.CANCELLED, ReservationSource.DIRECT, "Ivan Horvat", 2, "350.00", "70.00", "35.00");
         // Studio 2: the owner closed two nights for maintenance (BLOCK)
-        b.add(studio2, -14, -10, ReservationStatus.PAID, ReservationSource.DIRECT, "Emma Laurent", 2, "200.00", "50.00");
-        b.add(studio2, -3, 2, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Daniel Kim", 2, "350.00", null);
-        b.add(studio2, 2, 4, ReservationStatus.BLOCK, ReservationSource.DIRECT, null, 1, null, null).setNotes("Painting");
-        b.add(studio2, 7, 12, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Nina Jovanović", 2, "375.00", "75.00");
+        b.add(studio2, -14, -10, ReservationStatus.PAID, ReservationSource.DIRECT, "Emma Laurent", 2, "200.00", "50.00", "25.00");
+        b.add(studio2, -3, 2, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Daniel Kim", 2, "350.00", "70.00", "35.00");
+        b.add(studio2, 2, 4, ReservationStatus.BLOCK, ReservationSource.DIRECT, null, 1, null, null, null).setNotes("Painting");
+        b.add(studio2, 7, 12, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Nina Jovanović", 2, "375.00", "75.00", "37.50");
         // Family Apartment
-        b.add(family, -25, -18, ReservationStatus.PAID, ReservationSource.DIRECT, "Berisha family", 4, "630.00", "90.00");
-        b.add(family, -8, -2, ReservationStatus.PAID, ReservationSource.BOOKING, "Clara Müller", 3, "540.00", null);
-        b.add(family, 1, 5, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Tomasz Kowalski", 4, "700.00", "100.00")
+        b.add(family, -25, -18, ReservationStatus.PAID, ReservationSource.DIRECT, "Berisha family", 4, "630.00", "90.00", "22.50");
+        b.add(family, -8, -2, ReservationStatus.PAID, ReservationSource.BOOKING, "Clara Müller", 3, "540.00", "90.00", "30.00");
+        b.add(family, 1, 5, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Tomasz Kowalski", 4, "400.00", "100.00", "25.00")
                 .setNotes("Needs a baby cot");
-        b.add(family, 15, 19, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Aylin Demir", 3, null, null);
+        b.add(family, 15, 19, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Aylin Demir", 3, null, null, null);
         // Room A: a stay that ended but was never marked as paid (the demo's checklist names this guest)
-        b.add(roomA, -12, -9, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Stefan Popov", 1, "120.00", "40.00");
-        b.add(roomA, -2, 1, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Laura García", 2, "135.00", null);
-        b.add(roomA, 5, 9, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Miha Zupan", 2, "180.00", "45.00");
-        b.add(roomA, 9, 11, ReservationStatus.CANCELLED, ReservationSource.BOOKING, "Oliver Brown", 2, "95.00", null);
+        b.add(roomA, -12, -9, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Stefan Popov", 1, "120.00", "40.00", "40.00");
+        b.add(roomA, -2, 1, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Laura García", 2, "135.00", "45.00", "22.50");
+        b.add(roomA, 5, 9, ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "Miha Zupan", 2, "180.00", "45.00", "22.50");
+        b.add(roomA, 9, 11, ReservationStatus.CANCELLED, ReservationSource.BOOKING, "Oliver Brown", 2, "95.00", "47.50", "23.75");
         // Room B
-        b.add(roomB, -6, -3, ReservationStatus.PAID, ReservationSource.DIRECT, "Elif Yılmaz", 3, "165.00", "55.00");
-        b.add(roomB, 4, 7, ReservationStatus.BLOCK, ReservationSource.DIRECT, null, 1, null, null)
+        b.add(roomB, -6, -3, ReservationStatus.PAID, ReservationSource.DIRECT, "Elif Yılmaz", 3, "165.00", "55.00", "18.33");
+        b.add(roomB, 4, 7, ReservationStatus.BLOCK, ReservationSource.DIRECT, null, 1, null, null, null)
                 .setNotes("Owner's family visiting");
-        b.add(roomB, 12, 16, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Hannah Fischer", 2, "260.00", null);
+        b.add(roomB, 12, 16, ReservationStatus.CONFIRMED, ReservationSource.BOOKING, "Hannah Fischer", 2, "260.00", "65.00", "32.50");
     }
 
     private Property property(Owner owner, String name, String address) {
@@ -221,7 +221,10 @@ public class DemoAccounts {
         return units.save(u);
     }
 
-    /** Saves reservations with nights counted from today (negative = in the past). */
+    /**
+     * Saves reservations with nights counted from today (negative = in the past). Prices agree like in the booking form:
+     * nightly = total / nights, pricePerGuest = nightly / guests.
+     */
     private final class Batch {
         private final LocalDate today;
 
@@ -230,7 +233,7 @@ public class DemoAccounts {
         }
 
         Reservation add(Unit unit, int fromDay, int toDay, ReservationStatus status, ReservationSource source,
-                        String guest, int guests, String total, String nightly) {
+                        String guest, int guests, String total, String nightly, String pricePerGuest) {
             Reservation r = new Reservation();
             r.setUnit(unit);
             r.setOwnerId(unit.getOwnerId());
@@ -241,6 +244,7 @@ public class DemoAccounts {
             r.setGuestsCount(guests);
             r.setTotalAmount(total == null ? null : new BigDecimal(total));
             r.setNightlyRate(nightly == null ? null : new BigDecimal(nightly));
+            r.setPricePerGuest(pricePerGuest == null ? null : new BigDecimal(pricePerGuest));
             return reservations.save(r);
         }
     }

@@ -3,6 +3,7 @@ import {useEffect} from "react";
 import {isAxiosError} from "axios";
 import {Link, useParams, useSearchParams} from "react-router-dom";
 import {invoiceMissingAmountsQuery} from "../lib/api/invoices";
+import {bookingLabel} from "../lib/bookingLabel";
 import {formatStay} from "../lib/dates";
 import {plural} from "../lib/plural";
 import {useInvoiceFilters} from "../lib/useInvoiceFilters";
@@ -73,7 +74,7 @@ export default function InvoiceMissingAmountsPage() {
                                 >
                                     <span className="min-w-0 flex-1">
                                         <span className="flex items-baseline justify-between gap-3">
-                                            <span className="truncate text-title-3 text-fg">{r.guestName || "Guest"}</span>
+                                            <span className="truncate text-title-3 text-fg">{bookingLabel(r)}</span>
                                             <span className="shrink-0 text-body-sm font-semibold text-warning">Add amount</span>
                                         </span>
                                         <span className="num block text-body-sm text-muted">

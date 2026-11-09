@@ -63,7 +63,8 @@ cancelled.*
 - **Cancelled bookings free their nights** (`WHERE status <> 'CANCELLED'`). `CONFIRMED`, `PAID` and `BLOCK` all hold
   them, so an owner's closed nights are protected exactly like real bookings.
 - **It applies to every source.** Direct bookings and imported Booking.com bookings land in the same table, so the
-  rule cannot be skipped by any code path.
+  rule cannot be skipped by any code path. A second constraint (`stay_not_empty`) refuses stays with no nights, which
+  overlap nothing and so would slip past this one.
 - **`btree_gist`** is needed because a GiST index has to compare a plain `uuid` with `=` next to a range with `&&`.
 
 ### Why a database constraint, not just a check in the code
@@ -146,15 +147,25 @@ about every 10 minutes; the owner can also sync on demand (at most once a minute
 
 - Events are matched by their iCal `UID` and a SHA-256 hash of the raw event, so unchanged events cost nothing.
 - **New** event: saved as a booking with source `BOOKING`, or recorded as a **conflict** if it overlaps.
-- **Changed dates**: the booking moves; if the owner had entered an amount, it is flagged *price needs review*.
-- **Event gone from the feed**: the booking is cancelled (and restored if it comes back).
+- **Changed dates**: the booking moves; if the owner had entered an amount, it is flagged *price needs review*. The
+  overlap check uses the room the booking is in now, since the owner may have moved it.
+- **Event gone from the feed**: the booking is cancelled only once the event has stayed gone for at least 3 syncs and
+  1 hour (6 hours if the feed has no events at all), and it is restored if the event comes back. One bad read of a feed
+  can therefore not cancel real bookings; a real cancellation takes up to an hour to arrive. A stay that has already
+  ended is never cancelled this way: feeds drop old events, and that says nothing about whether the stay happened.
+- **Entries that can't be used** (no UID, dates in the wrong order, no nights, over 366 nights) are skipped and shown to
+  the owner as a sync problem, and the rest of the feed still comes in. While an entry has no readable UID at all,
+  nothing is treated as gone, because it could be any booking.
+- **Reconnecting a calendar** (to replace its link, say): bookings imported earlier are matched back up by room and exact
+  dates instead of colliding with themselves. A booking cancelled on Booking.com while the calendar was disconnected
+  stays until the owner cancels it.
 - **RoomTrack's own events echoed back** by Booking.com (UIDs ending in `@roomtrack`) are skipped, so a direct booking
   is never imported as a second booking.
 - **Closed dates**: the import has no special handling for them. The in-app guide tells owners to choose Booking.com's
   "Booked dates only" export setting, so closed dates are not in the feed.
 - **Safety**: only `https` links on `booking.com` are accepted, links that resolve to private or local network
-  addresses are refused, downloads time out after 15 seconds and are capped at 5 MB, and three failures in a row
-  email the owner once.
+  addresses are refused, each download attempt (body included) times out after 15 seconds, downloads stop at 5 MB, a
+  file without its closing `END:VCALENDAR` is refused as cut off, and three failures in a row email the owner once.
 
 Airbnb links are not accepted at the moment (the `AIRBNB` source value is kept for later).
 
@@ -183,6 +194,7 @@ Airbnb links are not accepted at the moment (the `AIRBNB` source value is kept f
   | Calendar feed per feed / unknown feed tokens per IP | 120 / 30 per hour |
   | API documentation per IP | 300 per hour |
   | New demos per IP | 10 per hour |
+  | Contact form per IP / everyone together | 5 / 30 per hour |
 
 - **Logs** are kept free of secrets: Caddy's access log replaces tokens and drops authorization headers, unexpected
   errors are logged with the route pattern (`/api/ical/{token}.ics`, not the real address) under an id that the
@@ -190,6 +202,10 @@ Airbnb links are not accepted at the moment (the `AIRBNB` source value is kept f
 - **Privacy**: users can download everything stored about them as JSON (password hashes and calendar links are left
   out, since they work like passwords) and delete their account, which deletes all of its data at once. The email log
   is kept for 90 days, codes for 7 days.
+- **Contact form** (`/contact`, `POST /api/contact`): the message is emailed to the address in `CONTACT_TO`, with the
+  visitor's address as Reply-To, so the owner's address never appears on the site. Nothing is stored, and the visitor
+  gets no email back: their address is not verified, so the form can't be used to send mail to strangers. Bots are
+  kept out by a hidden spam-trap field and the limits above. Without `CONTACT_TO` the form answers `503`.
 
 ## Try the demo
 
@@ -199,8 +215,9 @@ and upcoming stays, a back-to-back turnover, blocked nights, a cancelled booking
 signs them in. All names are invented. Nobody else sees it.
 
 - Visitors can do almost everything, including trying to double-book a room to see the `409`.
-- A small "Try it" button opens a checklist of 13 things to try, from creating a booking to attempting a double booking
-  (cancel a booking, book the same nights, try to restore it). Instructions stay hidden behind a **Hint** button, so
+- A list of things to try stays on screen on every page: 13 tasks in parts of 5, 5 and 3 (3 at a time on a phone), from creating a booking to
+  attempting a double booking (cancel a booking, book the same nights, try to restore it). The next part appears when one
+  is finished, and at the end only the invitation to register stays. Instructions stay hidden behind a **Hint** button, so
   visitors first try on their own. Each task ticks itself from the real API answer; progress is kept in the visitor's
   browser.
 - A demo is deleted with everything in it 1 hour after it was created (a job checks every 5 minutes).
@@ -245,7 +262,7 @@ backend/
     ratelimit/     in-memory sliding-window limiter
     demo/          "Try the demo" (private sample accounts, cleanup, restrictions)
     model/ repository/ dto/ exception/
-  src/main/resources/db/migration/       Flyway migrations V1 to V24
+  src/main/resources/db/migration/       Flyway migrations V1 to V25
   src/main/resources/db/fresh-install/   only for creating a new, empty database (see below)
 frontend/
   src/pages/ src/components/ src/lib/    React app
@@ -322,7 +339,7 @@ TEST_DB_PASSWORD='<POSTGRES_PASSWORD from .env>' ./mvnw test
 - **Frontend**: Netlify builds and serves `frontend/` (`npm run build`, output `dist/`; the build settings live in the
   Netlify UI). `VITE_API_URL` points to the API; `VITE_DEMO_ENABLED=true` shows the "Try the demo" button.
 - **Switches**: with Docker Compose, `APP_DOCS_ENABLED` (API documentation) and `APP_DEMO_ENABLED` ("Try the demo") are
-  both off unless set to `true` in `.env`.
+  both off unless set to `true` in `.env`. The contact form works once `CONTACT_TO` (where messages go) is set there.
 
 ## Known limitations
 

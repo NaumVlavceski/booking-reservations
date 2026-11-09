@@ -23,8 +23,11 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -127,6 +130,29 @@ class DemoAccountIntegrationTest {
         send(post("/api/reservations"), token, booking, ip).andExpect(status().isOk());
         send(post("/api/reservations"), token, booking, ip)
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DATES_TAKEN"));
+    }
+
+    /** The sample prices are typed by hand, so check they agree the way the booking form works them out. */
+    @Test
+    void samplePricesAgreeWithEachOther() throws Exception {
+        String ip = "198.51.100.5";
+        String token = startDemo(ip);
+        String all = send(get("/api/reservations"), token, null, ip).andReturn().getResponse().getContentAsString();
+        List<Map<String, Object>> samples = JsonPath.read(all, "$[*]");
+        assertFalse(samples.isEmpty());
+        for (Map<String, Object> s : samples) {
+            String who = s.get("checkIn") + " " + s.get("guestName");
+            if (s.get("totalAmount") == null) {
+                assertEquals(null, s.get("nightlyRate"), who);
+                assertEquals(null, s.get("pricePerGuest"), who);
+                continue;
+            }
+            long nights = ChronoUnit.DAYS.between(LocalDate.parse((String) s.get("checkIn")), LocalDate.parse((String) s.get("checkOut")));
+            BigDecimal nightly = new BigDecimal(s.get("totalAmount").toString()).divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP);
+            BigDecimal perGuest = nightly.divide(BigDecimal.valueOf((Integer) s.get("guestsCount")), 2, RoundingMode.HALF_UP);
+            assertEquals(0, nightly.compareTo(new BigDecimal(s.get("nightlyRate").toString())), who + " per night");
+            assertEquals(0, perGuest.compareTo(new BigDecimal(s.get("pricePerGuest").toString())), who + " per guest");
+        }
     }
 
     private static String booking(String unitId, LocalDate in, int nights, String status, int total, int guests) {

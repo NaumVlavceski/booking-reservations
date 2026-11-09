@@ -12,13 +12,11 @@ import {useToast} from "../lib/toast";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {AlertIcon, CheckIcon} from "../components/icons";
 import PageHeader from "../components/ui/PageHeader";
+import {guestNameOf, isGenericSummary} from "../lib/bookingLabel";
 import ChannelsNav from "../components/ChannelsNav";
 import Card from "../components/ui/Card";
 import Button, {ButtonLink} from "../components/ui/Button";
 import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
-
-// What channels put in SUMMARY when they don't share guest details — not worth showing.
-const GENERIC_SUMMARY = /^(closed\s*-\s*)?not available$|^reserved$|^blocked$|^airbnb \(not available\)$/i;
 
 function nights(checkIn: string, checkOut: string) {
     const n = differenceInCalendarDays(parseLocalDate(checkOut), parseLocalDate(checkIn));
@@ -82,9 +80,9 @@ export default function ConflictsPage() {
                         const unit = unitById.get(c.unitId);
                         const property = unit ? propertyById.get(unit.propertyId) : undefined;
                         const existing = reservationById.get(c.conflictingReservationId);
-                        const existingName = existing?.guestName?.trim() || "the existing booking";
+                        const existingName = (existing && guestNameOf(existing)) || "the existing booking";
                         const incoming = formatStayDays(c.incomingStart, c.incomingEnd);
-                        const note = c.incomingSummary && !GENERIC_SUMMARY.test(c.incomingSummary.trim())
+                        const note = c.incomingSummary && !isGenericSummary(c.incomingSummary)
                             ? c.incomingSummary : null;
 
                         return (

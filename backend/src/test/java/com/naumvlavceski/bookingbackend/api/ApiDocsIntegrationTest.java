@@ -44,7 +44,7 @@ class ApiDocsIntegrationTest {
         assertEquals("bearer", JsonPath.read(spec, "$.components.securitySchemes.bearerAuth.scheme"));
         List<String> tags = JsonPath.read(spec, "$.tags[*].name");
         assertEquals(List.of("Auth", "Properties", "Units", "Reservations", "Calendar sync", "Earnings",
-                "Account and privacy"), tags);
+                "Account and privacy", "Contact"), tags);
         assertTrue(spec.contains("#/components/responses/DatesTaken"), "the 409 overlap answer is referenced");
     }
 
@@ -63,6 +63,8 @@ class ApiDocsIntegrationTest {
         String spec = spec("203.0.113.3");
         List<Object> loginSecurity = JsonPath.read(spec, "$.paths['/api/auth/login'].post[?(@.security)]");
         assertTrue(loginSecurity.isEmpty(), "sign-in needs no token");
+        List<Object> contactSecurity = JsonPath.read(spec, "$.paths['/api/contact'].post[?(@.security)]");
+        assertTrue(contactSecurity.isEmpty(), "the contact form needs no token");
         List<String> reservationSecurity = JsonPath.read(spec, "$.paths['/api/reservations'].post.security[0].bearerAuth");
         assertTrue(reservationSecurity.isEmpty(), "bearer, no scopes");
         assertEquals("#/components/responses/Unauthorized",

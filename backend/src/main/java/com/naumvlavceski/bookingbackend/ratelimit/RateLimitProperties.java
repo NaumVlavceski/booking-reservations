@@ -23,7 +23,9 @@ public record RateLimitProperties(
         Limit feedMissesPerIp,
         Limit unsubscribePerIp,
         Limit docsPerIp,
-        Limit demoPerIp
+        Limit demoPerIp,
+        Limit contactPerIp,
+        Limit contactTotal
 ) {
     /** At most {@code max} calls per {@code window} (1 ms to 1 hour). */
     public record Limit(int max, Duration window) {

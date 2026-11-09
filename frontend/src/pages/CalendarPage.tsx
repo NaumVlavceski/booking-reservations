@@ -23,6 +23,7 @@ import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
 import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
 import {amountDue, layoutBarLabel} from "../lib/barLabel";
+import {bookingLabel} from "../lib/bookingLabel";
 import {formatStay} from "../lib/dates";
 import {easeOutQuad, flingTail} from "../lib/fling";
 
@@ -688,7 +689,7 @@ export default function CalendarPage() {
                 const points = pointsArr.map(([x, y]) => `${x},${y}`).join(" ");
                 const clipPath = `polygon(${pointsArr.map(([x, y]) => `${x}px ${y}px`).join(", ")})`;
 
-                const guestName = r.guestName?.trim() || "Reservation";
+                const guestName = bookingLabel(r);
                 const due = amountDue(r.status, r.totalAmount, r.priceNeedsReview);
                 const label = layoutBarLabel({
                     name: guestName,
@@ -882,6 +883,11 @@ export default function CalendarPage() {
                 </div>
             </div>
             {me?.demo && <DemoColorKey/>}
+            {connected && reservations?.length === 0 && (units?.length ?? 0) > 0 && (
+                <p className="cal-first-hint">
+                    {isMobile ? "Tap" : "Click"} a day in a room's row to add your first booking.
+                </p>
+            )}
             {isLoading ? (
                 <div className="cal-loading">Loading calendar...</div>
             ) : units && units.length === 0 ? (

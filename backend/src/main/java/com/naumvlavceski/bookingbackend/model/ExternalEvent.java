@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import lombok.Data;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -30,6 +31,12 @@ public class ExternalEvent {
     private LocalDateTime lastSeenAt;
 
     private LocalDateTime createdAt;
+
+    /** When this event first went missing from the feed, and in how many syncs in a row; see IcalReconciler. */
+    private Instant missingSince;
+
+    @Column(nullable = false)
+    private int missingSyncs = 0;
 
     @PrePersist
     void onCreate() {

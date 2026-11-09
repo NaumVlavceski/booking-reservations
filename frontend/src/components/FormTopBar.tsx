@@ -1,12 +1,12 @@
 import type {MouseEvent} from "react";
-import {useState} from "react";
-import {Link} from "react-router-dom";
+import {useEffect, useState} from "react";
+import {Link, useBlocker} from "react-router-dom";
 import {CheckIcon, ChevronLeftIcon, CopyIcon, MoreVerticalIcon, MoveIcon, TrashIcon, WifiOffIcon} from "./icons";
 import Menu from "./ui/Menu";
 import ConfirmDialog from "./ConfirmDialog";
 import Button from "./ui/Button";
 import {useOnlineStatus} from "../lib/useOnlineStatus";
-import {useReturnTo} from "../lib/useReturnTo";
+import {isLeavingOnPurpose, resetLeavingOnPurpose, useReturnTo} from "../lib/useReturnTo";
 
 interface FormTopBarProps {
     /** id of the <form> to submit — Save sits outside it, so it targets it via form="…". */
@@ -41,6 +41,9 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
     const online = useOnlineStatus();
     const {goBack} = useReturnTo(back?.to ?? "/dashboard/calendar");
     const [confirmExit, setConfirmExit] = useState(false);
+    // The phone's back gesture and the browser's back button don't go through our back arrow below
+    const backGesture = useBlocker(({historyAction}) => isDirty && historyAction === "POP" && !isLeavingOnPurpose());
+    useEffect(() => resetLeavingOnPurpose, []);
 
     function leave(e: MouseEvent) {
         if (back?.onClick) back.onClick(e);
@@ -60,8 +63,17 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
     }
 
     function handleExit() {
+        if (backGesture.state === "blocked") {
+            backGesture.proceed();
+            return;
+        }
         setConfirmExit(false);
         leave({preventDefault: () => {}} as MouseEvent);
+    }
+
+    function handleStay() {
+        if (backGesture.state === "blocked") backGesture.reset();
+        setConfirmExit(false);
     }
 
     return (
@@ -124,13 +136,13 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
             </div>}
 
             <ConfirmDialog
-                open={confirmExit}
+                open={confirmExit || backGesture.state === "blocked"}
                 variant="neutral"
                 title="Changes will not be saved"
                 message="You have unsaved changes. Are you sure you want to exit without saving?"
                 confirmLabel="Exit"
                 onConfirm={handleExit}
-                onCancel={() => setConfirmExit(false)}
+                onCancel={handleStay}
             />
         </>
     );

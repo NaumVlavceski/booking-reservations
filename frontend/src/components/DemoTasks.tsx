@@ -1,13 +1,17 @@
-import {useEffect, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Link, useLocation} from "react-router-dom";
 import {useQueryClient} from "@tanstack/react-query";
 import {leaveDemo} from "../lib/demo";
 import {completeDemoTask, loadDemoTasks, useDemoTasksDone, watchDemoTasks, type DemoTaskId} from "../lib/demoTasks";
+import {useMediaQuery} from "../lib/useMediaQuery";
 import Callout from "./ui/Callout";
-import Sheet from "./ui/Sheet";
 import {CheckCircleIcon} from "./icons";
 
 const GUIDE_PATH = "/dashboard/help/connect-calendars";
+/** How high the list is, so pages can keep their content clear of it. */
+const DOCK_HEIGHT = "--rt-demo-dock";
+/** From here on the list sits in the sidebar's empty space, where it covers nothing. */
+const SIDEBAR_FROM = "(min-width: 1024px)";
 const OPEN_MENU = "Tap a booking on the calendar, then open the ⋮ menu at the top";
 
 const TASKS: { id: DemoTaskId; title: string; hint: string }[] = [
@@ -41,22 +45,43 @@ const TASKS: { id: DemoTaskId; title: string; hint: string }[] = [
     },
 ];
 
+const PARTS = [TASKS.slice(0, 5), TASKS.slice(5, 10), TASKS.slice(10)];
+// A phone has little room to spare: 3 at a time
+const PHONE_PARTS = Array.from({length: Math.ceil(TASKS.length / 3)}, (_, i) => TASKS.slice(i * 3, i * 3 + 3));
+
 /**
- * Demo only: a small button on every page that opens a checklist of things to try. Visitors try on their own first,
- * which shows whether the app explains itself, so the instructions stay behind a Hint button. Tasks tick themselves
- * when really done (lib/demoTasks.ts). The button is hidden on phone forms, where the Save bar takes its place.
+ * Demo only: the things to try, always on screen on every page, a few at a time: the next part appears when one is
+ * finished, and after the last only the invitation to register stays. Visitors try on their own first, which shows
+ * whether the app explains itself, so the instructions stay behind a Hint button. Tasks tick themselves when really
+ * done (lib/demoTasks.ts). On a phone form, where the keyboard and Save bar need the room, only the next task shows.
  */
-export default function DemoTasks({email, hiddenOnPhone}: { email: string; hiddenOnPhone: boolean }) {
+export default function DemoTasks({email, onForm}: { email: string; onForm: boolean }) {
     const queryClient = useQueryClient();
     const {pathname} = useLocation();
     const done = useDemoTasksDone();
-    const [open, setOpen] = useState(false);
     const [hintsOpen, setHintsOpen] = useState<ReadonlySet<DemoTaskId>>(new Set());
-    const allDone = TASKS.every((task) => done.has(task.id));
-    // What's left to try stays on top; each group keeps the checklist's order
-    const orderedTasks = [...TASKS.filter((task) => !done.has(task.id)), ...TASKS.filter((task) => done.has(task.id))];
+    const inSidebar = useMediaQuery(SIDEBAR_FROM);
+    const isPhone = useMediaQuery("(max-width: 639px)");
+    const parts = isPhone ? PHONE_PARTS : PARTS;
+    const dock = useRef<HTMLElement>(null);
+    const partIndex = parts.findIndex((part) => part.some((task) => !done.has(task.id)));
+    const part = parts[partIndex];
+    const nextOnly = onForm && !inSidebar;
+    const shownTasks = !part ? [] : nextOnly ? part.filter((task) => !done.has(task.id)).slice(0, 1) : part;
 
-    useEffect(() => loadDemoTasks(email), [email]);
+    useLayoutEffect(() => loadDemoTasks(email), [email]);
+    useLayoutEffect(() => {
+        const element = dock.current;
+        if (!element) return;
+        const style = document.documentElement.style;
+        const observer = new ResizeObserver(() => style.setProperty(DOCK_HEIGHT,
+            window.matchMedia(SIDEBAR_FROM).matches ? "0px" : `${element.offsetHeight}px`));
+        observer.observe(element);
+        return () => {
+            observer.disconnect();
+            style.removeProperty(DOCK_HEIGHT);
+        };
+    }, []);
     useEffect(() => watchDemoTasks(queryClient), [queryClient]);
     useEffect(() => {
         if (pathname.startsWith(GUIDE_PATH)) completeDemoTask("guide");
@@ -71,62 +96,62 @@ export default function DemoTasks({email, hiddenOnPhone}: { email: string; hidde
     }
 
     return (
-        <>
-            <button
-                type="button"
-                onClick={() => setOpen(true)}
-                aria-haspopup="dialog"
-                className={`${hiddenOnPhone ? "hidden sm:inline-flex" : "inline-flex"} fixed bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+1rem)] left-4 z-(--rt-z-sticky) min-h-11 items-center gap-2 rounded-full border px-4 text-body-sm font-semibold shadow-popover sm:right-6 sm:bottom-6 sm:left-auto ${
-                    allDone ? "animate-pulse-ring border-transparent bg-success-solid text-on-success-solid" : "border-default bg-surface text-fg"
-                }`}
-            >
-                <CheckCircleIcon size={18} className={allDone ? undefined : "text-primary"}/>
-                {allDone ? "Congratulations" : `Try it: ${TASKS.filter((task) => done.has(task.id)).length} of ${TASKS.length}`}
-            </button>
-
-            <Sheet open={open} onClose={() => setOpen(false)} title="Things to try" showClose closeLabel="Close"
-                   description="See if you can work out each one yourself. It ticks itself when you do it. Stuck? Press Hint.">
-                {allDone && (
-                    <Callout tone="success" title="You've tried the main features" className="mb-4">
-                        <Link to="/register" onClick={() => leaveDemo(queryClient)} className="link">
-                            Create your own account
-                        </Link>{" "}
-                        to keep your data.
-                    </Callout>
-                )}
-                <ol className="divide-y divide-subtle">
-                    {orderedTasks.map((task) => {
-                        const isDone = done.has(task.id);
-                        const hintOpen = hintsOpen.has(task.id) && !isDone;
-                        const hintId = `demo-hint-${task.id}`;
-                        return (
-                            <li key={task.id} className="flex gap-3 py-1.5">
-                                <span className="flex size-11 shrink-0 items-center justify-center">
-                                    {isDone
-                                        ? <CheckCircleIcon size={20} className="text-success"/>
-                                        : <span className="size-[1.125rem] rounded-full border-2 border-default"/>}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex min-h-11 items-center justify-between gap-2">
-                                        <p className={`min-w-0 text-body-sm font-semibold ${isDone ? "text-muted line-through" : "text-fg"}`}>
+        <section
+            ref={dock}
+            aria-label="Things to try"
+            className={`fixed inset-x-0 z-(--rt-z-sticky) border-t border-subtle bg-surface sm:right-6 sm:left-auto sm:w-[21rem] sm:rounded-card sm:border sm:shadow-popover lg:top-[16.5rem] lg:right-auto lg:bottom-auto lg:left-3 lg:z-(--rt-z-nav) lg:w-[14.5rem] lg:bg-surface-sunken lg:shadow-none ${
+                onForm
+                    ? "bottom-[calc(4.8rem+env(safe-area-inset-bottom))] sm:bottom-24"
+                    : "bottom-[calc(4rem+1px+env(safe-area-inset-bottom))] sm:bottom-6"
+            }`}
+        >
+            {!part ? (
+                <Callout tone="success" title="You've tried the main features" className="m-2 max-sm:m-1 max-sm:gap-2 max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[13px] max-sm:leading-[1.15rem]">
+                    <Link to="/register" onClick={() => leaveDemo(queryClient)} className="link">
+                        Create your own account
+                    </Link>{" "}
+                    to keep your data.
+                </Callout>
+            ) : (
+                <>
+                    {!nextOnly && (
+                        <div className="flex min-h-9 items-center justify-between gap-2 px-4 pt-1.5 sm:pt-2.5 lg:px-3 max-sm:min-h-0 max-sm:px-3 max-sm:pt-1">
+                            <h2 className="text-body-sm font-bold text-fg max-sm:text-[13px]">Try it: part {partIndex + 1} of {parts.length}</h2>
+                            <p role="status" className="text-caption text-muted">
+                                {part.filter((task) => done.has(task.id)).length} of {part.length} done
+                            </p>
+                        </div>
+                    )}
+                    <ol key={partIndex} className="max-h-[45dvh] animate-pop-in overflow-y-auto px-4 pb-1 lg:max-h-[calc(100dvh-37rem)] lg:min-h-20 lg:px-3 max-sm:px-3 max-sm:pb-0.5">
+                        {shownTasks.map((task) => {
+                            const isDone = done.has(task.id);
+                            const hintOpen = hintsOpen.has(task.id) && !isDone;
+                            const hintId = `demo-hint-${task.id}`;
+                            return (
+                                <li key={task.id}>
+                                    <div className="flex min-h-10 items-center gap-2.5 max-sm:min-h-7 max-sm:gap-2">
+                                        {isDone
+                                            ? <CheckCircleIcon size={18} className="shrink-0 text-success max-sm:size-4"/>
+                                            : <span className="size-[1.125rem] shrink-0 rounded-full border-2 border-default max-sm:size-4"/>}
+                                        <p className={`min-w-0 flex-1 text-body-sm font-semibold lg:text-[13px] lg:leading-[1.15rem] max-sm:text-[13px] max-sm:leading-[1.15rem] ${isDone ? "text-muted line-through" : "text-fg"}`}>
                                             {task.title}
                                             {isDone && <span className="sr-only"> (done)</span>}
                                         </p>
                                         {!isDone && (
                                             <button type="button" onClick={() => toggleHint(task.id)}
                                                     aria-expanded={hintOpen} aria-controls={hintId}
-                                                    className="link inline-flex min-h-11 shrink-0 items-center px-1 text-body-sm">
+                                                    className="link inline-flex min-h-10 shrink-0 items-center px-1 text-body-sm max-sm:min-h-7 max-sm:text-[13px]">
                                                 {hintOpen ? "Hide hint" : "Hint"}
                                             </button>
                                         )}
                                     </div>
-                                    <p id={hintId} hidden={!hintOpen} className="pb-2 text-body-sm text-muted">{task.hint}</p>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ol>
-            </Sheet>
-        </>
+                                    <p id={hintId} hidden={!hintOpen} className="pb-2 pl-7 text-body-sm text-muted max-sm:pb-1 max-sm:pl-6 max-sm:text-[13px] max-sm:leading-[1.15rem]">{task.hint}</p>
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </>
+            )}
+        </section>
     );
 }

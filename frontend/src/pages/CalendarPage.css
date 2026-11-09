@@ -799,6 +799,18 @@
 
 
 /* The demo's colour key, between the toolbar and the calendar. */
+/* Until the first booking exists: how to add one. */
+.cal-first-hint {
+    flex: none;
+    margin: 0;
+    padding: 0.625rem 1rem;
+    background: var(--rt-surface);
+    border-bottom: 1px solid var(--rt-border-subtle);
+    color: var(--rt-fg);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
 .cal-color-key {
     display: flex;
     flex: none;
@@ -864,7 +876,7 @@
 @media (max-width: 639px) {
     .cal-root {
         /* LAYOUT: the phone tab bar (4rem + 1px border) and the home-indicator area. */
-        --cal-chrome: calc(4rem + 1px + env(safe-area-inset-bottom));
+        --cal-chrome: calc(4rem + 1px + env(safe-area-inset-bottom) + var(--rt-demo-dock, 0px));
     }
 
     .cal-toolbar {

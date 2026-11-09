@@ -1,5 +1,16 @@
 import {useLocation, useNavigate} from "react-router-dom";
 
+// Set while a page leaves through goBack (after saving, say), so FormTopBar doesn't ask about unsaved changes.
+let leavingOnPurpose = false;
+
+export function isLeavingOnPurpose(): boolean {
+    return leavingOnPurpose;
+}
+
+export function resetLeavingOnPurpose() {
+    leavingOnPurpose = false;
+}
+
 export interface ReturnState {
     from?: string;
 }
@@ -23,6 +34,7 @@ export function useReturnTo(fallback: string) {
 
     function goBack() {
         // A real "back" returns to the previous page without stacking a duplicate history entry.
+        leavingOnPurpose = true;
         if (cameFromApp) navigate(-1);
         else navigate(fallback, {replace: true});
     }

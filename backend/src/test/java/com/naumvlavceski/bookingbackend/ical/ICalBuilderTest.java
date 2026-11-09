@@ -80,7 +80,7 @@ class ICalBuilderTest {
     @Test
     void generatedFeedRoundTripsThroughOurParser() {
         String ics = ICalBuilder.build(unit(), List.of(reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT)));
-        List<ParsedIcalEvent> parsed = IcalParser.parse(ics);
+        List<ParsedIcalEvent> parsed = IcalParser.parse(ics).events();
         assertEquals(1, parsed.size());
         assertTrue(parsed.get(0).uid().endsWith("@roomtrack"));
         assertEquals(LocalDate.of(2030, 6, 10), parsed.get(0).startDate());

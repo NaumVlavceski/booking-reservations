@@ -32,6 +32,19 @@ public class EmailService {
         if (d != null && !d.sent()) log.warn("Unlogged email could not be delivered after {} attempts", d.attempts());
     }
 
+    /**
+     * Sends now, on the caller's thread, and says whether it went out; no email_log row. For the contact form, whose
+     * visitor should hear whether the message was sent, and whose words should not stay behind in a log.
+     */
+    public boolean sendNow(EmailMessage msg) {
+        Delivery d = deliver(msg);
+        if (d == null || !d.sent()) {
+            log.warn("Email could not be delivered after {} attempts", d == null ? 0 : d.attempts());
+            return false;
+        }
+        return true;
+    }
+
     private record Delivery(boolean sent, int attempts, String providerId, String error) {}
 
     /** Up to 3 tries for errors worth retrying; null if the thread was interrupted. */

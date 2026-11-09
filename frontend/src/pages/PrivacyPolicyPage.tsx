@@ -95,6 +95,13 @@ export default function PrivacyPolicyPage() {
                         sure they never contain passwords, codes, sign-in tokens, calendar keys or guest details.
                     </li>
                 </LegalList>
+                <p><strong>If you write to us</strong></p>
+                <LegalList>
+                    <li>
+                        When you use the contact form: your email address, the subject and your message. They are
+                        emailed to us so we can reply, and are not stored in RoomTrack.
+                    </li>
+                </LegalList>
             </LegalSection>
 
             <LegalSection id="why" title="3. Why we use it">
@@ -112,6 +119,10 @@ export default function PrivacyPolicyPage() {
                     <li>
                         <strong>To keep RoomTrack secure</strong>: limiting repeated attempts, investigating abuse and
                         errors. This is our legitimate interest in running a safe service.
+                    </li>
+                    <li>
+                        <strong>To answer you</strong> when you write to us through the contact form. This is our
+                        legitimate interest in replying to the people who contact us.
                     </li>
                     <li><strong>To meet legal obligations</strong>, where a law requires us to keep or hand over data.</li>
                 </LegalList>
@@ -163,6 +174,10 @@ export default function PrivacyPolicyPage() {
                         automatically.
                     </li>
                     <li><strong>Email log</strong>: 90 days.</li>
+                    <li>
+                        <strong>Contact form messages</strong>: not stored in RoomTrack. The email we receive stays in
+                        our mailbox only as long as we need it to deal with your message.
+                    </li>
                     <li><strong>Sign-up and password-reset codes</strong>: at most 7 days (only as hashes).</li>
                     <li>
                         <strong>The demo</strong>: its account and data are deleted 1 hour after it starts.
@@ -215,8 +230,8 @@ export default function PrivacyPolicyPage() {
                     </li>
                     <li>In the demo: which of its tasks you have done.</li>
                     <li>
-                        For the current tab only: a note that your session expired and the page to return to after you
-                        sign in again.
+                        For the current tab only: a note that your session expired, the page to return to after you
+                        sign in again and, if you were editing a booking, what you had typed.
                     </li>
                     <li>
                         If you install RoomTrack as an app, your device keeps the app's own files so it opens quickly.

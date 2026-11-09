@@ -10,6 +10,11 @@ spring:
         logServerErrorDetail: false
   flyway:
     enabled: true
+  task:
+    scheduling:
+      pool:
+        # A slow calendar download must not hold up the cleanup jobs
+        size: 3
   jpa:
     show-sql: false
 logging:
@@ -78,6 +83,14 @@ app:
     demo-per-ip:
       max: 10
       window: 1h
+    # The contact form (POST /api/contact). contact-total caps all visitors together, so a flood from many
+    # addresses can't fill the inbox or use up the Resend quota that the sign-up codes also need.
+    contact-per-ip:
+      max: 5
+      window: 1h
+    contact-total:
+      max: 30
+      window: 1h
   jwt:
     secret: ${APP_JWT_SECRET:}
     idle-timeout-ms: ${APP_JWT_IDLE_TIMEOUT_MS}
@@ -88,6 +101,10 @@ app:
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:RoomTrack <onboarding@resend.dev>}
     log-retention-days: ${EMAIL_LOG_RETENTION_DAYS:90}
+  # The contact form sends each message to this address (Reply-To is the visitor's). Kept on the server only, never
+  # in the code or the website. Empty: the form answers 503 CONTACT_UNAVAILABLE.
+  contact:
+    to: ${CONTACT_TO:}
   # Public API documentation. Off unless APP_DOCS_ENABLED=true; server-url is the address "Try it out" calls
   # (empty: worked out from the request, which behind Caddy is already https://api.roomtrack.app).
   docs:

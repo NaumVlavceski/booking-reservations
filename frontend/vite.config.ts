@@ -59,7 +59,8 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // The app shell: built JS/CSS/HTML, the interface font, the logo and icons. Not the help screenshots.
           globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
-          globIgnores: ['help/**'],
+          // Help and home-page pictures load when a page shows them; the installed app doesn't need them up front.
+          globIgnores: ['help/**', 'landing/**'],
           // Any address in the app opens index.html (offline too); React Router then shows the right page.
           navigateFallback: '/index.html',
           // /api/ical/* is the calendar feed Netlify forwards to the backend (public/_redirects): never the app.

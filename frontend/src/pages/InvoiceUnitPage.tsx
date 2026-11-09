@@ -3,6 +3,7 @@ import {useEffect} from "react";
 import {isAxiosError} from "axios";
 import {Link, useParams} from "react-router-dom";
 import {formatEarnings, invoiceUnitReservationsQuery} from "../lib/api/invoices";
+import {bookingLabel} from "../lib/bookingLabel";
 import {formatStay} from "../lib/dates";
 import {plural} from "../lib/plural";
 import {CLEARED, formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
@@ -85,7 +86,7 @@ export default function InvoiceUnitPage() {
                                         >
                                             <span className="min-w-0 flex-1">
                                                 <span className="flex items-baseline justify-between gap-3">
-                                                    <span className="truncate text-title-3 text-fg">{r.guestName || "Guest"}</span>
+                                                    <span className="truncate text-title-3 text-fg">{bookingLabel(r)}</span>
                                                     {r.totalAmount === null ? (
                                                         <span className="shrink-0 text-body-sm font-semibold text-warning">No amount</span>
                                                     ) : (

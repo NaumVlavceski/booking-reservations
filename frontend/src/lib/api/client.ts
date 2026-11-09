@@ -2,6 +2,7 @@ import axios, {type AxiosResponse} from "axios";
 import {tokenStorage} from "../auth/tokenStorage";
 import {markSessionExpired} from "../auth/session";
 import {clearOfflineCalendar} from "../offlineCalendar";
+import {stashFormDraft} from "../formDraft";
 
 // Error wording for the user lives in lib/errors.ts.
 
@@ -41,9 +42,10 @@ let sessionEnding = false;
 function endSession() {
     if (sessionEnding) return;
     sessionEnding = true;
+    const {pathname, search, hash} = window.location;
+    stashFormDraft(pathname + search);
     tokenStorage.clear();
     clearOfflineCalendar();
-    const {pathname, search, hash} = window.location;
     markSessionExpired(pathname + search + hash);
     window.location.replace("/login");
 }

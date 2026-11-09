@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import App from "./App";
 import ToastProvider from "./components/ToastProvider";
 import AppNotices from "./components/AppNotices";
@@ -42,15 +42,20 @@ const queryClient = new QueryClient({
 // What the calendar needs, so it can still be read offline (view only).
 keepOffline(queryClient, [meQuery.queryKey, propertiesQuery.queryKey, allUnitsQuery.queryKey, allReservationsQuery.queryKey]);
 
+const router = createBrowserRouter([{
+    path: "*",
+    element: (
+        <ToastProvider notices={<AppNotices />}>
+            <App />
+        </ToastProvider>
+    ),
+}]);
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
         <ErrorBoundary>
             <QueryClientProvider client={queryClient}>
-                <BrowserRouter>
-                    <ToastProvider notices={<AppNotices />}>
-                        <App />
-                    </ToastProvider>
-                </BrowserRouter>
+                <RouterProvider router={router} />
             </QueryClientProvider>
         </ErrorBoundary>
     </React.StrictMode>

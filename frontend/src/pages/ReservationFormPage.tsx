@@ -1,7 +1,7 @@
-import {repriceForm, type PricingField} from "../lib/pricing.ts";
+import {repriceForm, stayNights, type PricingField} from "../lib/pricing.ts";
 import axios from "axios";
 import {errorMessage, fieldErrors, logError} from "../lib/errors";
-import {Navigate, useParams, useSearchParams} from "react-router-dom";
+import {Navigate, useLocation, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     allReservationsQuery, createReservation, deleteReservation, getReservation, restoreReservation,
@@ -11,7 +11,9 @@ import {
 } from "../lib/api/reservations.ts";
 import {allUnitsQuery, getUnit} from "../lib/api/units.ts";
 import {useConnected} from "../lib/apiReachability";
-import {useId, useState} from "react";
+import {useEffect, useId, useState} from "react";
+import {bookingLabel, guestNameOf} from "../lib/bookingLabel";
+import {clearFormDraft, readFormDraft, setCurrentFormDraft} from "../lib/formDraft";
 
 import FormTopBar from "../components/FormTopBar";
 import MoveReservationDialog from "../components/MoveReservationDialog";
@@ -38,6 +40,10 @@ const STATUS_OPTIONS = [
 
 type EditableStatus = (typeof STATUS_OPTIONS)[number]["value"];
 
+/** The size of reservation.notes. */
+const MAX_NOTES_LENGTH = 255;
+/** The notes field starts counting characters from here. */
+const NOTES_COUNTER_FROM = 200;
 const PRICE_MESSAGES = {rangeUnderflow: "Can't be negative.", badInput: "Enter a number, e.g. 45 or 45.50."};
 const MESSAGES: ValidationMessages = {
     pricePerGuest: PRICE_MESSAGES,
@@ -61,8 +67,11 @@ export default function ReservationFormPage() {
     const [searchParams] = useSearchParams();
     const prefillUnitId = searchParams.get("unitId");
     const prefillCheckIn = searchParams.get("checkIn");
+    const {pathname, search} = useLocation();
+    // What was being typed here when the session ended, if anything (lib/formDraft.ts)
+    const [draft] = useState(() => readFormDraft<ReservationRequest>(pathname + search));
     const datesErrorId = useId();
-    const {errors, validate, recheck, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
+    const {errors, validate, recheck, setError, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
 
     // Offline, a booking opened from the calendar's saved copy starts from that copy (view only: Save is off).
     const connected = useConnected();
@@ -88,7 +97,7 @@ export default function ReservationFormPage() {
         guestsCount: 2,
         notes: ""
     };
-    const [form, setForm] = useState<ReservationRequest>(initialForm);
+    const [form, setForm] = useState<ReservationRequest>(draft ?? initialForm);
     // Snapshot to compare against for the unsaved-changes warning: the
     // prefilled/blank form on create, or the loaded reservation once it arrives.
     const [initialSnapshot, setInitialSnapshot] = useState<ReservationRequest | null>(isEditing ? null : initialForm);
@@ -103,14 +112,14 @@ export default function ReservationFormPage() {
             pricePerGuest: existing.pricePerGuest,
             nightlyRate: existing.nightlyRate,
             totalAmount: existing.totalAmount,
-            guestName: existing.guestName ?? "",
+            guestName: guestNameOf(existing),
             guestEmail: existing.guestEmail ?? "",
             guestPhone: existing.guestPhone ?? "",
             guestsCount: existing.guestsCount,
             notes: existing.notes ?? ""
         };
+        setForm(draft && syncedExisting === undefined ? draft : next);
         setSyncedExisting(existing);
-        setForm(next);
         setInitialSnapshot(next);
     }
     const {data: unitForTitle} = useQuery({
@@ -131,6 +140,8 @@ export default function ReservationFormPage() {
         .map((r) => ({checkIn: r.checkIn, checkOut: r.checkOut}));
     const [conflictMessage, setConflictMessage] = useState<string | null>(null);
     const [lastEdited, setLastEdited] = useState<PricingField>(null);
+    // How many nights the price was last worked out for (null: as loaded)
+    const [pricedNights, setPricedNights] = useState<number | null>(null);
     const mutation = useMutation({
         mutationFn: (data: ReservationRequest) =>
             isEditing ? updateReservation(id!, data) : createReservation(data),
@@ -210,6 +221,13 @@ export default function ReservationFormPage() {
             return;
         }
         if (!fieldsValid) return;
+        if (form.notes.length > MAX_NOTES_LENGTH) {
+            setError("notes", `Notes can be up to ${MAX_NOTES_LENGTH} characters. This has ${form.notes.length}.`);
+            const notes = document.getElementById("notes");
+            notes?.focus({preventScroll: true});
+            notes?.scrollIntoView({block: "center"}); // clear of the Save bar, with its message in view
+            return;
+        }
         mutation.mutate(form)
     }
 
@@ -248,6 +266,34 @@ export default function ReservationFormPage() {
         setLastEdited("pricePerGuest");
         showRecalculatedNotice(form.checkIn, form.checkOut);
     }
+
+    /** New dates only change the price if the number of nights changed, and then by the rate per night. */
+    function repriceForDates(checkIn: string, checkOut: string) {
+        const nights = stayNights(checkIn, checkOut);
+        if (nights === 0) return;
+        const before = pricedNights ?? (initialSnapshot ? stayNights(initialSnapshot.checkIn, initialSnapshot.checkOut) : 0);
+        setPricedNights(nights);
+        if (nights === before) return;
+        if (form.nightlyRate) {
+            setLastEdited("nightlyRate");
+            showRecalculatedNotice(checkIn, checkOut);
+        } else if (form.totalAmount) {
+            setLastEdited("totalAmount");
+        }
+    }
+
+    // A draft is restored once; what is on screen is then kept like any other typing. While editing, the current
+    // values are what would be put aside if the session ended.
+    useEffect(() => {
+        clearFormDraft(); // Also one that belongs to another account: it must not stay in this tab
+        if (!draft) return;
+        toast.show("We kept what you typed. Check it and press Save.", {tone: "info"});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    useEffect(() => {
+        setCurrentFormDraft(isDirty ? form : null);
+        return () => setCurrentFormDraft(null);
+    }, [form, isDirty]);
 
     // A new reservation needs a room, which comes from the calendar cell that was clicked.
     if (!isEditing && !prefillUnitId) return <Navigate to="/dashboard/calendar" replace/>;
@@ -303,7 +349,7 @@ export default function ReservationFormPage() {
                 formId="reservation-form"
                 saving={mutation.isPending}
                 title={title}
-                subtitle={existing?.guestName?.trim() || undefined}
+                subtitle={existing ? bookingLabel(existing) : undefined}
                 isDirty={isDirty}
                 back={back}
                 onDelete={canCancel ? () => {
@@ -351,9 +397,8 @@ export default function ReservationFormPage() {
                                     describedBy={datesErrorId}
                                     onChange={(checkIn, checkOut) => {
                                         setForm((f) => ({...f, checkIn, checkOut}));
-                                        setLastEdited("nightlyRate");
+                                        repriceForDates(checkIn, checkOut);
                                         setDatesMissing(false);
-                                        showRecalculatedNotice(checkIn, checkOut);
                                     }}
                                 />
                                 {datesMissing && (
@@ -404,15 +449,16 @@ export default function ReservationFormPage() {
                         <section aria-labelledby="guest-heading" className={section}>
                             <h2 id="guest-heading" className="text-title-3 text-fg">Guest</h2>
                             <TextField label="Guest name" id="guestName" name="guestName" value={form.guestName} onChange={onChange}
-                                       autoComplete="off" autoCapitalize="words" enterKeyHint="next"/>
+                                       autoComplete="off" autoCapitalize="words" enterKeyHint="next" error={errors.guestName}/>
                             <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
                                 <TextField label="Phone" type="tel" inputMode="tel" id="guestPhone" name="guestPhone"
-                                           value={form.guestPhone} onChange={onChange} autoComplete="off" enterKeyHint="next"/>
+                                           value={form.guestPhone} onChange={onChange} autoComplete="off" enterKeyHint="next" error={errors.guestPhone}/>
                                 <TextField label="Email" type="email" inputMode="email" id="guestEmail" name="guestEmail"
                                            value={form.guestEmail} onChange={onChange} autoComplete="off" autoCapitalize="none"
                                            spellCheck={false} enterKeyHint="next" error={errors.guestEmail}/>
                             </div>
-                            <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3}/>
+                            <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3} error={errors.notes}
+                                           hint={form.notes.length >= NOTES_COUNTER_FROM ? `${form.notes.length} of ${MAX_NOTES_LENGTH} characters` : undefined}/>
                         </section>
                     </Card>
                 </form>
@@ -452,7 +498,7 @@ export default function ReservationFormPage() {
 
             <ConfirmDialog
                 open={confirmCancel}
-                title={`Cancel ${existing?.guestName?.trim() || "this booking"}?`}
+                title={`Cancel ${(existing && guestNameOf(existing)) || "this booking"}?`}
                 message={existing && (
                     <>
                         {formatStay(existing.checkIn, existing.checkOut)}

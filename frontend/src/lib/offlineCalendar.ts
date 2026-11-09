@@ -35,8 +35,11 @@ function save(queryClient: QueryClient) {
     const saved = queryClient.getQueryCache().getAll()
         .filter((query) => isKeptOffline(query.queryKey) && query.state.data !== undefined)
         .map((query): SavedQuery => ({queryKey: query.queryKey, data: query.state.data, updatedAt: query.state.dataUpdatedAt}));
+    // A page that doesn't load the calendar has only some of these in memory: the rest of the saved copy stays
+    const inMemory = new Set(saved.map((query) => hashKey(query.queryKey)));
+    const stillSaved = read().filter((query) => isKeptOffline(query.queryKey) && !inMemory.has(hashKey(query.queryKey)));
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...saved, ...stillSaved]));
     } catch {
         // Storage full or unavailable (private mode): the calendar just isn't available offline.
     }

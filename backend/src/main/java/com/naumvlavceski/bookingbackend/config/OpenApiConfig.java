@@ -47,6 +47,7 @@ public class OpenApiConfig {
     public static final String TAG_CALENDAR_SYNC = "Calendar sync";
     public static final String TAG_EARNINGS = "Earnings";
     public static final String TAG_ACCOUNT = "Account and privacy";
+    public static final String TAG_CONTACT = "Contact";
 
     public static final String BAD_REQUEST = "#/components/responses/BadRequest";
     public static final String UNAUTHORIZED = "#/components/responses/Unauthorized";
@@ -58,6 +59,7 @@ public class OpenApiConfig {
     private static final String ERROR_SCHEMA = "#/components/schemas/" + ApiErrorSchema.NAME;
     /** Paths anyone may call (SecurityConfig permitAll); every other operation needs the bearer token. */
     private static final String PUBLIC_PREFIX = "/api/auth/";
+    private static final String CONTACT_PATH = "/api/contact";
 
     static {
         // The owner id comes from the token (CurrentUserIdArgumentResolver), never from the request
@@ -81,7 +83,8 @@ public class OpenApiConfig {
                         new Tag().name(TAG_RESERVATIONS).description("Bookings of a unit. Overlapping live bookings of one unit are refused with 409 (see the API description)."),
                         new Tag().name(TAG_CALENDAR_SYNC).description("Booking.com calendar links that are imported every 10 minutes, their health, and the booking conflicts the import finds."),
                         new Tag().name(TAG_EARNINGS).description("Earnings overview per property, unit and booking, with an Excel export. Only CONFIRMED and PAID bookings count."),
-                        new Tag().name(TAG_ACCOUNT).description("The signed-in account: profile, password, notification settings, data export and account deletion.")))
+                        new Tag().name(TAG_ACCOUNT).description("The signed-in account: profile, password, notification settings, data export and account deletion."),
+                        new Tag().name(TAG_CONTACT).description("The public contact form. No token needed.")))
                 .components(new Components()
                         .addSecuritySchemes(BEARER, new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
@@ -141,7 +144,7 @@ public class OpenApiConfig {
 
             if (api.getPaths() == null) return;
             api.getPaths().forEach((path, item) -> {
-                if (path.startsWith(PUBLIC_PREFIX)) return;
+                if (path.startsWith(PUBLIC_PREFIX) || path.equals(CONTACT_PATH)) return;
                 item.readOperations().forEach(op -> {
                     op.addSecurityItem(new SecurityRequirement().addList(BEARER));
                     if (op.getResponses() != null && !op.getResponses().containsKey("401")) {

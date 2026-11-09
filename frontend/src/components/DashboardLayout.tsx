@@ -237,6 +237,8 @@ export default function DashboardLayout() {
                 ) : (
                     <div className="mx-auto w-full max-w-5xl">
                         {page}
+                        {/* Room under the page, so the demo's task list never covers the end of it */}
+                        {demo && <div aria-hidden="true" className="h-(--rt-demo-dock)"/>}
                     </div>
                 )}
             </main>
@@ -257,7 +259,7 @@ export default function DashboardLayout() {
             }
 
             {
-                demo && me?.email && <DemoTasks email={me.email} hiddenOnPhone={chrome !== "tabs"}/>
+                demo && me?.email && <DemoTasks email={me.email} onForm={chrome === "form"}/>
             }
 
             <Sheet open={isMoreOpen} onClose={closeMore} title="More" titleHidden showClose closeLabel="Close menu">

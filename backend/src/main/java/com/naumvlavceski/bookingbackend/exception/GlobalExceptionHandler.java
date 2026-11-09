@@ -87,6 +87,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(ContactUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleContactUnavailable(ContactUnavailableException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), ex.getCode());
+    }
+
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<Map<String, Object>> handleTooManyRequests(TooManyRequestsException ex) {
         Map<String, Object> body = body(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "RATE_LIMITED");

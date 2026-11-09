@@ -27,6 +27,20 @@ import CalendarGate from "./components/CalendarGate.tsx";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage.tsx";
 import TermsPage from "./pages/TermsPage.tsx";
 import AccountPage from "./pages/AccountPage.tsx";
+import LandingPage from "./pages/LandingPage.tsx";
+import ContactPage from "./pages/ContactPage.tsx";
+import {tokenStorage} from "./lib/auth/tokenStorage";
+import {isStandalone} from "./lib/pwa";
+
+/**
+ * "/": the home page for visitors. Signed in, it opens the calendar as before; the installed app (which starts at
+ * "/") goes to the login page instead of the home page.
+ */
+function HomeRoute() {
+    if (tokenStorage.get()) return <Navigate to="/dashboard/calendar" replace/>;
+    if (isStandalone()) return <Navigate to="/login" replace/>;
+    return <LandingPage/>;
+}
 
 
 export default function App() {
@@ -39,7 +53,8 @@ export default function App() {
             {/* Public: readable before signing up and from inside the app */}
             <Route path="/privacy" element={<PrivacyPolicyPage/>}/>
             <Route path="/terms" element={<TermsPage/>}/>
-            <Route path="/" element={<Navigate to="/dashboard/calendar" replace/>}/>
+            <Route path="/contact" element={<ContactPage/>}/>
+            <Route path="/" element={<HomeRoute/>}/>
             <Route element={<ProtectedRoute/>}>
                 <Route element={<DashboardLayout />}>
                     <Route path="/dashboard" element={<Navigate to="/dashboard/calendar" replace/>} />
