@@ -131,3 +131,4 @@ export async function copyReservation(id: string, unitIds: string[]): Promise<Re
     const res = await apiClient.post<ReservationResponse[]>(`/api/reservations/${id}/copy`, {unitIds});
     return res.data;
 }
+

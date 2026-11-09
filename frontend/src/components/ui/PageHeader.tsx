@@ -37,14 +37,14 @@ export default function PageHeader({title, description, back, actions, alerts = 
 
     return (
         <div className="mb-4 sm:mb-6">
-            <header className="sticky top-0 z-20 -mx-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:pt-0">
+            <header className="sticky top-0 z-(--rt-z-sticky) -mx-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:pt-0">
                 {back && (
                     <Link
                         to={back.to}
                         state={back.state}
                         onClick={handleBack}
                         aria-label="Back"
-                        className="mb-1 hidden min-h-11 items-center gap-1 rounded-xl pr-3 pl-1 text-body-sm font-semibold text-muted transition-colors hover:bg-surface-hover hover:text-fg sm:-ml-1 sm:inline-flex"
+                        className="mb-1 hidden min-h-11 items-center gap-1 rounded-control pr-3 pl-1 text-body-sm font-semibold text-muted transition-colors hover:bg-surface-hover hover:text-fg sm:-ml-1 sm:inline-flex"
                     >
                         <ChevronLeftIcon size={18}/>
                         Back

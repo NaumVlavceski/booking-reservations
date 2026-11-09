@@ -25,7 +25,7 @@ interface CalloutProps {
 export default function Callout({tone = "info", title, children, action, className = "", role}: CalloutProps) {
     const style = STYLE[tone];
     return (
-        <div role={role} className={`flex items-start gap-3 rounded-2xl border px-3.5 py-3 text-body-sm text-fg ${style.box} ${className}`}>
+        <div role={role} className={`flex items-start gap-3 rounded-card border px-3.5 py-3 text-body-sm text-fg ${style.box} ${className}`}>
             <span className="mt-px shrink-0">{style.icon}</span>
             <div className="min-w-0 flex-1">
                 {title && <p className="font-semibold">{title}</p>}

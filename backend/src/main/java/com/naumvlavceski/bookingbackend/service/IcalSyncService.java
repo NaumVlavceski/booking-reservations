@@ -1,9 +1,10 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.ical.IcalFetchException;
 import com.naumvlavceski.bookingbackend.ical.IcalFetcher;
 import com.naumvlavceski.bookingbackend.ical.IcalParser;
 import com.naumvlavceski.bookingbackend.ical.IcalReconciler;
-import com.naumvlavceski.bookingbackend.ical.ParsedIcalEvent;
+import com.naumvlavceski.bookingbackend.ical.ParseResult;
 import com.naumvlavceski.bookingbackend.mail.ReservationNotifier;
 import com.naumvlavceski.bookingbackend.model.ExternalCalendar;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
@@ -13,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +26,7 @@ public class IcalSyncService {
 
     private final ExternalCalendarRepository calendarRepository;
     private static final int FAILURES_BEFORE_ALERT = 3; // i.e. more than two in a row
+    private static final String SAVE_FAILED = "The bookings from this calendar could not be saved.";
 
     private final IcalReconciler reconciler;
     private final UnitRepository unitRepository;
@@ -40,26 +41,44 @@ public class IcalSyncService {
             Instant startedAt = Instant.now();
             try {
                 String ics = IcalFetcher.fetch(calendar.getIcsUrl());
-                List<ParsedIcalEvent> events = IcalParser.parse(ics);
-                reconciler.reconcile(calendar, events);
+                ParseResult feed = IcalParser.parse(ics);
+                reconciler.reconcile(calendar, feed);
                 calendar.setLastSyncedAt(startedAt);
                 calendar.setLastSuccessAt(startedAt);
-                calendar.setLastError(null);
+                calendar.setLastError(skippedWarning(calendarId, feed));
                 calendar.setConsecutiveFailures(0);
-            } catch (Exception e) {
+            } catch (IcalFetchException e) {
                 log.warn("Sync failed for calendar {}: {}", calendarId, e.getMessage());
-                calendar.setLastSyncedAt(startedAt);
-                calendar.setLastError(truncate(e.getMessage()));
-                calendar.setConsecutiveFailures(calendar.getConsecutiveFailures() + 1);
-                // Exactly once per failing streak; a success resets the counter so a later streak notifies again
-                if (calendar.getConsecutiveFailures() == FAILURES_BEFORE_ALERT) {
-                    notifySyncFailing(calendar);
-                }
+                recordFailure(calendar, startedAt, e.getMessage());
+            } catch (Exception e) {
+                // Stack trace for us; the raw message holds SQL, and the owner sees this text
+                log.warn("Sync failed for calendar {}", calendarId, e);
+                recordFailure(calendar, startedAt, SAVE_FAILED);
             }
             calendarRepository.save(calendar);
         } finally {
             inProgress.remove(calendarId);
         }
+    }
+
+    private void recordFailure(ExternalCalendar calendar, Instant startedAt, String message) {
+        calendar.setLastSyncedAt(startedAt);
+        calendar.setLastError(truncate(message));
+        calendar.setConsecutiveFailures(calendar.getConsecutiveFailures() + 1);
+        // Exactly once per failing streak; a success resets the counter so a later streak notifies again
+        if (calendar.getConsecutiveFailures() == FAILURES_BEFORE_ALERT) {
+            notifySyncFailing(calendar);
+        }
+    }
+
+    /** The sync worked, but the owner should know a booking may be missing. Null when everything was read. */
+    private static String skippedWarning(UUID calendarId, ParseResult feed) {
+        int skipped = feed.skipped();
+        if (skipped == 0) return null;
+        log.warn("Calendar {}: skipped {} entries of its feed", calendarId, skipped);
+        return skipped == 1
+                ? "1 entry in this calendar could not be read and was skipped."
+                : skipped + " entries in this calendar could not be read and were skipped.";
     }
 
     private void notifySyncFailing(ExternalCalendar calendar) {

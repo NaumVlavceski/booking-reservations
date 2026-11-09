@@ -13,4 +13,5 @@ public interface SyncConflictRepository extends JpaRepository<SyncConflict, UUID
     List<SyncConflict> findAllByExternalCalendarIdAndStatus(UUID calendarId, ConflictStatus status);
     List<SyncConflict> findAllByOwnerIdAndStatusOrderByCreatedAtDesc(UUID ownerId, ConflictStatus status);
     Optional<SyncConflict> findByIdAndOwnerId(UUID id, UUID ownerId);
+    List<SyncConflict> findAllByOwnerIdOrderByCreatedAtDesc(UUID ownerId);
 }

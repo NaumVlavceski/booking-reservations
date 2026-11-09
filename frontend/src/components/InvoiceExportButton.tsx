@@ -1,6 +1,7 @@
 import {useState} from "react";
 import {downloadInvoicesExcel, type InvoiceFilters} from "../lib/api/invoices";
 import {useToast} from "../lib/toast";
+import {errorMessage, logError} from "../lib/errors";
 import {DownloadIcon} from "./icons";
 import Button from "./ui/Button";
 
@@ -21,8 +22,9 @@ export default function InvoiceExportButton({propertyId, unitId = null, range, d
         setDownloading(true);
         try {
             await downloadInvoicesExcel(propertyId, unitId, range);
-        } catch {
-            toast.show("Couldn't download the Excel file. Try again.", {tone: "error"});
+        } catch (error) {
+            logError(error, "Excel export");
+            toast.show(errorMessage(error, "Couldn't download the Excel file."), {tone: "error"});
         } finally {
             setDownloading(false);
         }

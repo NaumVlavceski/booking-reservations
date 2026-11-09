@@ -29,13 +29,16 @@ public class ICalBuilder {
             String summary = (r.getGuestName() != null && !r.getGuestName().isBlank())
                     ? r.getGuestName()
                     : "Reserved";
-            sb.append("SUMMARY:").append(summary).append("\r\n");
+            sb.append("SUMMARY:").append(escape(summary)).append("\r\n");
             sb.append("END:VEVENT\r\n");
         }
         sb.append("END:VCALENDAR\r\n");
         return sb.toString();
     }
-    private static String escape(String s) {
-        return s.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;");
+
+    /** RFC 5545 TEXT escaping. Line breaks become "\n", so a name can never start a new property or event. */
+    static String escape(String s) {
+        return s.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;")
+                .replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n");
     }
 }

@@ -1,16 +1,20 @@
-import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
+import {errorCode, errorMessage} from "../lib/errors";
 import {useEffect, useRef, useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {useNavigate, useLocation, Link, Navigate} from "react-router-dom";
 import {login, resendCode} from "../lib/api/auth";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {clearSessionExpired, takeReturnTo, wasSessionExpired} from "../lib/auth/session";
+import {clearOfflineCalendar} from "../lib/offlineCalendar";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import AuthLayout from "../components/AuthLayout";
 import {TextField} from "../components/ui/Field";
 import PasswordField from "../components/ui/PasswordField";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
+import LegalLinks from "../components/LegalLinks";
+import TryDemo from "../components/TryDemo";
+import {DEMO_ENABLED} from "../lib/demo";
 
 const MESSAGES: ValidationMessages = {
     email: {valueMissing: "Enter your email address.", typeMismatch: "Enter an email address like name@example.com."},
@@ -27,18 +31,22 @@ export default function LoginPage() {
     // Set by the forgot-password page; dropped from history once read so a reload doesn't repeat it
     const location = useLocation();
     const [passwordChanged] = useState(() => Boolean((location.state as { passwordChanged?: boolean } | null)?.passwordChanged));
+    // Set by the account page after "Delete my account"
+    const [accountDeleted] = useState(() => Boolean((location.state as { accountDeleted?: boolean } | null)?.accountDeleted));
     useEffect(() => {
-        if (passwordChanged) navigate(location.pathname, {replace: true, state: null});
-    }, [passwordChanged, navigate, location.pathname]);
+        if (passwordChanged || accountDeleted) navigate(location.pathname, {replace: true, state: null});
+    }, [passwordChanged, accountDeleted, navigate, location.pathname]);
 
     const mutation = useMutation({
         mutationFn: login,
         onSuccess: (data) => {
             tokenStorage.set(data.token);
+            // A copy left by another account on this device is never shown to this one.
+            clearOfflineCalendar();
             navigate(takeReturnTo("/dashboard/calendar"), {replace: true});
         },
         onError: (error) => {
-            if (apiErrorCode(error) === "EMAIL_NOT_VERIFIED") {
+            if (errorCode(error) === "EMAIL_NOT_VERIFIED") {
                 // Right password, unverified address: send a fresh code (the server enforces its cooldown) and ask for it
                 const email = form.email.trim();
                 resendCode(email).catch(() => {});
@@ -70,13 +78,21 @@ export default function LoginPage() {
         <AuthLayout
             title="Log in"
             subtitle="Manage every booking in one place"
-            footer={<p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>}
+            footer={<>
+                <p>Don't have an account? <Link to="/register" className="link inline-flex min-h-11 items-center">Register</Link></p>
+                <LegalLinks/>
+            </>}
         >
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
                 {passwordChanged && !mutation.isError && (
                     <Callout tone="success" role="status">Password changed, please sign in.</Callout>
                 )}
-                {sessionExpired && !passwordChanged && !mutation.isError && (
+                {accountDeleted && !mutation.isError && (
+                    <Callout tone="success" role="status">
+                        Your account and everything in it were deleted. We sent a confirmation to your email address.
+                    </Callout>
+                )}
+                {sessionExpired && !passwordChanged && !accountDeleted && !mutation.isError && (
                     <Callout tone="info" role="status">Your session expired, please log in again.</Callout>
                 )}
                 <TextField
@@ -117,7 +133,7 @@ export default function LoginPage() {
 
                 {mutation.isError && (
                     <Callout tone="danger" role="alert">
-                        {apiErrorMessage(mutation.error, "Invalid email or password.")}
+                        {errorMessage(mutation.error, "Couldn't sign in.")}
                     </Callout>
                 )}
 
@@ -125,6 +141,7 @@ export default function LoginPage() {
                     Log in
                 </Button>
             </form>
+            {DEMO_ENABLED && <TryDemo className="mt-6"/>}
         </AuthLayout>
     );
 }

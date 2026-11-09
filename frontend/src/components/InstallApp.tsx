@@ -19,7 +19,7 @@ export default function InstallAppButton({onShowIosSteps, compact = false}: {
             type="button"
             onClick={() => (method === "ios" ? onShowIosSteps() : void promptInstall())}
             aria-haspopup={method === "ios" ? "dialog" : undefined}
-            className={`flex w-full items-center rounded-xl text-left font-medium transition-colors hover:bg-surface-hover ${
+            className={`flex w-full items-center rounded-control text-left font-medium transition-colors hover:bg-surface-hover ${
                 compact ? "min-h-11 gap-2.5 px-3 text-body-sm text-muted hover:text-fg" : "min-h-12 gap-3 px-3 text-body text-fg"
             }`}
         >
@@ -55,8 +55,8 @@ export function IosInstallSheet({open, onClose}: { open: boolean; onClose: () =>
 
 function Step({number, icon, children}: { number: number; icon: ReactNode; children: ReactNode }) {
     return (
-        <li className="flex items-center gap-3 rounded-2xl bg-surface-sunken px-3 py-3">
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-on-primary-soft">
+        <li className="flex items-center gap-3 rounded-card bg-surface-sunken px-3 py-3">
+            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-tile text-on-tile">
                 {icon}
             </span>
             <span className="min-w-0 flex-1"><span className="sr-only">Step {number}: </span>{children}</span>

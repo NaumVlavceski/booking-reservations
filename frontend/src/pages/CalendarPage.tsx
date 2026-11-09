@@ -13,16 +13,21 @@ import "react-day-picker/style.css";
 import {propertiesQuery, type PropertyResponse} from "../lib/api/properties";
 import {allUnitsQuery, type UnitResponse} from "../lib/api/units";
 import {allReservationsQuery} from "../lib/api/reservations";
+import {meQuery} from "../lib/api/me";
 import {addUnitPath, useActiveProperty} from "../lib/useActiveProperty";
 import {useFromHere} from "../lib/useReturnTo";
+import {useConnected} from "../lib/apiReachability";
+import {useToast} from "../lib/toast";
 import {BedIcon, CalendarIcon, MoreVerticalIcon, PersonIcon} from "../components/icons";
 import "./CalendarPage.css";
 import SyncAllButton from "../components/SyncAllButton.tsx";
+import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
 import {amountDue, layoutBarLabel} from "../lib/barLabel";
+import {bookingLabel} from "../lib/bookingLabel";
 import {formatStay} from "../lib/dates";
 import {easeOutQuad, flingTail} from "../lib/fling";
 
-const MAX_RANGE_DAYS = 5 * 365;
+const MAX_RANGE_DAYS = 2 * 365;
 const CHUNK = 20;
 const BUFFER_CHUNKS = 1;
 
@@ -49,6 +54,21 @@ const FLING_MAX_TAIL_DAYS = 7;
 const FLING_MIN_SPEED = 0.4;
 const FLING_WATCH_MS = 3000;
 const COLLAPSED_KEY = "roomtrack.calendar.collapsedProperties";
+
+/**
+ * Demo only: what the bar colours mean, for someone seeing the calendar for the first time. Real accounts have no key
+ * (owner's decision). Sits between the toolbar and the calendar.
+ */
+function DemoColorKey() {
+    return (
+        <div className="cal-color-key" role="note" aria-label="What the colours in the calendar mean">
+            <SourceBadge source="BOOKING"/>
+            <SourceBadge source="DIRECT"/>
+            <StatusBadge status="PAID"/>
+            <StatusBadge status="BLOCK"/>
+        </div>
+    );
+}
 
 function guardEdgeBounce(el: HTMLElement): () => void {
     if (typeof CSS !== "undefined" && CSS.supports?.("overscroll-behavior", "none")) return () => {};
@@ -171,6 +191,11 @@ export default function CalendarPage() {
 
     const activeProperty = useActiveProperty();
     const fromHere = useFromHere();
+    // Offline the calendar shows its saved copy (lib/offlineCalendar.ts): bookings open to view, nothing new starts.
+    const connected = useConnected();
+    const toast = useToast();
+    const showOfflineHint = (what: string) =>
+        toast.show(`You're offline. Connect to ${what}.`, {tone: "info"});
     const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
 
     function saveCollapsed(next: Set<string>) {
@@ -246,6 +271,7 @@ export default function CalendarPage() {
     function toggleMenu(menu: "date" | "more") {
         setOpenMenu((current) => (current === menu ? null : menu));
     }
+    const {data: me} = useQuery(meQuery);
 
     const LABEL_WIDTH = isMobile ? 104 : 120;
     const viewportWidth = Math.max(0, scrollerWidth - LABEL_WIDTH);
@@ -663,7 +689,7 @@ export default function CalendarPage() {
                 const points = pointsArr.map(([x, y]) => `${x},${y}`).join(" ");
                 const clipPath = `polygon(${pointsArr.map(([x, y]) => `${x}px ${y}px`).join(", ")})`;
 
-                const guestName = r.guestName?.trim() || "Reservation";
+                const guestName = bookingLabel(r);
                 const due = amountDue(r.status, r.totalAmount, r.priceNeedsReview);
                 const label = layoutBarLabel({
                     name: guestName,
@@ -720,6 +746,10 @@ export default function CalendarPage() {
     // (hundreds of them, all re-rendered whenever the day window shifted —
     // that's what made scrolling stutter). Maps the tap position to a room + day.
     function openNewReservationAt(clientX: number, clientY: number) {
+        if (!connected) {
+            showOfflineHint("add a booking");
+            return;
+        }
         const scroller = scrollerRef.current;
         if (!scroller) return;
         const rect = scroller.getBoundingClientRect();
@@ -852,7 +882,12 @@ export default function CalendarPage() {
                     </div>
                 </div>
             </div>
-
+            {me?.demo && <DemoColorKey/>}
+            {connected && reservations?.length === 0 && (units?.length ?? 0) > 0 && (
+                <p className="cal-first-hint">
+                    {isMobile ? "Tap" : "Click"} a day in a room's row to add your first booking.
+                </p>
+            )}
             {isLoading ? (
                 <div className="cal-loading">Loading calendar...</div>
             ) : units && units.length === 0 ? (
@@ -961,6 +996,10 @@ export default function CalendarPage() {
                                         key={row.unit.id}
                                         to={`/dashboard/properties/${row.unit.propertyId}/units/${row.unit.id}`}
                                         state={fromHere}
+                                        onClick={connected ? undefined : (e) => {
+                                            e.preventDefault();
+                                            showOfflineHint("edit rooms");
+                                        }}
                                         className="cal-unit-row"
                                     >
                                         <div className="cal-unit-name" title={row.unit.name}>

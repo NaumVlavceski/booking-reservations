@@ -4,12 +4,55 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
+ * Golos Text (Paratype, SIL Open Font License 1.1, public/fonts/GolosText-OFL.txt), self-hosted so no visitor
+ * talks to a font CDN. One variable file per script, weights 400–700: the browser only downloads a file once
+ * the page shows a character from its range, so the English interface normally needs just the Latin one
+ * (preloaded in index.html). Bump the -vN in the file names whenever the files change (they are cached for a year).
+ */
+@font-face {
+    font-family: "Golos Text";
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url("/fonts/golos-text-latin-v1.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Golos Text";
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url("/fonts/golos-text-latin-ext-v1.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Golos Text";
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url("/fonts/golos-text-cyrillic-v1.woff2") format("woff2");
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* Arial resized to Golos's width and line metrics, so text doesn't jump when the font arrives. */
+@font-face {
+    font-family: "Golos Fallback";
+    src: local("Arial"), local("ArialMT");
+    size-adjust: 107.2%;
+    ascent-override: 91.4%;
+    descent-override: 20.5%;
+    line-gap-override: 0%;
+}
+
+/*
  * Tokens → Tailwind. Components use these semantic names (bg-surface, text-muted, border-subtle,
  * bg-primary, text-danger, ...) and never raw hex, so light and dark come for free.
  * Dark mode is the [data-theme="dark"] attribute on <html>, set by the theme switch (lib/theme.ts).
  */
 @theme inline {
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --font-sans: "Golos Text", "Golos Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
     --background-color-canvas: var(--rt-canvas);
@@ -38,6 +81,11 @@
     --color-on-primary-soft: var(--rt-on-primary-soft);
     --color-primary-line: var(--rt-primary-line);
     --color-focus: var(--rt-focus);
+    --color-today: var(--rt-today);
+    --color-on-today: var(--rt-on-today);
+    --color-today-soft: var(--rt-today-soft);
+    --color-tile: var(--rt-tile);
+    --color-on-tile: var(--rt-on-tile);
 
     --color-success: var(--rt-success);
     --color-success-soft: var(--rt-success-soft);
@@ -80,45 +128,66 @@
     --shadow-popover: var(--rt-shadow-2);
     --shadow-overlay: var(--rt-shadow-3);
 
+    /* Radius by importance: rounded-tag < rounded-control < rounded-card < rounded-sheet (pills stay rounded-full). */
+    --radius-tag: var(--rt-radius-tag);
+    --radius-control: var(--rt-radius-control);
+    --radius-card: var(--rt-radius-card);
+    --radius-sheet: var(--rt-radius-sheet);
+
     --ease-standard: var(--rt-ease);
     --ease-emphasized: var(--rt-ease-out);
 
-    /* Type scale. 16px body keeps iOS from zooming into inputs. */
-    --text-display: 1.75rem;
-    --text-display--line-height: 2.125rem;
+    /*
+     * Type scale, a minor third from 16px (13 / 14 / 16 / 17 / 20 / 24 / 30, and 36 for figures).
+     * 16px body keeps iOS from zooming into inputs; nothing that carries information is under 13px,
+     * so it stays readable outdoors.
+     */
+    --text-figure: 2.25rem;
+    --text-figure--line-height: 2.5rem;
+    --text-figure--letter-spacing: -0.02em;
+    --text-figure--font-weight: 700;
+    --text-display: 1.875rem;
+    --text-display--line-height: 2.25rem;
     --text-display--letter-spacing: -0.02em;
     --text-display--font-weight: 700;
-    --text-title-1: 1.375rem;
-    --text-title-1--line-height: 1.75rem;
+    --text-title-1: 1.5rem;
+    --text-title-1--line-height: 1.875rem;
     --text-title-1--letter-spacing: -0.015em;
     --text-title-1--font-weight: 700;
-    --text-title-2: 1.125rem;
-    --text-title-2--line-height: 1.5rem;
+    --text-title-2: 1.25rem;
+    --text-title-2--line-height: 1.625rem;
     --text-title-2--letter-spacing: -0.01em;
     --text-title-2--font-weight: 650;
-    --text-title-3: 1rem;
-    --text-title-3--line-height: 1.375rem;
+    --text-title-3: 1.0625rem;
+    --text-title-3--line-height: 1.5rem;
+    --text-title-3--letter-spacing: -0.005em;
     --text-title-3--font-weight: 600;
     --text-body: 1rem;
     --text-body--line-height: 1.5rem;
     --text-body-sm: 0.875rem;
     --text-body-sm--line-height: 1.25rem;
-    --text-caption: 0.75rem;
-    --text-caption--line-height: 1rem;
+    --text-caption: 0.8125rem;
+    --text-caption--line-height: 1.125rem;
     --text-caption--font-weight: 500;
-    --text-overline: 0.6875rem;
-    --text-overline--line-height: 0.875rem;
-    --text-overline--letter-spacing: 0.06em;
-    --text-overline--font-weight: 700;
+    /* Small group headings ("3 rooms", "Channels"): sentence case, weight does the work, not capitals. */
+    --text-label: 0.8125rem;
+    --text-label--line-height: 1.125rem;
+    --text-label--font-weight: 600;
+    /* Tab bar and count bubbles only. */
+    --text-micro: 0.75rem;
+    --text-micro--line-height: 1rem;
+    --text-micro--font-weight: 600;
 
     --animate-fade-in: fade-in var(--rt-dur-base) var(--rt-ease) both;
     --animate-sheet-in: sheet-in var(--rt-dur-slow) var(--rt-ease-out) both;
     --animate-pop-in: pop-in var(--rt-dur-base) var(--rt-ease-out) both;
+    --animate-drop-in: drop-in var(--rt-dur-slow) var(--rt-ease-out) both;
     --animate-fade-out: fade-out var(--rt-dur-base) var(--rt-ease) both;
     --animate-sheet-out: sheet-out var(--rt-dur-base) var(--rt-ease) both;
     --animate-pop-out: pop-out var(--rt-dur-base) var(--rt-ease) both;
     --animate-spin-slow: spin 800ms linear infinite;
     --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+    --animate-pulse-ring: pulse-ring 1.6s var(--rt-ease-out) infinite;
 }
 
 @keyframes fade-in {
@@ -131,6 +200,10 @@
 
 @keyframes pop-in {
     from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+@keyframes drop-in {
+    from { opacity: 0; transform: translateY(-100%); }
 }
 
 @keyframes fade-out {
@@ -147,6 +220,11 @@
 
 @keyframes shimmer {
     50% { opacity: 0.55; }
+}
+
+@keyframes pulse-ring {
+    from { box-shadow: 0 0 0 0 var(--rt-success-solid); }
+    to { box-shadow: 0 0 0 0.75rem transparent; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -175,7 +253,7 @@
     --rdp-day-width: 44px;
     --rdp-day_button-height: 42px;
     --rdp-day_button-width: 42px;
-    --rdp-day_button-border-radius: 12px;
+    --rdp-day_button-border-radius: var(--rt-radius-control);
     --rdp-disabled-opacity: 0.35;
     --rdp-outside-opacity: 0.5;
     --rdp-nav_button-height: 44px;
@@ -214,7 +292,7 @@
     background: var(--rt-danger-soft);
     color: var(--rt-danger);
     text-decoration: line-through;
-    border-radius: 12px;
+    border-radius: var(--rt-radius-control);
 }
 
 @layer base {
@@ -241,14 +319,14 @@
 
     /* Numbers that line up: prices, dates, counts. */
     .num {
-        font-variant-numeric: tabular-nums;
+        font-variant-numeric: tabular-nums lining-nums;
     }
 }
 
 @layer components {
     /* Lists: grouped rows inside one card. */
     .stack-list {
-        @apply divide-y divide-subtle /*overflow-hidden*/ rounded-2xl border border-subtle bg-surface shadow-card;
+        @apply divide-y divide-subtle rounded-card border border-subtle bg-surface;
     }
 
     .field-hint {
@@ -261,7 +339,14 @@
 
     /* 16px everywhere keeps iOS Safari from zooming into a focused field. Focus = a 2px outline in the brand colour. */
     .field-input {
-        @apply block min-h-12 w-full rounded-xl border border-strong bg-surface px-3.5 py-2.5 text-body text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-subtle focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:border-default disabled:bg-surface-sunken disabled:text-disabled aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger;
+        @apply block min-h-12 w-full rounded-control border border-strong bg-surface px-3.5 py-2.5 text-body text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-subtle focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:border-default disabled:bg-surface-sunken disabled:text-disabled aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger;
+    }
+
+    /* The booking total: the one number on the form that matters most, set as a figure. */
+    .price-total .field-input {
+        font-size: 1.25rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
     }
 
     textarea.field-input {
@@ -364,11 +449,11 @@
     }
 
     .btn {
-        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-2 text-[0.9375rem] leading-5 font-semibold whitespace-nowrap transition-colors duration-150 select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-transparent px-4 py-2 text-body-sm font-semibold whitespace-nowrap transition-[background-color,border-color,color,transform] duration-(--rt-dur-fast) ease-standard select-none active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed;
     }
 
     .btn-lg {
-        @apply min-h-13 rounded-2xl px-5 text-body;
+        @apply min-h-13 rounded-card px-5 text-body;
     }
 
     .btn-sm {
@@ -376,7 +461,7 @@
     }
 
     .btn-primary {
-        @apply bg-primary text-on-primary shadow-card hover:bg-primary-hover active:bg-primary-pressed disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
+        @apply bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-pressed disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
     }
 
     .btn-secondary {
@@ -392,7 +477,7 @@
     }
 
     .btn-danger {
-        @apply bg-danger-solid text-on-danger-solid shadow-card hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
+        @apply bg-danger-solid text-on-danger-solid hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
     }
 
     .btn-danger-ghost {
@@ -408,7 +493,7 @@
     }
 
     .skeleton {
-        @apply animate-shimmer rounded-lg bg-surface-pressed;
+        @apply animate-shimmer rounded-tag bg-surface-pressed;
     }
 
     /* Reservation source / status badges: the calendar bar's colour, texture and a text label. */

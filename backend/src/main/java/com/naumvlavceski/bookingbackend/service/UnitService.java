@@ -1,5 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
+import com.naumvlavceski.bookingbackend.demo.DemoGuard;
 import com.naumvlavceski.bookingbackend.dto.UnitRequest;
 import com.naumvlavceski.bookingbackend.dto.UnitResponse;
 import com.naumvlavceski.bookingbackend.model.Property;
@@ -21,6 +22,7 @@ public class UnitService {
 
     private final UnitRepository unitRepository;
     private final PropertyRepository propertyRepository;
+    private final DemoGuard demoGuard;
 
     public List<UnitResponse> findAllByOwner(UUID ownerId) {
         return unitRepository.findAllByOwnerId(ownerId).stream()
@@ -40,6 +42,7 @@ public class UnitService {
     public UnitResponse create(UUID ownerId, UUID propertyId, UnitRequest request) {
         Property property = propertyRepository.findByIdAndOwnerId(propertyId, ownerId)
                 .orElseThrow(() -> new NoSuchElementException("Property not found"));
+        demoGuard.requireRoomForUnit(ownerId);
 
         Unit unit = new Unit();
         unit.setOwnerId(ownerId);

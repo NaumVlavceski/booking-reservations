@@ -5,7 +5,8 @@ import {Link} from "react-router-dom";
 import {getCancelledReservations, restoreReservation, type ReservationResponse} from "../lib/api/reservations";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
-import {apiErrorMessage} from "../lib/api/client";
+import {bookingLabel, guestNameOf} from "../lib/bookingLabel";
+import {errorMessage} from "../lib/errors";
 import {formatStay, formatWhen} from "../lib/dates";
 import {useDebouncedValue} from "../lib/useDebouncedValue";
 import {useToast} from "../lib/toast";
@@ -29,7 +30,7 @@ export default function CancelledReservationsPage() {
     // Wait for a pause in typing before asking the server
     const searchName = useDebouncedValue(name.trim());
 
-    const {data, isLoading, isFetching, isError, refetch, isRefetching} = useQuery({
+    const {data, isLoading, isFetching, isError, error, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "cancelled", {page, name: searchName, checkInFrom}],
         queryFn: () => getCancelledReservations({page, size: PAGE_SIZE, name: searchName, checkInFrom}),
         placeholderData: keepPreviousData, // keep showing the old page while the next one loads
@@ -48,12 +49,12 @@ export default function CancelledReservationsPage() {
         mutationFn: (r: ReservationResponse) => restoreReservation(r),
         onSuccess: async (_data, r) => {
             await queryClient.invalidateQueries({queryKey: ["reservations"]});
-            toast.show(`${r.guestName || "Booking"} is back on the calendar.`);
+            toast.show(`${guestNameOf(r) || "Booking"} is back on the calendar.`);
         },
         onError: (error) => {
             const message = isAxiosError(error) && error.response?.status === 409
                 ? "Can't restore: some of those nights have been booked since. Change its dates first, then restore it."
-                : apiErrorMessage(error, "Couldn't restore this booking.");
+                : errorMessage(error, "Couldn't restore this booking.");
             toast.show(message, {tone: "error"});
         },
     });
@@ -94,7 +95,7 @@ export default function CancelledReservationsPage() {
                     onClick={() => restoreMutation.mutate(r)}
                     disabled={restoreMutation.isPending && !restoring}
                     loading={restoring} loadingLabel="Restoring…"
-                    aria-label={`Restore ${r.guestName || "booking"}`}>
+                    aria-label={`Restore ${guestNameOf(r) || "booking"}`}>
                 Restore
             </Button>
         );
@@ -144,11 +145,9 @@ export default function CancelledReservationsPage() {
             )}
 
             {isLoading ? (
-                <ListSkeleton rows={4} label="Loading…"/>
+                <ListSkeleton rows={4} label="Loading cancelled bookings…"/>
             ) : isError && !data ? (
-                <ErrorState title="Couldn't load cancelled bookings" onRetry={() => refetch()} retrying={isRefetching}>
-                    Check your connection and try again.
-                </ErrorState>
+                <ErrorState title="Couldn't load cancelled bookings" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : items.length === 0 ? (
                 <EmptyState
                     icon={<CalendarXIcon size={24}/>}
@@ -167,7 +166,7 @@ export default function CancelledReservationsPage() {
                             return (
                                 <li key={r.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                     <Link to={`/dashboard/reservations/${r.id}`} className="min-w-0 flex-1">
-                                        <span className="block truncate text-title-3 text-fg">{r.guestName || "No guest name"}</span>
+                                        <span className="block truncate text-title-3 text-fg">{bookingLabel(r)}</span>
                                         <span className="num block truncate text-body-sm text-muted">
                                             {formatStay(r.checkIn, r.checkOut)}
                                             {unit && ` · ${unit.name}`}
@@ -190,14 +189,14 @@ export default function CancelledReservationsPage() {
                     <Card padding="none" className={`hidden transition-opacity lg:block ${isFetching ? "opacity-60" : ""}`}>
                         <table className="w-full text-left text-body-sm">
                             <caption className="sr-only">{summary}</caption>
-                            <thead className="border-b border-subtle bg-surface-sunken text-caption text-subtle uppercase">
+                            <thead className="border-b border-subtle bg-surface-sunken text-caption text-subtle">
                                 <tr>
-                                    <th scope="col" className="px-5 py-3 font-semibold tracking-wide">Guest</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Stay</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Room</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Source</th>
-                                    <th scope="col" className="px-3 py-3 text-right font-semibold tracking-wide">Total</th>
-                                    <th scope="col" className="px-3 py-3 font-semibold tracking-wide">Cancelled</th>
+                                    <th scope="col" className="px-5 py-3 font-semibold">Guest</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Stay</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Room</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Source</th>
+                                    <th scope="col" className="px-3 py-3 text-right font-semibold">Total</th>
+                                    <th scope="col" className="px-3 py-3 font-semibold">Cancelled</th>
                                     <th scope="col" className="px-5 py-3"><span className="sr-only">Actions</span></th>
                                 </tr>
                             </thead>
@@ -209,7 +208,7 @@ export default function CancelledReservationsPage() {
                                         <tr key={r.id} className="transition-colors hover:bg-surface-hover">
                                             <td className="max-w-56 px-5 py-3">
                                                 <Link to={`/dashboard/reservations/${r.id}`} className="block truncate font-semibold text-fg hover:text-primary hover:underline">
-                                                    {r.guestName || "No guest name"}
+                                                    {bookingLabel(r)}
                                                 </Link>
                                             </td>
                                             <td className="num px-3 py-3 whitespace-nowrap text-fg">{formatStay(r.checkIn, r.checkOut)}</td>

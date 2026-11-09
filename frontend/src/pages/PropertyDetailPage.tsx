@@ -3,7 +3,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {isAxiosError} from "axios";
 import {getProperty} from "../lib/api/properties.ts";
 import {getUnitsForProperty, deleteUnit, type UnitResponse} from "../lib/api/units.ts";
-import {apiErrorMessage} from "../lib/api/client.ts";
+import {errorMessage} from "../lib/errors";
 import {BedIcon, ChevronRightIcon, EditIcon, HouseIcon, PersonIcon, PlusIcon, TrashIcon} from "../components/icons";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {allReservationsQuery} from "../lib/api/reservations.ts";
@@ -14,7 +14,7 @@ import PageHeader from "../components/ui/PageHeader";
 import {ButtonLink} from "../components/ui/Button";
 import Fab from "../components/ui/Fab";
 import Menu from "../components/ui/Menu";
-import {EmptyState, ErrorState, ListSkeleton, Skeleton} from "../components/ui/States";
+import {EmptyState, ErrorState, ListSkeleton, Skeleton, RefreshFailed} from "../components/ui/States";
 
 export default function PropertyDetailPage() {
     const {id} = useParams();
@@ -25,7 +25,7 @@ export default function PropertyDetailPage() {
         queryKey: ["properties", propertyId],
         queryFn: () => getProperty(propertyId),
     });
-    const {data: units, isLoading: isLoadingUnits, isError: unitsFailed, refetch: refetchUnits} = useQuery({
+    const {data: units, isLoading: isLoadingUnits, isError: unitsFailed, error: unitsError, refetch: refetchUnits, isRefetching: isRefetchingUnits} = useQuery({
         queryKey: ["units", propertyId],
         queryFn: () => getUnitsForProperty(propertyId),
     });
@@ -75,9 +75,7 @@ export default function PropertyDetailPage() {
                         It may have been deleted, or the link is wrong.
                     </EmptyState>
                 ) : (
-                    <ErrorState title="Couldn't load this property" onRetry={() => refetchProperty()} retrying={isRefetching}>
-                        Check your connection and try again.
-                    </ErrorState>
+                    <ErrorState title="Couldn't load this property" error={propertyError} onRetry={() => refetchProperty()} retrying={isRefetching}/>
                 )}
             </div>
         );
@@ -111,13 +109,14 @@ export default function PropertyDetailPage() {
                     </ButtonLink>
                 </div>
 
+                {unitsFailed && units && (
+                    <RefreshFailed error={unitsError} onRetry={() => refetchUnits()} retrying={isRefetchingUnits} className="mb-4"/>
+                )}
                 {isLoadingUnits ? (
                     <ListSkeleton rows={3} label="Loading rooms..."/>
-                ) : unitsFailed ? (
-                    <ErrorState title="Couldn't load the rooms" onRetry={() => refetchUnits()}>
-                        Check your connection and try again.
-                    </ErrorState>
-                ) : !units || units.length === 0 ? (
+                ) : !units ? (
+                    <ErrorState title="Couldn't load the rooms" error={unitsError} onRetry={() => refetchUnits()} retrying={isRefetchingUnits}/>
+                ) : units.length === 0 ? (
                     <EmptyState
                         icon={<BedIcon size={24}/>}
                         title="No rooms yet for this property."
@@ -165,7 +164,7 @@ export default function PropertyDetailPage() {
                 confirmLabel="Delete room"
                 pending={deleteMutation.isPending}
                 error={deleteMutation.isError
-                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this room. Try again.")
+                    ? errorMessage(deleteMutation.error, "Couldn't delete this room.")
                     : null}
                 onConfirm={() => unitToDelete && deleteMutation.mutate(unitToDelete.id)}
                 onCancel={closeConfirm}

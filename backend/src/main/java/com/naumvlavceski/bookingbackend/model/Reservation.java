@@ -5,9 +5,6 @@ import io.hypersistence.utils.hibernate.type.range.PostgreSQLRangeType;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -19,8 +16,6 @@ import java.util.UUID;
 
 @Entity
 @Data
-@FilterDef(name = "ownerFilter", parameters = @ParamDef(name = "ownerId", type = UUID.class))
-@Filter(name = "ownerFilter", condition = "owner_id = :ownerId")
 public class Reservation {
 
     @Id

@@ -6,6 +6,10 @@ export interface RegisterRequest {
     email: string;
     password: string;
     fullName: string;
+    /** The Terms of Service and Privacy Policy were accepted, in these versions (src/legal/versions.ts). */
+    acceptedTerms: boolean;
+    termsVersion: string;
+    privacyVersion: string;
 }
 
 export interface LoginRequest {
@@ -37,6 +41,12 @@ export async function register(data: RegisterRequest): Promise<RegistrationRespo
 
 export async function login(data: LoginRequest): Promise<AuthResponse> {
     const res = await apiClient.post<AuthResponse>("/api/auth/login", data);
+    return res.data;
+}
+
+/** A new private demo with sample data, already signed in. No sign-up; the server deletes it after 1 hour. */
+export async function startDemo(): Promise<AuthResponse> {
+    const res = await apiClient.post<AuthResponse>("/api/auth/demo");
     return res.data;
 }
 

@@ -53,6 +53,15 @@ class ICalBuilderTest {
     }
 
     @Test
+    void aGuestNameCannotInjectLinesOrEvents() {
+        Reservation sneaky = reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT);
+        sneaky.setGuestName("Bob\r\nEND:VEVENT\r\nBEGIN:VEVENT\nSUMMARY:Fake; really, yes");
+        String ics = ICalBuilder.build(unit(), List.of(sneaky));
+        assertEquals(1, ics.lines().filter("BEGIN:VEVENT"::equals).count());
+        assertTrue(ics.contains("SUMMARY:Bob\\nEND:VEVENT\\nBEGIN:VEVENT\\nSUMMARY:Fake\\; really\\, yes\r\n"));
+    }
+
+    @Test
     void fallsBackToReservedWithoutAGuestName() {
         Reservation noName = reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT);
         noName.setGuestName("  ");
@@ -71,7 +80,7 @@ class ICalBuilderTest {
     @Test
     void generatedFeedRoundTripsThroughOurParser() {
         String ics = ICalBuilder.build(unit(), List.of(reservation(ReservationStatus.CONFIRMED, ReservationSource.DIRECT)));
-        List<ParsedIcalEvent> parsed = IcalParser.parse(ics);
+        List<ParsedIcalEvent> parsed = IcalParser.parse(ics).events();
         assertEquals(1, parsed.size());
         assertTrue(parsed.get(0).uid().endsWith("@roomtrack"));
         assertEquals(LocalDate.of(2030, 6, 10), parsed.get(0).startDate());

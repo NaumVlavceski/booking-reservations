@@ -3,9 +3,10 @@ import {useEffect} from "react";
 import {isAxiosError} from "axios";
 import {Link, useParams} from "react-router-dom";
 import {formatEarnings, invoiceUnitReservationsQuery} from "../lib/api/invoices";
+import {bookingLabel} from "../lib/bookingLabel";
 import {formatStay} from "../lib/dates";
 import {plural} from "../lib/plural";
-import {formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
+import {CLEARED, formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
 import {useFromHere} from "../lib/useReturnTo";
 import {CalendarIcon, ChevronRightIcon} from "../components/icons";
 import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
@@ -14,8 +15,9 @@ import InvoiceFilters from "../components/InvoiceFilters";
 import InvoiceSummary from "../components/InvoiceSummary";
 import MissingAmountsCallout from "../components/MissingAmountsCallout";
 import Pager from "../components/ui/Pager";
+import Button from "../components/ui/Button";
 import PageHeader from "../components/ui/PageHeader";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 import NotFoundPage from "./NotFoundPage";
 
 /** Invoices, step 3: every confirmed or paid booking of one room, latest check-in first, with the room total. */
@@ -55,12 +57,11 @@ export default function InvoiceUnitPage() {
 
             {invalid ? null : isLoading ? (
                 <ListSkeleton rows={4} label="Loading bookings..."/>
-            ) : isError || !data ? (
-                <ErrorState title="Couldn't load bookings" onRetry={() => refetch()} retrying={isRefetching}>
-                    Try refreshing the page.
-                </ErrorState>
+            ) : !data ? (
+                <ErrorState title="Couldn't load bookings" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : (
                 <div className={`transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
+                    {isError && <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>}
                     <MissingAmountsCallout
                         count={data.reservationsWithoutAmount}
                         to={`/dashboard/invoices/properties/${data.propertyId}/missing-amounts${searchWith({unitId: data.unitId})}`}
@@ -68,12 +69,13 @@ export default function InvoiceUnitPage() {
 
                     {data.reservations.totalElements === 0 ? (
                         <EmptyState icon={<CalendarIcon size={24}/>}
-                                    title={activeCount > 0 ? "No bookings match these filters" : "No confirmed or paid bookings"}>
+                                    title={activeCount > 0 ? "No bookings match these filters" : "No confirmed or paid bookings"}
+                                    action={activeCount > 0 ? <Button variant="secondary" onClick={() => setRange(CLEARED)}>Clear filters</Button> : undefined}>
                             Cancelled and blocked dates are not counted.
                         </EmptyState>
                     ) : (
                         <>
-                            <h2 className="mb-2 px-1 text-overline text-subtle uppercase">{plural(data.reservations.totalElements, "booking")}</h2>
+                            <h2 className="mb-2 px-1 text-label text-muted">{plural(data.reservations.totalElements, "booking")}</h2>
                             <ul className="stack-list">
                                 {data.reservations.items.map((r) => (
                                     <li key={r.reservationId} className="transition-colors hover:bg-surface-hover">
@@ -84,7 +86,7 @@ export default function InvoiceUnitPage() {
                                         >
                                             <span className="min-w-0 flex-1">
                                                 <span className="flex items-baseline justify-between gap-3">
-                                                    <span className="truncate text-title-3 text-fg">{r.guestName || "Guest"}</span>
+                                                    <span className="truncate text-title-3 text-fg">{bookingLabel(r)}</span>
                                                     {r.totalAmount === null ? (
                                                         <span className="shrink-0 text-body-sm font-semibold text-warning">No amount</span>
                                                     ) : (

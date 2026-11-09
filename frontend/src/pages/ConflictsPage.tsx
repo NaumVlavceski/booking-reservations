@@ -5,20 +5,18 @@ import {dismissConflict, getOpenConflicts, type SyncConflict} from "../lib/api/c
 import {getReservation, type ReservationResponse} from "../lib/api/reservations";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {formatStayDays, formatWhen, parseLocalDate} from "../lib/dates";
 import {PLATFORM_NAME} from "../lib/syncErrors";
 import {useToast} from "../lib/toast";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {AlertIcon, CheckIcon} from "../components/icons";
 import PageHeader from "../components/ui/PageHeader";
+import {guestNameOf, isGenericSummary} from "../lib/bookingLabel";
 import ChannelsNav from "../components/ChannelsNav";
 import Card from "../components/ui/Card";
 import Button, {ButtonLink} from "../components/ui/Button";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
-
-// What channels put in SUMMARY when they don't share guest details — not worth showing.
-const GENERIC_SUMMARY = /^(closed\s*-\s*)?not available$|^reserved$|^blocked$|^airbnb \(not available\)$/i;
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 
 function nights(checkIn: string, checkOut: string) {
     const n = differenceInCalendarDays(parseLocalDate(checkOut), parseLocalDate(checkIn));
@@ -30,7 +28,7 @@ export default function ConflictsPage() {
     const toast = useToast();
     const [confirming, setConfirming] = useState<SyncConflict | null>(null);
 
-    const {data: conflicts, isLoading, isError, refetch, isRefetching} = useQuery({queryKey: ["conflicts"], queryFn: getOpenConflicts});
+    const {data: conflicts, isLoading, isError, error, refetch, isRefetching} = useQuery({queryKey: ["conflicts"], queryFn: getOpenConflicts});
     const {data: units} = useQuery(allUnitsQuery);
     const {data: properties} = useQuery(propertiesQuery);
     const reservationIds = [...new Set((conflicts ?? []).map((c) => c.conflictingReservationId).filter(Boolean))];
@@ -64,13 +62,14 @@ export default function ConflictsPage() {
             />
             <ChannelsNav/>
 
+            {isError && conflicts && (
+                <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>
+            )}
             {isLoading ? (
-                <ListSkeleton rows={2} label="Loading…"/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load conflicts" onRetry={() => refetch()} retrying={isRefetching}>
-                    Check your connection and try again.
-                </ErrorState>
-            ) : !conflicts || conflicts.length === 0 ? (
+                <ListSkeleton rows={2} label="Loading conflicts…"/>
+            ) : !conflicts ? (
+                <ErrorState title="Couldn't load conflicts" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
+            ) : conflicts.length === 0 ? (
                 <EmptyState icon={<CheckIcon size={24}/>} title="No conflicts">
                     Your channels agree with your calendar.
                 </EmptyState>
@@ -81,15 +80,15 @@ export default function ConflictsPage() {
                         const unit = unitById.get(c.unitId);
                         const property = unit ? propertyById.get(unit.propertyId) : undefined;
                         const existing = reservationById.get(c.conflictingReservationId);
-                        const existingName = existing?.guestName?.trim() || "the existing booking";
+                        const existingName = (existing && guestNameOf(existing)) || "the existing booking";
                         const incoming = formatStayDays(c.incomingStart, c.incomingEnd);
-                        const note = c.incomingSummary && !GENERIC_SUMMARY.test(c.incomingSummary.trim())
+                        const note = c.incomingSummary && !isGenericSummary(c.incomingSummary)
                             ? c.incomingSummary : null;
 
                         return (
                             <Card as="li" key={c.id} className="border-danger-line">
                                 <div className="flex items-start gap-3">
-                                    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-danger-soft text-danger">
+                                    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-danger-soft text-danger">
                                         <AlertIcon size={18}/>
                                     </span>
                                     <div className="min-w-0 flex-1">
@@ -106,14 +105,14 @@ export default function ConflictsPage() {
                                 </div>
 
                                 <dl className="mt-4 grid gap-2 text-body-sm sm:grid-cols-2">
-                                    <div className="rounded-xl border border-danger-line bg-danger-soft px-3.5 py-3">
+                                    <div className="rounded-control border border-danger-line bg-danger-soft px-3.5 py-3">
                                         <dt className="text-caption font-semibold text-danger">{platform} says</dt>
                                         <dd className="num mt-0.5 font-semibold text-fg">
                                             {incoming} <span className="font-normal text-muted">· {nights(c.incomingStart, c.incomingEnd)}</span>
                                         </dd>
                                         {note && <dd className="mt-0.5 text-muted">“{note}”</dd>}
                                     </div>
-                                    <div className="rounded-xl border border-subtle bg-surface-sunken px-3.5 py-3">
+                                    <div className="rounded-control border border-subtle bg-surface-sunken px-3.5 py-3">
                                         <dt className="text-caption font-semibold text-muted">Your calendar has</dt>
                                         <dd className="mt-0.5 font-semibold text-fg">
                                             {existing ? (
@@ -168,7 +167,7 @@ export default function ConflictsPage() {
                 pendingLabel="Saving…"
                 cancelLabel="Go back"
                 pending={dismissMutation.isPending}
-                error={dismissMutation.isError ? apiErrorMessage(dismissMutation.error, "Couldn't dismiss this warning.") : null}
+                error={dismissMutation.isError ? errorMessage(dismissMutation.error, "Couldn't dismiss this warning.") : null}
                 onConfirm={() => confirming && dismissMutation.mutate(confirming)}
                 onCancel={() => setConfirming(null)}
             />

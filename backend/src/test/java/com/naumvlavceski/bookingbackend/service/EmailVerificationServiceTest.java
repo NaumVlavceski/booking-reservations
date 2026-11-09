@@ -57,7 +57,7 @@ class EmailVerificationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = newService(false);
+        service = newService(true);
 
         Owner owner = new Owner();
         owner.setId(UUID.randomUUID());
@@ -77,8 +77,8 @@ class EmailVerificationServiceTest {
                 .thenAnswer(i -> Optional.ofNullable(stored));
     }
 
-    private EmailVerificationService newService(boolean mailEnabled) {
-        var s = new EmailVerificationService(users, codes, emailService, clock, SECRET, mailEnabled, 15, 5, 60, 5);
+    private EmailVerificationService newService(boolean logCodes) {
+        var s = new EmailVerificationService(users, codes, emailService, clock, SECRET, logCodes, 15, 5, 60, 5);
         s.validateSecret();
         return s;
     }
@@ -133,13 +133,13 @@ class EmailVerificationServiceTest {
     }
 
     @Test
-    void wrongCodeIsCountedAndSaysHowManyAttemptsAreLeft() {
+    void wrongCodeIsCountedButTheAnswerIsTheSameAsForAnyOtherFailure() {
         String code = issueCode();
 
         VerificationException e = failure(wrongCodeFor(code));
 
         assertEquals(VerificationException.INVALID_CODE, e.getCode());
-        assertTrue(e.getMessage().contains("4 attempts left"));
+        assertEquals("That code is not correct or has expired. Check the code or request a new one.", e.getMessage());
         assertEquals(1, stored.getAttempts());
         assertNull(user.getEmailVerifiedAt());
     }
@@ -149,7 +149,7 @@ class EmailVerificationServiceTest {
         String code = issueCode();
         clock.advance(Duration.ofMinutes(15));
 
-        assertEquals(VerificationException.CODE_EXPIRED, failure(code).getCode());
+        assertEquals(VerificationException.INVALID_CODE, failure(code).getCode());
         assertNull(user.getEmailVerifiedAt());
     }
 
@@ -158,10 +158,10 @@ class EmailVerificationServiceTest {
         String code = issueCode();
         String wrong = wrongCodeFor(code);
 
-        for (int i = 0; i < 4; i++) assertEquals(VerificationException.INVALID_CODE, failure(wrong).getCode());
-        assertEquals(VerificationException.TOO_MANY_ATTEMPTS, failure(wrong).getCode());
+        for (int i = 0; i < 5; i++) assertEquals(VerificationException.INVALID_CODE, failure(wrong).getCode());
+        assertEquals(5, stored.getAttempts());
 
-        assertEquals(VerificationException.TOO_MANY_ATTEMPTS, failure(code).getCode());
+        assertEquals(VerificationException.INVALID_CODE, failure(code).getCode());
         assertNull(user.getEmailVerifiedAt());
     }
 
@@ -236,7 +236,7 @@ class EmailVerificationServiceTest {
         appender.start();
         serviceLogger().addAppender(appender);
         try {
-            newService(false).issueAndSend(user);
+            newService(true).issueAndSend(user);
             assertEquals(1, appender.list.size());
             assertTrue(appender.list.get(0).getFormattedMessage().startsWith("[DEV ONLY]"));
         } finally {
@@ -251,7 +251,7 @@ class EmailVerificationServiceTest {
         serviceLogger().addAppender(appender);
         try {
             String code = null;
-            EmailVerificationService enabled = newService(true);
+            EmailVerificationService enabled = newService(false);
             enabled.issueAndSend(user);
             ArgumentCaptor<EmailMessage> msg = ArgumentCaptor.forClass(EmailMessage.class);
             verify(emailService).send(any(), eq("VERIFY_EMAIL"), msg.capture());

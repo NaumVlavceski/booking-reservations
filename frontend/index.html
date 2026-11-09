@@ -6,6 +6,8 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The interface font (self-hosted, see index.css): fetch the Latin file with the page, not after the CSS. -->
+    <link rel="preload" href="/fonts/golos-text-latin-v1.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FFFFFF" />
     <!-- Home-screen app on iPhone: own window, dark status bar text on the light top bar, short name under the icon. -->
@@ -18,11 +20,23 @@
       try {
         if (localStorage.getItem("roomtrack.theme") === "dark") {
           document.documentElement.dataset.theme = "dark";
-          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111A27");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#101A29");
         }
       } catch (e) {}
     </script>
     <meta name="description" content="RoomTrack: one calendar for every booking from Booking.com and your own guests." />
+    <!-- Link previews (LinkedIn, WhatsApp, Slack, X...). These sites don't run JavaScript, so the tags live here, with
+         full URLs. The picture is the video tour's end card, 1200x630. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RoomTrack" />
+    <meta property="og:url" content="https://roomtrack.app/" />
+    <meta property="og:title" content="RoomTrack: every booking on one calendar" />
+    <meta property="og:description" content="Direct bookings and Booking.com on one calendar, with double bookings refused. For owners of apartments and guesthouses. Try the live demo, no sign-up needed." />
+    <meta property="og:image" content="https://roomtrack.app/landing/share-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="RoomTrack logo with the line: Every booking on one calendar." />
+    <meta name="twitter:card" content="summary_large_image" />
     <title>RoomTrack</title>
   </head>
   <body>

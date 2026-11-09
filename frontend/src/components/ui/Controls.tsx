@@ -17,7 +17,7 @@ export function Stepper({label, value, onDecrement, onIncrement, decrementDisabl
     return (
         <div className="flex items-center justify-between gap-4">
             <span id={labelId} className="text-body-sm font-semibold text-fg">{label}</span>
-            <div role="group" aria-labelledby={labelId} className="inline-flex items-stretch overflow-hidden rounded-xl border border-strong bg-surface">
+            <div role="group" aria-labelledby={labelId} className="inline-flex items-stretch overflow-hidden rounded-control border border-strong bg-surface">
                 <button type="button" onClick={onDecrement} disabled={decrementDisabled} aria-label={decrementLabel}
                         className="flex size-12 items-center justify-center text-fg transition-colors hover:bg-surface-hover active:bg-surface-pressed disabled:text-disabled disabled:hover:bg-transparent">
                     <MinusIcon size={18}/>
@@ -54,7 +54,7 @@ export function Switch({checked, onChange, label, icon, disabled, compact = fals
             aria-checked={checked}
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className={`flex w-full items-center rounded-xl text-left font-medium text-fg transition-colors hover:bg-surface-hover disabled:opacity-60 ${compact ? "min-h-11 gap-2.5 px-3 text-body-sm text-muted" : "min-h-12 gap-3 px-3 text-body"} ${className}`}
+            className={`flex w-full items-center rounded-control text-left font-medium text-fg transition-colors hover:bg-surface-hover disabled:opacity-60 ${compact ? "min-h-11 gap-2.5 px-3 text-body-sm text-muted" : "min-h-12 gap-3 px-3 text-body"} ${className}`}
         >
             {icon && <span className="text-muted">{icon}</span>}
             <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>

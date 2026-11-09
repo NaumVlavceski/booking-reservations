@@ -55,12 +55,12 @@ export default function ConfirmDialog({
             dismissible={!pending}
             footer={
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <Button ref={cancelRef} variant="secondary" size="lg" className="sm:min-h-11 sm:rounded-xl sm:text-[0.9375rem]"
+                    <Button ref={cancelRef} variant="secondary" size="lg" className="sm:min-h-11 sm:rounded-control sm:text-body-sm"
                             onClick={onCancel} disabled={pending}>
                         {cancelLabel}
                     </Button>
                     <Button variant={variant === "danger" ? "danger" : "primary"} size="lg"
-                            className="sm:min-h-11 sm:rounded-xl sm:text-[0.9375rem]"
+                            className="sm:min-h-11 sm:rounded-control sm:text-body-sm"
                             onClick={onConfirm} loading={pending} loadingLabel={pendingLabel}>
                         {confirmLabel}
                     </Button>

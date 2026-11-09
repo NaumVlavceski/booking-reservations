@@ -2,12 +2,17 @@ import type {ReservationRequest} from "./api/reservations.ts";
 
 export type PricingField = "nightlyRate" | "totalAmount" | "pricePerGuest" | null;
 
+/** Nights between two yyyy-MM-dd dates; 0 while either is missing. */
+export function stayNights(checkIn: string, checkOut: string): number {
+    if (!checkIn || !checkOut) return 0;
+    return Math.max(0, Math.round(
+        (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)
+    ));
+}
+
 export function repriceForm(form: ReservationRequest, lastEdited: PricingField): ReservationRequest {
-    if (!form.checkIn || !form.checkOut) return form;
-    const nights = Math.round(
-        (new Date(form.checkOut).getTime() - new Date(form.checkIn).getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (nights <= 0) return form;
+    const nights = stayNights(form.checkIn, form.checkOut);
+    if (nights === 0) return form;
     const round = (n: number) => Number(n.toFixed(2));
     let patch: Partial<ReservationRequest> | null = null;
     if (lastEdited === "nightlyRate" && form.nightlyRate) {

@@ -1,12 +1,12 @@
 import type {MouseEvent} from "react";
-import {useState} from "react";
-import {Link} from "react-router-dom";
+import {useEffect, useState} from "react";
+import {Link, useBlocker} from "react-router-dom";
 import {CheckIcon, ChevronLeftIcon, CopyIcon, MoreVerticalIcon, MoveIcon, TrashIcon, WifiOffIcon} from "./icons";
 import Menu from "./ui/Menu";
 import ConfirmDialog from "./ConfirmDialog";
 import Button from "./ui/Button";
 import {useOnlineStatus} from "../lib/useOnlineStatus";
-import {useReturnTo} from "../lib/useReturnTo";
+import {isLeavingOnPurpose, resetLeavingOnPurpose, useReturnTo} from "../lib/useReturnTo";
 
 interface FormTopBarProps {
     /** id of the <form> to submit — Save sits outside it, so it targets it via form="…". */
@@ -41,6 +41,9 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
     const online = useOnlineStatus();
     const {goBack} = useReturnTo(back?.to ?? "/dashboard/calendar");
     const [confirmExit, setConfirmExit] = useState(false);
+    // The phone's back gesture and the browser's back button don't go through our back arrow below
+    const backGesture = useBlocker(({historyAction}) => isDirty && historyAction === "POP" && !isLeavingOnPurpose());
+    useEffect(() => resetLeavingOnPurpose, []);
 
     function leave(e: MouseEvent) {
         if (back?.onClick) back.onClick(e);
@@ -60,13 +63,22 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
     }
 
     function handleExit() {
+        if (backGesture.state === "blocked") {
+            backGesture.proceed();
+            return;
+        }
         setConfirmExit(false);
         leave({preventDefault: () => {}} as MouseEvent);
     }
 
+    function handleStay() {
+        if (backGesture.state === "blocked") backGesture.reset();
+        setConfirmExit(false);
+    }
+
     return (
         <>
-            <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:mx-0 sm:mb-6 sm:rounded-2xl sm:border sm:bg-surface/95 sm:shadow-card sm:backdrop-blur-md">
+            <header className="sticky top-0 z-(--rt-z-sticky) -mx-4 mb-4 border-b border-subtle bg-surface pt-[env(safe-area-inset-top)] sm:mx-0 sm:mb-6 sm:rounded-card sm:border sm:bg-surface/95 sm:shadow-card sm:backdrop-blur-md">
                 <div className="grid min-h-14 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center px-1 sm:min-h-16 sm:px-2">
                     {back ? (
                         <Link to={back.to} onClick={handleBackClick} aria-label="Back" className="icon-btn">
@@ -85,9 +97,9 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                                 label="Booking actions"
                                 trigger={<MoreVerticalIcon size={20}/>}
                                 items={[
-                                    {kind: "button", label: "Move", icon: <MoveIcon size={18}/>, onSelect: onMove, disabled: saving},
-                                    ...(onCopy ? [{kind: "button" as const, label: "Copy", icon: <CopyIcon size={18}/>, onSelect: onCopy, disabled: saving}] : []),
-                                    {kind: "button", label: deleteLabel, icon: <TrashIcon size={18}/>, onSelect: onDelete, danger: true, disabled: saving},
+                                    {kind: "button", label: "Move", icon: <MoveIcon size={18}/>, onSelect: onMove, disabled: saving || !online},
+                                    ...(onCopy ? [{kind: "button" as const, label: "Copy", icon: <CopyIcon size={18}/>, onSelect: onCopy, disabled: saving || !online}] : []),
+                                    {kind: "button", label: deleteLabel, icon: <TrashIcon size={18}/>, onSelect: onDelete, danger: true, disabled: saving || !online},
                                 ]}
                             />
                         </div>
@@ -95,7 +107,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
                         <button
                             type="button"
                             onClick={onDelete}
-                            disabled={saving}
+                            disabled={saving || !online}
                             title={deleteLabel}
                             aria-label={deleteLabel}
                             className="icon-btn justify-self-end text-danger hover:bg-danger-soft"
@@ -109,7 +121,7 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
             </header>
 
             {/* Save, pinned to the bottom of the screen (next to the sidebar/rail from sm up). */}
-            {!hideSave && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
+            {!hideSave && <div className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) border-t border-subtle bg-surface/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:left-20 sm:px-6 sm:pb-3 lg:left-64 lg:px-8">
                 <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
                     {!online && (
                         <p role="status" className="flex items-center justify-center gap-2 text-body-sm font-medium text-muted">
@@ -124,13 +136,13 @@ export default function FormTopBar({formId, saving, back, onDelete, deleteLabel 
             </div>}
 
             <ConfirmDialog
-                open={confirmExit}
+                open={confirmExit || backGesture.state === "blocked"}
                 variant="neutral"
                 title="Changes will not be saved"
                 message="You have unsaved changes. Are you sure you want to exit without saving?"
                 confirmLabel="Exit"
                 onConfirm={handleExit}
-                onCancel={() => setConfirmExit(false)}
+                onCancel={handleStay}
             />
         </>
     );

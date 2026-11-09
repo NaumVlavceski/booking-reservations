@@ -1,8 +1,7 @@
 import {useRef, useState} from "react";
 import {useMutation, useQuery} from "@tanstack/react-query";
-import axios from "axios";
 import {changePassword, getMe} from "../lib/api/me";
-import {apiErrorCode, apiErrorMessage} from "../lib/api/client";
+import {errorCode, errorMessage} from "../lib/errors";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import {useReturnTo} from "../lib/useReturnTo";
@@ -45,8 +44,8 @@ export default function ChangePasswordPage() {
             goBack();
         },
         onError: (error) => {
-            if (apiErrorCode(error) === "WRONG_PASSWORD") {
-                setError("currentPassword", apiErrorMessage(error, "Your current password is not correct."));
+            if (errorCode(error) === "WRONG_PASSWORD") {
+                setError("currentPassword", errorMessage(error, "Your current password is not correct."));
                 setForm((f) => ({...f, currentPassword: ""}));
                 currentRef.current?.focus();
             }
@@ -74,11 +73,7 @@ export default function ChangePasswordPage() {
     }
 
     function otherError(error: unknown): string {
-        if (axios.isAxiosError(error)) {
-            if (!error.response) return "Couldn't reach RoomTrack. Check your connection and try again.";
-            if (error.response.status === 429) return "Too many attempts. Please wait a few minutes and try again.";
-        }
-        return apiErrorMessage(error, "Couldn't change the password. Try again in a moment.");
+        return errorMessage(error, "Couldn't change the password.");
     }
 
     const isDirty = Boolean(form.currentPassword || form.newPassword || form.confirmPassword);
@@ -136,7 +131,7 @@ export default function ChangePasswordPage() {
                     />
                 </SectionCard>
 
-                {mutation.isError && apiErrorCode(mutation.error) !== "WRONG_PASSWORD" && (
+                {mutation.isError && errorCode(mutation.error) !== "WRONG_PASSWORD" && (
                     <Callout tone="danger" role="alert">{otherError(mutation.error)}</Callout>
                 )}
             </form>

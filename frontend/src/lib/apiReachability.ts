@@ -1,5 +1,6 @@
 import {useSyncExternalStore} from "react";
 import axios from "axios";
+import {useOnlineStatus} from "./useOnlineStatus";
 
 
 let reachable = true;
@@ -11,8 +12,12 @@ function set(next: boolean) {
     listeners.forEach((notify) => notify());
 }
 
+/** No answer at all: offline or the server is down. A timeout is not one (the server is there, just slow). */
 export function isNetworkError(error: unknown): boolean {
-    return axios.isAxiosError(error) && !error.response && error.code !== axios.AxiosError.ERR_CANCELED;
+    return axios.isAxiosError(error) && !error.response
+        && error.code !== axios.AxiosError.ERR_CANCELED
+        && error.code !== axios.AxiosError.ECONNABORTED
+        && error.code !== axios.AxiosError.ETIMEDOUT;
 }
 
 export function reportApiError(error: unknown) {
@@ -23,13 +28,24 @@ export function reportApiSuccess() {
     set(true);
 }
 
+export function isApiReachable(): boolean {
+    return reachable;
+}
+
+export function subscribeApiReachable(onChange: () => void) {
+    listeners.add(onChange);
+    return () => {
+        listeners.delete(onChange);
+    };
+}
+
 export function useApiReachable(): boolean {
-    return useSyncExternalStore(
-        (onChange) => {
-            listeners.add(onChange);
-            return () => listeners.delete(onChange);
-        },
-        () => reachable,
-        () => true,
-    );
+    return useSyncExternalStore(subscribeApiReachable, isApiReachable, () => true);
+}
+
+/** Online and the server answers. When false, pages show what they already have and nothing can be changed. */
+export function useConnected(): boolean {
+    const online = useOnlineStatus();
+    const apiReachable = useApiReachable();
+    return online && apiReachable;
 }

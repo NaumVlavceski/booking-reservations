@@ -17,7 +17,13 @@ export function isFormRoute(pathname: string): boolean {
     return FORM_ROUTES.some((pattern) => matchPath(pattern, pathname) !== null);
 }
 
-const AUTH_ROUTES = ["/login", "/register", "/verify-email", "/forgot-password"];
+export function isReservationForm(pathname: string): boolean {
+    return ["/dashboard/reservations/new", "/dashboard/reservations/:id"]
+        .some((pattern) => matchPath(pattern, pathname) !== null);
+}
+
+// The public home page and contact form have no tab bar either
+const AUTH_ROUTES = ["/", "/login", "/register", "/verify-email", "/forgot-password", "/contact"];
 
 /** What sits at the bottom of a phone screen: the tab bar, a form's Save bar, or nothing (auth pages). */
 export function bottomChrome(pathname: string): "tabs" | "form" | "none" {

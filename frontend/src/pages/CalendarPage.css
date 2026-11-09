@@ -45,33 +45,50 @@
 }
 
 .cal-title {
-    font-size: 1.75rem;
-    line-height: 2.125rem;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     margin: 0 4px 0 0;
     color: var(--rt-fg);
 }
 
+/* Today: an outlined pill with a teal dot, the same colour as the today date. */
 .cal-today-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     height: 44px;
-    padding: 0 16px;
-    border: 1px solid var(--rt-primary-line);
+    padding: 0 16px 0 14px;
+    border: 1px solid var(--rt-border);
     border-radius: 999px;
-    background: var(--rt-primary-soft);
-    color: var(--rt-on-primary-soft);
+    background: var(--rt-surface);
+    color: var(--rt-fg);
+    font-family: inherit;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color var(--rt-dur-fast) var(--rt-ease), border-color var(--rt-dur-fast) var(--rt-ease);
+    transition: background-color var(--rt-dur-fast) var(--rt-ease), border-color var(--rt-dur-fast) var(--rt-ease),
+        transform var(--rt-dur-fast) var(--rt-ease);
+}
+
+.cal-today-btn::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--rt-today);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--rt-on-today) 25%, transparent);
 }
 
 .cal-today-btn:hover {
-    border-color: var(--rt-primary);
+    border-color: var(--rt-border-strong);
+    background: var(--rt-surface-hover);
 }
 
 .cal-today-btn:active {
     background: var(--rt-surface-pressed);
+    transform: scale(0.98);
 }
 
 .cal-today-btn:focus-visible,
@@ -112,6 +129,13 @@
     color: var(--rt-fg-muted);
 }
 
+/* Offline (the calendar is a saved copy): unavailable, not busy. */
+.cal-icon-btn.is-offline {
+    cursor: not-allowed;
+    background: transparent;
+    opacity: 0.45;
+}
+
 .cal-spin {
     animation: cal-spin 800ms linear infinite;
 }
@@ -130,10 +154,10 @@
     position: absolute;
     top: calc(100% + 6px);
     right: 0;
-    z-index: 20;
+    z-index: var(--rt-z-popover);
     background: var(--rt-surface-raised);
     border: 1px solid var(--rt-border-subtle);
-    border-radius: 16px;
+    border-radius: var(--rt-radius-card);
     box-shadow: var(--rt-shadow-2);
     color: var(--rt-fg);
     animation: pop-in var(--rt-dur-base) var(--rt-ease-out) both;
@@ -168,7 +192,7 @@
     text-align: left;
     cursor: pointer;
     padding: 10px 12px;
-    border-radius: 12px;
+    border-radius: var(--rt-radius-control);
     font-size: 15px;
     font-weight: 500;
     color: var(--rt-fg);
@@ -184,6 +208,7 @@
 
 .cal-loading {
     color: var(--rt-fg-muted);
+    font-size: 0.875rem;
     padding: 16px 0;
 }
 
@@ -192,8 +217,7 @@
     padding: 56px 24px;
     background: var(--rt-surface);
     border: 1px solid var(--rt-border-subtle);
-    border-radius: 16px;
-    box-shadow: var(--rt-shadow-1);
+    border-radius: var(--rt-radius-card);
 }
 
 .cal-empty-text {
@@ -207,18 +231,28 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 48px;
+    min-height: 52px;
     padding: 0 20px;
-    border-radius: 14px;
+    border-radius: var(--rt-radius-card);
     background: var(--rt-primary);
     color: var(--rt-on-primary);
     font-weight: 600;
     text-decoration: none;
-    box-shadow: var(--rt-shadow-1);
+    transition: background-color var(--rt-dur-fast) var(--rt-ease), transform var(--rt-dur-fast) var(--rt-ease);
 }
 
 .cal-empty-link:hover {
     background: var(--rt-primary-hover);
+}
+
+.cal-empty-link:active {
+    background: var(--rt-primary-pressed);
+    transform: scale(0.98);
+}
+
+.cal-empty-link:focus-visible {
+    outline: 2px solid var(--rt-focus);
+    outline-offset: 2px;
 }
 
 
@@ -228,10 +262,9 @@
     flex: 1 1 auto;
     min-height: 0;
     border: 1px solid var(--rt-border-subtle);
-    border-radius: 16px;
+    border-radius: var(--rt-radius-card);
     overflow: hidden;
     background: var(--rt-surface);
-    box-shadow: var(--rt-shadow-1);
 }
 
 /* LAYOUT: the one element that scrolls, natively, in both directions. No pull-to-refresh or rubber band. */
@@ -244,7 +277,6 @@
     cursor: grab;
     overflow-anchor: none;
 }
-
 @media (hover: hover) and (pointer: fine) {
     .cal-scroller::-webkit-scrollbar {
         width: 10px;
@@ -338,10 +370,8 @@
     display: flex;
     align-items: center;
     padding: 0 10px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 600;
     color: var(--muted-text);
 }
 
@@ -402,11 +432,9 @@
     width: max-content;
     padding: 0 10px 0 10px;
     background: var(--rt-surface);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted-text);
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--rt-fg);
     pointer-events: none;
 }
 
@@ -470,7 +498,7 @@
     color: var(--rt-fg);
     background: var(--group-bg);
     border-bottom: 1px solid var(--border-color);
-    box-shadow: inset 3px 0 0 var(--brand);
+    box-shadow: inset 3px 0 0 var(--rt-fg);
 }
 
 .cal-group-toggle {
@@ -516,9 +544,9 @@
     justify-content: center;
     width: 30px;
     height: 30px;
-    border-radius: 9px;
-    background: var(--rt-primary-soft);
-    color: var(--rt-on-primary-soft);
+    border-radius: 8px;
+    background: var(--rt-tile);
+    color: var(--rt-on-tile);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -583,8 +611,9 @@
     outline-offset: 2px;
 }
 
+/* Today's date: filled with the today colour. */
 .cal-today-marker {
-    background: var(--brand);
+    background: var(--rt-today);
     margin: calc(var(--header-h1) + 0px) 0 0 0;
 }
 
@@ -625,7 +654,7 @@
 .cal-day-num.is-today,
 .cal-day-weekday.is-today {
     font-weight: 700;
-    color: var(--rt-on-primary);
+    color: var(--rt-on-today);
 }
 
 
@@ -641,7 +670,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    filter: drop-shadow(0 1px 2px rgb(16 24 40 / 0.06));
+    filter: drop-shadow(0 1px 1px rgb(15 30 51 / 0.06));
 }
 
 .cal-bar:focus-visible {
@@ -764,10 +793,44 @@
 }
 
 .cal-footer-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--muted-text);
 }
 
+
+/* The demo's colour key, between the toolbar and the calendar. */
+/* Until the first booking exists: how to add one. */
+.cal-first-hint {
+    flex: none;
+    margin: 0;
+    padding: 0.625rem 1rem;
+    background: var(--rt-surface);
+    border-bottom: 1px solid var(--rt-border-subtle);
+    color: var(--rt-fg);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.cal-color-key {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    overflow-x: auto;
+    background: var(--rt-surface);
+    border-bottom: 1px solid var(--rt-border-subtle);
+}
+
+@media (min-width: 640px) {
+    .cal-color-key {
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        padding: 0;
+        background: none;
+        border-bottom: none;
+    }
+}
 
 /* LAYOUT: app chrome around the calendar per breakpoint (see DashboardLayout's <main> padding). */
 @media (min-width: 640px) {
@@ -813,7 +876,7 @@
 @media (max-width: 639px) {
     .cal-root {
         /* LAYOUT: the phone tab bar (4rem + 1px border) and the home-indicator area. */
-        --cal-chrome: calc(4rem + 1px + env(safe-area-inset-bottom));
+        --cal-chrome: calc(4rem + 1px + env(safe-area-inset-bottom) + var(--rt-demo-dock, 0px));
     }
 
     .cal-toolbar {

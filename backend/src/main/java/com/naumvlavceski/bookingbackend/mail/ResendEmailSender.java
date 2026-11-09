@@ -37,6 +37,7 @@ public class ResendEmailSender implements EmailSender {
         body.put("html", m.html());
         body.put("text", m.text());
         if (m.headers() != null && !m.headers().isEmpty()) body.put("headers", m.headers());
+        if (m.replyTo() != null && !m.replyTo().isBlank()) body.put("reply_to", m.replyTo());
         Map<?, ?> res = client.post().uri("/emails")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)

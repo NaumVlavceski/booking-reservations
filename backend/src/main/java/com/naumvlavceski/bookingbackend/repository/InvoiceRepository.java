@@ -13,8 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Read-only queries for the invoices (earnings) overview. Native queries bypass the Hibernate ownerFilter,
- * so every query filters by owner explicitly.
+ * Read-only queries for the invoices (earnings) overview. Every query filters by owner explicitly.
  *
  * A reservation qualifies when its status is CONFIRMED or PAID (the "r.status IN" condition is repeated in
  * each query, keep the copies identical). The optional status/source filters narrow that further (never widen it).

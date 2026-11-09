@@ -1,5 +1,5 @@
 import {queryOptions} from "@tanstack/react-query";
-import {apiClient} from "./client.ts";
+import {apiClient, slowRequest} from "./client.ts";
 import type {PageResponse, ReservationResponse} from "./reservations.ts";
 
 export interface InvoiceProperty {
@@ -146,7 +146,7 @@ function exportFilename({from, to}: InvoiceFilters): string {
  */
 export async function downloadInvoicesExcel(propertyId: string, unitId: string | null, range: InvoiceFilters): Promise<void> {
     const res = await apiClient.get<Blob>(`/api/invoices/properties/${propertyId}/export`,
-        {params: {...filterParams(range), unitId: unitId || undefined}, responseType: "blob"});
+        {params: {...filterParams(range), unitId: unitId || undefined}, responseType: "blob", ...slowRequest});
     const disposition = String(res.headers["content-disposition"] ?? "");
     const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? exportFilename(range);
 

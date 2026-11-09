@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
           orientation: 'any',
           // tokens.css: --rt-surface (top bar) and --rt-canvas (app background, used for the splash screen).
           theme_color: '#FFFFFF',
-          background_color: '#F4F6F9',
+          background_color: '#F3F5F6',
           categories: ['business', 'productivity'],
           icons: [
             { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -57,9 +57,10 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          // The app shell: built JS/CSS/HTML plus the logo and icons. Not the help screenshots.
-          globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-          globIgnores: ['help/**'],
+          // The app shell: built JS/CSS/HTML, the interface font, the logo and icons. Not the help screenshots.
+          globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+          // Help and home-page pictures load when a page shows them; the installed app doesn't need them up front.
+          globIgnores: ['help/**', 'landing/**'],
           // Any address in the app opens index.html (offline too); React Router then shows the right page.
           navigateFallback: '/index.html',
           // /api/ical/* is the calendar feed Netlify forwards to the backend (public/_redirects): never the app.

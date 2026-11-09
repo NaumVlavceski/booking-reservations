@@ -37,7 +37,7 @@ export default function PasswordField({label, hint, error, id, className, ...inp
                         aria-controls={control.id}
                         aria-label={visible ? "Hide password" : "Show password"}
                         title={visible ? "Hide password" : "Show password"}
-                        className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted hover:bg-primary-soft hover:text-primary"
+                        className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center rounded-control text-muted hover:bg-primary-soft hover:text-primary"
                     >
                         {visible ? <EyeOffIcon size={20}/> : <EyeIcon size={20}/>}
                     </button>

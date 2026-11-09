@@ -40,6 +40,15 @@ export function describeSyncError(raw: string | null, platform: string): SyncPro
             advice: fill("Make sure you copied the iCal / calendar export link from {p}, not the link to your listing page."),
         };
     }
+    if (/could not be read/i.test(text)) {
+        return {
+            title: "Some entries in this calendar couldn't be read.",
+            advice: fill("The rest of the calendar is up to date. Check your latest bookings on {p}, in case one is missing here."),
+        };
+    }
+    if (/cut off/i.test(text)) {
+        return {title: `${p} sent an incomplete calendar.`, advice: "Usually temporary. Your bookings were not changed, and we keep retrying automatically."};
+    }
     if (/size cap/i.test(text)) {
         return {title: "That calendar is unusually large.", advice: fill("Check that the link is the export for this one room on {p}.")};
     }

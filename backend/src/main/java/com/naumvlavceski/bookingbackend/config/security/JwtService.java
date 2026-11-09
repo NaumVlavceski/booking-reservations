@@ -68,6 +68,9 @@ public class JwtService {
     }
 
     public boolean isSessionValid(Claims claims, AppUser user) {
+        // The subject is the email; the user id makes sure a token of a deleted account can't be used by a new
+        // account that later registers with the same address.
+        if (!user.getId().toString().equals(claims.get("userId", String.class))) return false;
         long sessionStart = sessionIssuedAt(claims);
         if (clock.millis() > sessionStart + absoluteTimeoutMs) return false;
         return tokenVersion(claims) == user.getTokenVersion();

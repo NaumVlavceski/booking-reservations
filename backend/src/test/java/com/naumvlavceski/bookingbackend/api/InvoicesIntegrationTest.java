@@ -45,6 +45,8 @@ class InvoicesIntegrationTest {
     @Autowired ReservationRepository reservations;
 
     private static final String PASSWORD = "Pw-" + UUID.randomUUID();
+    // Registration needs the Terms and Privacy Policy accepted (versions as shown by the frontend)
+    static final String ACCEPT_TERMS = "\"acceptedTerms\":true,\"termsVersion\":\"2026-10-30\",\"privacyVersion\":\"2026-10-30\"";
 
     private String send(MockHttpServletRequestBuilder req, String token, String body, int expected) throws Exception {
         if (token != null) req.header("Authorization", "Bearer " + token);
@@ -55,7 +57,7 @@ class InvoicesIntegrationTest {
     private String token() throws Exception {
         String email = "inv_" + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         send(post("/api/auth/register"), null, "{\"contactPhone\":\"1\",\"email\":\"" + email
-                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"}", 202);
+                + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Tester\"," + ACCEPT_TERMS + "}", 202);
         AppUser user = appUsers.findFirstByEmailIgnoreCase(email).orElseThrow();
         user.setEmailVerifiedAt(OffsetDateTime.now());
         appUsers.save(user);

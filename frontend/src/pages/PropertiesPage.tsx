@@ -4,7 +4,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {Link} from "react-router-dom";
 import {deleteProperty, propertiesQuery, type PropertyResponse} from "../lib/api/properties";
 import {allUnitsQuery} from "../lib/api/units";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage} from "../lib/errors";
 import {allReservationsQuery} from "../lib/api/reservations";
 import {propertyDeleteMessage} from "../lib/plural";
 import {ChevronRightIcon, EditIcon, HouseIcon, PlusIcon, TrashIcon} from "../components/icons";
@@ -13,15 +13,11 @@ import PageHeader from "../components/ui/PageHeader";
 import {ButtonLink} from "../components/ui/Button";
 import Fab from "../components/ui/Fab";
 import Menu from "../components/ui/Menu";
-import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
-
-function initials(name: string) {
-    const words = name.trim().split(/\s+/);
-    return (words[0]?.[0] ?? "").concat(words[1]?.[0] ?? "").toUpperCase();
-}
+import Avatar from "../components/ui/Avatar";
+import {EmptyState, ErrorState, ListSkeleton, RefreshFailed} from "../components/ui/States";
 
 export default function PropertiesPage() {
-    const {data: properties, isLoading, isError, refetch, isRefetching} = useQuery(propertiesQuery);
+    const {data: properties, isLoading, isError, error, refetch, isRefetching} = useQuery(propertiesQuery);
     // Same query the calendar uses, so this is usually already cached.
     const {data: units} = useQuery(allUnitsQuery);
     const {data: reservations} = useQuery(allReservationsQuery);
@@ -64,12 +60,13 @@ export default function PropertiesPage() {
                 )}
             />
 
+            {isError && properties && (
+                <RefreshFailed error={error} onRetry={() => refetch()} retrying={isRefetching} className="mb-4"/>
+            )}
             {isLoading ? (
                 <ListSkeleton rows={3} label="Loading properties..."/>
-            ) : isError ? (
-                <ErrorState title="Couldn't load properties" onRetry={() => refetch()} retrying={isRefetching}>
-                    Try refreshing the page.
-                </ErrorState>
+            ) : !properties ? (
+                <ErrorState title="Couldn't load properties" error={error} onRetry={() => refetch()} retrying={isRefetching}/>
             ) : !hasProperties ? (
                 <EmptyState
                     icon={<HouseIcon size={24}/>}
@@ -88,9 +85,7 @@ export default function PropertiesPage() {
                                     to={`/dashboard/properties/${property.id}`}
                                     className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 sm:gap-4 sm:pl-5"
                                 >
-                                    <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-body-sm font-bold text-on-primary-soft">
-                                        {initials(property.name)}
-                                    </span>
+                                    <Avatar name={property.name}/>
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-title-3 text-fg">{property.name}</span>
                                         {property.address && <span className="block truncate text-body-sm text-muted">{property.address}</span>}
@@ -128,7 +123,7 @@ export default function PropertiesPage() {
                 confirmLabel="Delete property"
                 pending={deleteMutation.isPending}
                 error={deleteMutation.isError
-                    ? apiErrorMessage(deleteMutation.error, "Couldn't delete this property. Try again.")
+                    ? errorMessage(deleteMutation.error, "Couldn't delete this property.")
                     : null}
                 onConfirm={() => propertyToDelete && deleteMutation.mutate(propertyToDelete.id)}
                 onCancel={closeConfirm}

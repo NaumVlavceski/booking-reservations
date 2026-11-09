@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {apiErrorMessage} from "../lib/api/client";
+import {errorMessage, errorReason} from "../lib/errors";
 import {copyReservation, getAvailableOptions, moveReservation} from "../lib/api/reservations";
 import Sheet from "./ui/Sheet";
 import Button from "./ui/Button";
@@ -28,7 +28,7 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
     const isCopy = mode === "copy";
     const queryClient = useQueryClient();
     const [selected, setSelected] = useState<string[]>([]);
-    const {data: options, isLoading, isError, refetch} = useQuery({
+    const {data: options, isLoading, isError, error, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "available-options", reservationId],
         queryFn: () => getAvailableOptions(reservationId),
         enabled: open,
@@ -64,8 +64,7 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
         else setSelected((s) => s.includes(unitId) ? s.filter((id) => id !== unitId) : [...s, unitId]);
     }
 
-    const allSelected = Boolean(options && options.length > 0 && selected.length === options.length);
-    const rowClass = (active: boolean) => `flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-body font-medium transition-colors ${
+    const rowClass = (active: boolean) => `flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium transition-colors ${
         active ? "bg-primary-soft text-on-primary-soft" : "text-fg hover:bg-surface-hover"
     }`;
     const Icon = isCopy ? CopyIcon : MoveIcon;
@@ -80,7 +79,7 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
             description={isCopy
                 ? `${currentRoom ? `From ${currentRoom}. ` : ""}The booking is copied to each room you pick, without prices. ${rule}`
                 : currentRoom ? `Now in ${currentRoom}. ${rule}` : undefined}
-            icon={<span className="flex size-11 items-center justify-center rounded-full bg-primary-soft text-on-primary-soft"><Icon size={20}/></span>}
+            icon={<span className="flex size-11 items-center justify-center rounded-full bg-tile text-on-tile"><Icon size={20}/></span>}
             dismissible={!busy}
             footer={
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -108,29 +107,22 @@ export default function MoveReservationDialog({open, mode = "move", reservationI
                     </Callout>
                 )}
                 {saveMutation.isError && (
-                    <Callout tone="danger" role="alert">{apiErrorMessage(saveMutation.error, "Couldn't save the changes.")}</Callout>
+                    <Callout tone="danger" role="alert">{errorMessage(saveMutation.error, "Couldn't save the changes.")}</Callout>
                 )}
                 {mutation.isError && (
-                    <Callout tone="danger" role="alert">{apiErrorMessage(mutation.error, isCopy ? "Couldn't copy this booking." : "Couldn't move this booking.")}</Callout>
+                    <Callout tone="danger" role="alert">{errorMessage(mutation.error, isCopy ? "Couldn't copy this booking." : "Couldn't move this booking.")}</Callout>
                 )}
                 {isLoading ? (
                     <div className="flex justify-center py-4"><Spinner/></div>
                 ) : isError ? (
-                    <Callout tone="danger" role="alert" action={<Button variant="secondary" onClick={() => refetch()}>Try again</Button>}>
-                        Couldn't load the rooms.
+                    <Callout tone="danger" role="alert" title="Couldn't load the free rooms"
+                             action={<Button variant="secondary" onClick={() => refetch()} loading={isRefetching} loadingLabel="Trying again…">Try again</Button>}>
+                        {errorReason(error)}
                     </Callout>
                 ) : options && options.length === 0 ? (
                     <p className="text-body text-muted">No other room in this property is free on these dates.</p>
                 ) : (
                     <div role={isCopy ? "group" : "radiogroup"} aria-label={isCopy ? "Copy to" : "Move to"} className="space-y-1">
-                        {isCopy && options && options.length > 1 && (
-                            <button type="button" role="checkbox" aria-checked={allSelected}
-                                    onClick={() => setSelected(allSelected ? [] : options.map((o) => o.unitId))}
-                                    className={rowClass(allSelected)}>
-                                <span className="min-w-0 flex-1 truncate">Select all</span>
-                                {allSelected && <CheckIcon size={18} strokeWidth={2.5}/>}
-                            </button>
-                        )}
                         {options?.map((o) => {
                             const active = selected.includes(o.unitId);
                             return (

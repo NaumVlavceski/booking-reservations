@@ -23,6 +23,24 @@ import InvoiceUnitPage from "./pages/InvoiceUnitPage.tsx";
 import InvoiceMissingAmountsPage from "./pages/InvoiceMissingAmountsPage.tsx";
 import OnboardingPage from "./pages/OnboardingPage.tsx";
 import OnboardingGate from "./components/OnboardingGate.tsx";
+import CalendarGate from "./components/CalendarGate.tsx";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage.tsx";
+import TermsPage from "./pages/TermsPage.tsx";
+import AccountPage from "./pages/AccountPage.tsx";
+import LandingPage from "./pages/LandingPage.tsx";
+import ContactPage from "./pages/ContactPage.tsx";
+import {tokenStorage} from "./lib/auth/tokenStorage";
+import {isStandalone} from "./lib/pwa";
+
+/**
+ * "/": the home page for visitors. Signed in, it opens the calendar as before; the installed app (which starts at
+ * "/") goes to the login page instead of the home page.
+ */
+function HomeRoute() {
+    if (tokenStorage.get()) return <Navigate to="/dashboard/calendar" replace/>;
+    if (isStandalone()) return <Navigate to="/login" replace/>;
+    return <LandingPage/>;
+}
 
 
 export default function App() {
@@ -32,7 +50,11 @@ export default function App() {
             <Route path="/register" element={<RegisterPage/>}/>
             <Route path="/verify-email" element={<VerifyEmailPage/>}/>
             <Route path="/forgot-password" element={<ForgotPasswordPage/>}/>
-            <Route path="/" element={<Navigate to="/dashboard/calendar" replace/>}/>
+            {/* Public: readable before signing up and from inside the app */}
+            <Route path="/privacy" element={<PrivacyPolicyPage/>}/>
+            <Route path="/terms" element={<TermsPage/>}/>
+            <Route path="/contact" element={<ContactPage/>}/>
+            <Route path="/" element={<HomeRoute/>}/>
             <Route element={<ProtectedRoute/>}>
                 <Route element={<DashboardLayout />}>
                     <Route path="/dashboard" element={<Navigate to="/dashboard/calendar" replace/>} />
@@ -44,7 +66,7 @@ export default function App() {
                     <Route path="/dashboard/properties/:propertyId/units/:unitId" element={<UnitFormPage />} />
                     <Route path="/dashboard/reservations/new" element={<ReservationFormPage/>}/>
                     <Route path="/dashboard/reservations/:id" element={<ReservationFormPage/>}/>
-                    <Route path="/dashboard/calendar" element={<OnboardingGate><CalendarPage /></OnboardingGate>} />
+                    <Route path="/dashboard/calendar" element={<OnboardingGate><CalendarGate><CalendarPage /></CalendarGate></OnboardingGate>} />
                     <Route path="/dashboard/welcome" element={<OnboardingPage/>}/>
                     <Route path="/dashboard/conflicts" element={<ConflictsPage />} />
                     <Route path="/dashboard/sync-health" element={<SyncHealthPage/>}/>
@@ -54,6 +76,7 @@ export default function App() {
                     <Route path="/dashboard/invoices/units/:unitId" element={<InvoiceUnitPage/>}/>
                     <Route path="/dashboard/invoices/properties/:propertyId/missing-amounts" element={<InvoiceMissingAmountsPage/>}/>
                     <Route path="/dashboard/help/connect-calendars" element={<ConnectCalendarsHelpPage/>}/>
+                    <Route path="/dashboard/account" element={<AccountPage/>}/>
                     <Route path="/dashboard/account/password" element={<ChangePasswordPage/>}/>
                     <Route path="*" element={<NotFoundPage/>}/>
                 </Route>

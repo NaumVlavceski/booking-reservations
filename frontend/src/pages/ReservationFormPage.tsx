@@ -1,16 +1,19 @@
-import {repriceForm, type PricingField} from "../lib/pricing.ts";
+import {repriceForm, stayNights, type PricingField} from "../lib/pricing.ts";
 import axios from "axios";
-import {apiErrorMessage} from "../lib/api/client";
-import {Navigate, useParams, useSearchParams} from "react-router-dom";
+import {errorMessage, fieldErrors, logError} from "../lib/errors";
+import {Navigate, useLocation, useParams, useSearchParams} from "react-router-dom";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
-    createReservation, deleteReservation, getReservation, restoreReservation,
+    allReservationsQuery, createReservation, deleteReservation, getReservation, restoreReservation,
     getReservations,
     type ReservationRequest,
     updateReservation
 } from "../lib/api/reservations.ts";
-import {getUnit} from "../lib/api/units.ts";
-import {useId, useState} from "react";
+import {allUnitsQuery, getUnit} from "../lib/api/units.ts";
+import {useConnected} from "../lib/apiReachability";
+import {useEffect, useId, useState} from "react";
+import {bookingLabel, guestNameOf} from "../lib/bookingLabel";
+import {clearFormDraft, readFormDraft, setCurrentFormDraft} from "../lib/formDraft";
 
 import FormTopBar from "../components/FormTopBar";
 import MoveReservationDialog from "../components/MoveReservationDialog";
@@ -22,10 +25,9 @@ import {AlertCircleIcon, CheckIcon} from "../components/icons";
 import Card from "../components/ui/Card";
 import {TextAreaField, TextField} from "../components/ui/Field";
 import Callout from "../components/ui/Callout";
-import Button from "../components/ui/Button";
 import {Stepper} from "../components/ui/Controls";
 import {SegmentedControl} from "../components/ui/Segmented";
-import {FormSkeleton} from "../components/ui/States";
+import {FormSkeleton, RecordLoadError} from "../components/ui/States";
 import {useInlineValidation, type ValidationMessages} from "../lib/useInlineValidation";
 import {useReturnTo} from "../lib/useReturnTo";
 
@@ -38,6 +40,10 @@ const STATUS_OPTIONS = [
 
 type EditableStatus = (typeof STATUS_OPTIONS)[number]["value"];
 
+/** The size of reservation.notes. */
+const MAX_NOTES_LENGTH = 255;
+/** The notes field starts counting characters from here. */
+const NOTES_COUNTER_FROM = 200;
 const PRICE_MESSAGES = {rangeUnderflow: "Can't be negative.", badInput: "Enter a number, e.g. 45 or 45.50."};
 const MESSAGES: ValidationMessages = {
     pricePerGuest: PRICE_MESSAGES,
@@ -61,13 +67,21 @@ export default function ReservationFormPage() {
     const [searchParams] = useSearchParams();
     const prefillUnitId = searchParams.get("unitId");
     const prefillCheckIn = searchParams.get("checkIn");
+    const {pathname, search} = useLocation();
+    // What was being typed here when the session ended, if anything (lib/formDraft.ts)
+    const [draft] = useState(() => readFormDraft<ReservationRequest>(pathname + search));
     const datesErrorId = useId();
-    const {errors, validate, recheck} = useInlineValidation(MESSAGES);
+    const {errors, validate, recheck, setError, showServerErrors, otherErrors} = useInlineValidation(MESSAGES);
 
-    const {data: existing, isLoading: isLoadingExisting, isError: loadFailed, refetch} = useQuery({
+    // Offline, a booking opened from the calendar's saved copy starts from that copy (view only: Save is off).
+    const connected = useConnected();
+    const {data: existing, isLoading: isLoadingExisting, error: loadError, refetch, isRefetching} = useQuery({
         queryKey: ["reservations", "detail", id],
         queryFn: () => getReservation(id!),
         enabled: isEditing,
+        initialData: () => connected ? undefined
+            : queryClient.getQueryData(allReservationsQuery.queryKey)?.find((r) => r.id === id),
+        initialDataUpdatedAt: () => queryClient.getQueryState(allReservationsQuery.queryKey)?.dataUpdatedAt,
     });
     const initialForm: ReservationRequest = {
         unitId: prefillUnitId ?? "",
@@ -83,7 +97,7 @@ export default function ReservationFormPage() {
         guestsCount: 2,
         notes: ""
     };
-    const [form, setForm] = useState<ReservationRequest>(initialForm);
+    const [form, setForm] = useState<ReservationRequest>(draft ?? initialForm);
     // Snapshot to compare against for the unsaved-changes warning: the
     // prefilled/blank form on create, or the loaded reservation once it arrives.
     const [initialSnapshot, setInitialSnapshot] = useState<ReservationRequest | null>(isEditing ? null : initialForm);
@@ -98,20 +112,23 @@ export default function ReservationFormPage() {
             pricePerGuest: existing.pricePerGuest,
             nightlyRate: existing.nightlyRate,
             totalAmount: existing.totalAmount,
-            guestName: existing.guestName ?? "",
+            guestName: guestNameOf(existing),
             guestEmail: existing.guestEmail ?? "",
             guestPhone: existing.guestPhone ?? "",
             guestsCount: existing.guestsCount,
             notes: existing.notes ?? ""
         };
+        setForm(draft && syncedExisting === undefined ? draft : next);
         setSyncedExisting(existing);
-        setForm(next);
         setInitialSnapshot(next);
     }
     const {data: unitForTitle} = useQuery({
         queryKey: ["units", "detail", form.unitId],
         queryFn: () => getUnit(form.unitId),
         enabled: Boolean(form.unitId),
+        initialData: () => connected ? undefined
+            : queryClient.getQueryData(allUnitsQuery.queryKey)?.find((u) => u.id === form.unitId),
+        initialDataUpdatedAt: () => queryClient.getQueryState(allUnitsQuery.queryKey)?.dataUpdatedAt,
     });
     const {data: unitReservations} = useQuery({
         queryKey: ["reservations", "unit", form.unitId],
@@ -123,6 +140,8 @@ export default function ReservationFormPage() {
         .map((r) => ({checkIn: r.checkIn, checkOut: r.checkOut}));
     const [conflictMessage, setConflictMessage] = useState<string | null>(null);
     const [lastEdited, setLastEdited] = useState<PricingField>(null);
+    // How many nights the price was last worked out for (null: as loaded)
+    const [pricedNights, setPricedNights] = useState<number | null>(null);
     const mutation = useMutation({
         mutationFn: (data: ReservationRequest) =>
             isEditing ? updateReservation(id!, data) : createReservation(data),
@@ -133,10 +152,13 @@ export default function ReservationFormPage() {
         },
         onError: (error) => {
             if (axios.isAxiosError(error) && error.response?.status === 409) {
-                setConflictMessage(`${apiErrorMessage(error, "These dates are no longer available.")} Pick different dates, or choose another room on the calendar.`);
+                // Says which room and dates are taken, and what to do.
+                setConflictMessage(errorMessage(error, "Couldn't save the booking."));
             } else {
                 setConflictMessage(null);
             }
+            const fields = fieldErrors(error);
+            if (fields) showServerErrors(document.getElementById("reservation-form") as HTMLFormElement | null, fields);
         },
     });
     // Saves the form without leaving the page, for Move and Copy (they only use what is saved).
@@ -177,7 +199,10 @@ export default function ReservationFormPage() {
                                 queryClient.invalidateQueries({queryKey: ["reservations"]});
                                 toast.show("Booking restored.");
                             })
-                            .catch((err) => toast.show(apiErrorMessage(err, "Couldn't restore the booking."), {tone: "error"}));
+                            .catch((err) => {
+                                logError(err, "Undo cancel");
+                                toast.show(errorMessage(err, "Couldn't restore the booking."), {tone: "error"});
+                            });
                     },
                 } : undefined,
             });
@@ -196,6 +221,13 @@ export default function ReservationFormPage() {
             return;
         }
         if (!fieldsValid) return;
+        if (form.notes.length > MAX_NOTES_LENGTH) {
+            setError("notes", `Notes can be up to ${MAX_NOTES_LENGTH} characters. This has ${form.notes.length}.`);
+            const notes = document.getElementById("notes");
+            notes?.focus({preventScroll: true});
+            notes?.scrollIntoView({block: "center"}); // clear of the Save bar, with its message in view
+            return;
+        }
         mutation.mutate(form)
     }
 
@@ -235,6 +267,34 @@ export default function ReservationFormPage() {
         showRecalculatedNotice(form.checkIn, form.checkOut);
     }
 
+    /** New dates only change the price if the number of nights changed, and then by the rate per night. */
+    function repriceForDates(checkIn: string, checkOut: string) {
+        const nights = stayNights(checkIn, checkOut);
+        if (nights === 0) return;
+        const before = pricedNights ?? (initialSnapshot ? stayNights(initialSnapshot.checkIn, initialSnapshot.checkOut) : 0);
+        setPricedNights(nights);
+        if (nights === before) return;
+        if (form.nightlyRate) {
+            setLastEdited("nightlyRate");
+            showRecalculatedNotice(checkIn, checkOut);
+        } else if (form.totalAmount) {
+            setLastEdited("totalAmount");
+        }
+    }
+
+    // A draft is restored once; what is on screen is then kept like any other typing. While editing, the current
+    // values are what would be put aside if the session ended.
+    useEffect(() => {
+        clearFormDraft(); // Also one that belongs to another account: it must not stay in this tab
+        if (!draft) return;
+        toast.show("We kept what you typed. Check it and press Save.", {tone: "info"});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    useEffect(() => {
+        setCurrentFormDraft(isDirty ? form : null);
+        return () => setCurrentFormDraft(null);
+    }, [form, isDirty]);
+
     // A new reservation needs a room, which comes from the calendar cell that was clicked.
     if (!isEditing && !prefillUnitId) return <Navigate to="/dashboard/calendar" replace/>;
 
@@ -244,24 +304,21 @@ export default function ReservationFormPage() {
         return (
             <div className="mx-auto max-w-2xl">
                 <FormTopBar formId="reservation-form" saving={false} title={title} back={back}/>
-                <FormSkeleton label="Loading booking..." sections={3}/>
+                <FormSkeleton label="Loading booking..." sections={4} joined/>
             </div>
         );
     }
 
-    if (isEditing && loadFailed && !existing) {
+    if (isEditing && loadError && !existing) {
         return (
             <div className="mx-auto max-w-2xl">
-                <FormTopBar formId="reservation-form" saving={false} title={title} back={back}/>
-                <Callout tone="danger" role="alert" title="Couldn't load this booking"
-                         action={<Button variant="secondary" onClick={() => refetch()}>Try again</Button>}>
-                    Check your connection and try again.
-                </Callout>
+                <FormTopBar formId="reservation-form" saving={false} title={title} back={back} hideSave/>
+                <RecordLoadError what="booking" error={loadError} onRetry={() => refetch()} retrying={isRefetching} backTo="/dashboard/calendar"/>
             </div>
         );
     }
 
-    const priceField = (name: "pricePerGuest" | "nightlyRate" | "totalAmount", label: string) => (
+    const priceField = (name: "pricePerGuest" | "nightlyRate" | "totalAmount", label: string, className = "") => (
         <TextField
             label={label}
             id={name}
@@ -278,7 +335,7 @@ export default function ReservationFormPage() {
             }}
             disabled={pricesLocked}
             placeholder={pricesLocked ? "Pick dates" : ""}
-            className="num min-w-0"
+            className={`num min-w-0 ${className}`}
             error={errors[name]}
         />
     );
@@ -292,7 +349,7 @@ export default function ReservationFormPage() {
                 formId="reservation-form"
                 saving={mutation.isPending}
                 title={title}
-                subtitle={existing?.guestName?.trim() || undefined}
+                subtitle={existing ? bookingLabel(existing) : undefined}
                 isDirty={isDirty}
                 back={back}
                 onDelete={canCancel ? () => {
@@ -310,11 +367,11 @@ export default function ReservationFormPage() {
                     <Callout tone="danger" role="alert">{conflictMessage}</Callout>
                 )}
                 {mutation.isError && !conflictMessage && (
-                    <Callout tone="danger" role="alert">{apiErrorMessage(mutation.error, "Something went wrong. Check your details and try again.")}</Callout>
+                    <Callout tone="danger" role="alert">{otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't save the booking.")}</Callout>
                 )}
 
                 {existing?.priceNeedsReview && !isCancelled && (
-                    <Callout tone="warning" role="alert" title="! Check the price.">
+                    <Callout tone="warning" role="alert" title="Check the price">
                         The dates of this booking were changed on {existing.source === "AIRBNB" ? "Airbnb" : "Booking.com"},
                         but the price (<span className="num">{existing.totalAmount}</span>) was left as you entered it. Update it if needed, then press Save.
                     </Callout>
@@ -340,9 +397,8 @@ export default function ReservationFormPage() {
                                     describedBy={datesErrorId}
                                     onChange={(checkIn, checkOut) => {
                                         setForm((f) => ({...f, checkIn, checkOut}));
-                                        setLastEdited("nightlyRate");
+                                        repriceForDates(checkIn, checkOut);
                                         setDatesMissing(false);
-                                        showRecalculatedNotice(checkIn, checkOut);
                                     }}
                                 />
                                 {datesMissing && (
@@ -383,25 +439,26 @@ export default function ReservationFormPage() {
                                 <h2 id="price-heading" className="text-title-3 text-fg">Price</h2>
                                 <p className="mt-0.5 text-body-sm text-muted">Enter any one field — the others calculate automatically.</p>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                                {priceField("pricePerGuest", "Per guest")}
+                            <div className="grid grid-cols-2 gap-3">
+                                {priceField("totalAmount", "Total", "price-total col-span-2")}
                                 {priceField("nightlyRate", "Per night")}
-                                {priceField("totalAmount", "Total")}
+                                {priceField("pricePerGuest", "Per guest")}
                             </div>
                         </section>
 
                         <section aria-labelledby="guest-heading" className={section}>
                             <h2 id="guest-heading" className="text-title-3 text-fg">Guest</h2>
                             <TextField label="Guest name" id="guestName" name="guestName" value={form.guestName} onChange={onChange}
-                                       autoComplete="off" autoCapitalize="words" enterKeyHint="next"/>
+                                       autoComplete="off" autoCapitalize="words" enterKeyHint="next" error={errors.guestName}/>
                             <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
                                 <TextField label="Phone" type="tel" inputMode="tel" id="guestPhone" name="guestPhone"
-                                           value={form.guestPhone} onChange={onChange} autoComplete="off" enterKeyHint="next"/>
+                                           value={form.guestPhone} onChange={onChange} autoComplete="off" enterKeyHint="next" error={errors.guestPhone}/>
                                 <TextField label="Email" type="email" inputMode="email" id="guestEmail" name="guestEmail"
                                            value={form.guestEmail} onChange={onChange} autoComplete="off" autoCapitalize="none"
                                            spellCheck={false} enterKeyHint="next" error={errors.guestEmail}/>
                             </div>
-                            <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3}/>
+                            <TextAreaField label="Notes" id="notes" name="notes" value={form.notes} onChange={onChange} rows={3} error={errors.notes}
+                                           hint={form.notes.length >= NOTES_COUNTER_FROM ? `${form.notes.length} of ${MAX_NOTES_LENGTH} characters` : undefined}/>
                         </section>
                     </Card>
                 </form>
@@ -441,7 +498,7 @@ export default function ReservationFormPage() {
 
             <ConfirmDialog
                 open={confirmCancel}
-                title={`Cancel ${existing?.guestName?.trim() || "this booking"}?`}
+                title={`Cancel ${(existing && guestNameOf(existing)) || "this booking"}?`}
                 message={existing && (
                     <>
                         {formatStay(existing.checkIn, existing.checkOut)}
@@ -453,7 +510,7 @@ export default function ReservationFormPage() {
                 pendingLabel="Cancelling…"
                 cancelLabel="Keep booking"
                 pending={cancelMutation.isPending}
-                error={cancelMutation.isError ? apiErrorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
+                error={cancelMutation.isError ? errorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
                 onConfirm={() => cancelMutation.mutate()}
                 onCancel={() => setConfirmCancel(false)}
             />

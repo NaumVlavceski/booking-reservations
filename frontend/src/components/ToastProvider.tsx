@@ -1,7 +1,7 @@
 import {type ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useLocation} from "react-router-dom";
 import {ToastContext, type ToastOptions, type ToastTone} from "../lib/toast";
-import {bottomChrome} from "../lib/shellRoutes";
+import {bottomChrome, isReservationForm} from "../lib/shellRoutes";
 import {AlertIcon, CheckCircleIcon, CloseIcon, InfoIcon} from "./icons";
 
 interface ActiveToast extends ToastOptions {
@@ -18,19 +18,21 @@ const TONE: Record<ToastTone, { box: string; icon: ReactNode; action: string }> 
 
 // Just above the tab bar (phones) or a form's Save bar (all sizes); otherwise near the bottom.
 const OFFSET = {
-    tabs: "bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.75rem)] sm:bottom-6",
-    form: "bottom-[calc(5rem+env(safe-area-inset-bottom)+0.75rem)] sm:bottom-24",
+    tabs: "bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.75rem+var(--rt-demo-dock,0px))] sm:bottom-6",
+    form: "bottom-[calc(5rem+env(safe-area-inset-bottom)+0.75rem+var(--rt-demo-dock,0px))] sm:bottom-24",
     none: "bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:bottom-6",
 } as const;
 
 /**
  * Holds one toast at a time — a newer message replaces the older one. `notices` are cards that stay until
- * dismissed (new version, install the app); they sit just above the toast.
+ * dismissed (new version, install the app); they sit just above the toast. On the reservation form the toast drops
+ * in from the top instead, under the form's title bar; notices stay at the bottom, since they stay until dismissed.
  */
 export default function ToastProvider({children, notices}: { children: ReactNode; notices?: ReactNode }) {
     const [toast, setToast] = useState<ActiveToast | null>(null);
     const timerRef = useRef<number | undefined>(undefined);
     const nextId = useRef(0);
+    const cardRef = useRef<HTMLDivElement>(null);
     const {pathname} = useLocation();
 
     const dismiss = useCallback(() => {
@@ -43,20 +45,35 @@ export default function ToastProvider({children, notices}: { children: ReactNode
         nextId.current += 1;
         setToast({id: nextId.current, message, ...options});
         // Toasts with an action (Undo) or bad news stay longer, so there's time to read and tap.
-        const duration = options.durationMs ?? (options.action ? 7000 : options.tone === "error" ? 6000 : 4000);
+        const duration = options.durationMs ?? (options.action ? 5000 : options.tone === "error" ? 4000 : 2000);
         timerRef.current = window.setTimeout(() => setToast(null), duration);
     }, []);
 
     useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
+    // Pressing anywhere else closes the toast, and that press still does what it was for. It listens for the press
+    // (not the click) so the click that made this toast appear can't close it, and in the capture phase so a page
+    // that stops the event can't keep it open.
+    const hasToast = toast !== null;
+    useEffect(() => {
+        if (!hasToast) return;
+        const closeOnOutsidePress = (e: PointerEvent) => {
+            if (!cardRef.current?.contains(e.target as Node)) dismiss();
+        };
+        document.addEventListener("pointerdown", closeOnOutsidePress, true);
+        return () => document.removeEventListener("pointerdown", closeOnOutsidePress, true);
+    }, [hasToast, dismiss]);
+
     const api = useMemo(() => ({show}), [show]);
     const tone = TONE[toast?.tone ?? "success"];
     const isError = toast?.tone === "error";
+    const fromTop = isReservationForm(pathname);
 
     const card = toast && (
         <div
             key={toast.id}
-            className={`pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-2xl py-2 pr-2 pl-4 text-body-sm font-semibold shadow-overlay ring-1 ring-black/10 ${tone.box}`}
+            ref={cardRef}
+            className={`pointer-events-auto flex w-full max-w-md ${fromTop ? "animate-drop-in" : "animate-pop-in"} items-center gap-3 rounded-card py-2 pr-2 pl-4 text-body-sm font-semibold shadow-overlay ring-1 ring-(--rt-border) ${tone.box}`}
         >
             <span className="shrink-0">{tone.icon}</span>
             <span className="min-w-0 flex-1 py-1.5">{toast.message}</span>
@@ -67,7 +84,7 @@ export default function ToastProvider({children, notices}: { children: ReactNode
                         toast.action!.onClick();
                         dismiss();
                     }}
-                    className={`min-h-11 shrink-0 rounded-xl px-3 font-bold hover:bg-current/10 ${tone.action}`}
+                    className={`min-h-11 shrink-0 rounded-control px-3 font-bold hover:bg-current/10 ${tone.action}`}
                 >
                     {toast.action.label}
                 </button>
@@ -76,21 +93,32 @@ export default function ToastProvider({children, notices}: { children: ReactNode
                 type="button"
                 onClick={dismiss}
                 aria-label="Dismiss message"
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl opacity-80 hover:bg-current/10 hover:opacity-100"
+                className="flex size-11 shrink-0 items-center justify-center rounded-control opacity-80 hover:bg-current/10 hover:opacity-100"
             >
                 <CloseIcon size={18}/>
             </button>
         </div>
     );
 
+    const toastSlots = (
+        <>
+            <div role="status" aria-live="polite" className="contents">{!isError && card}</div>
+            <div role="alert" className="contents">{isError && card}</div>
+        </>
+    );
+
     return (
         <ToastContext.Provider value={api}>
             {children}
-            <div className={`pointer-events-none fixed inset-x-0 z-[70] flex flex-col items-center gap-2 px-4 ${OFFSET[bottomChrome(pathname)]}`}>
+            <div className={`pointer-events-none fixed inset-x-0 z-(--rt-z-toast) flex flex-col items-center gap-2 px-4 ${OFFSET[bottomChrome(pathname)]}`}>
                 <div role="status" aria-live="polite" className="contents">{notices}</div>
-                <div role="status" aria-live="polite" className="contents">{!isError && card}</div>
-                <div role="alert" className="contents">{isError && card}</div>
+                {!fromTop && toastSlots}
             </div>
+            {fromTop && (
+                <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+4rem)] z-(--rt-z-toast) flex flex-col items-center px-4 sm:top-28">
+                    {toastSlots}
+                </div>
+            )}
         </ToastContext.Provider>
     );
 }

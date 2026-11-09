@@ -113,7 +113,7 @@ export default function StayDatesPicker({
             )}
 
             {step && (
-                <div id={`${ids}-panel`} className="rdp-theme mt-3 animate-pop-in rounded-2xl border border-subtle bg-surface-raised p-2 shadow-popover sm:p-3">
+                <div id={`${ids}-panel`} className="rdp-theme mt-3 animate-pop-in rounded-card border border-subtle bg-surface-raised p-2 shadow-popover sm:p-3">
                     <div className="flex items-center justify-between px-2 pt-1">
                         <p aria-live="polite" className="text-title-3 text-fg">
                             {period

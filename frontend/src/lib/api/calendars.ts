@@ -1,4 +1,4 @@
-import {apiClient, backgroundRequest} from "./client.ts";
+import {apiClient, backgroundRequest, slowRequest} from "./client.ts";
 
 export interface ExternalCalendar {
     id: string;
@@ -36,11 +36,11 @@ export async function deleteCalendar(id: string): Promise<void> {
 }
 
 export async function syncCalendarNow(id: string): Promise<ExternalCalendar> {
-    const res = await apiClient.post<ExternalCalendar>(`/api/calendars/${id}/sync`);
+    const res = await apiClient.post<ExternalCalendar>(`/api/calendars/${id}/sync`, undefined, slowRequest);
     return res.data;
 }
 
 export async function syncAllCalendars(): Promise<{ triggered: number; skipped: number; total: number }> {
-    const res = await apiClient.post("/api/calendars/sync-all");
+    const res = await apiClient.post("/api/calendars/sync-all", undefined, slowRequest);
     return res.data;
 }
