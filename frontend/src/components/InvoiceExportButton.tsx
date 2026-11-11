@@ -31,7 +31,9 @@ export default function InvoiceExportButton({propertyId, unitId = null, range, d
     }
 
     return (
-        <Button variant="secondary" size="sm" className="min-h-10" icon={<DownloadIcon size={18}/>}
+        <Button variant="secondary" size="sm"
+                className="min-h-10 border-primary text-primary disabled:border-default disabled:text-disabled sm:min-h-9 sm:border-strong sm:text-fg sm:disabled:border-default sm:disabled:text-disabled"
+                icon={<DownloadIcon size={18}/>}
                 onClick={download} loading={downloading} disabled={disabled}>
             Download Excel
         </Button>

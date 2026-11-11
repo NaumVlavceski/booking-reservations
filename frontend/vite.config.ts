@@ -21,6 +21,14 @@ export default defineConfig(({ mode }) => {
         injectRegister: false,
         // The icons are already in the precache through globPatterns below; don't list them twice.
         includeManifestIcons: false,
+        // `vite dev` serves the manifest and a service worker too, so Chrome offers "Install app" while testing.
+        // To get rid of the dev worker later: DevTools → Application → Service workers → Unregister.
+        devOptions: {
+          enabled: true,
+          // The dev worker has no built files to precache; this hides the "glob pattern doesn't match" warnings.
+          suppressWarnings: true,
+          navigateFallback: 'index.html',
+        },
         manifest: {
           id: '/',
           name: 'RoomTrack',

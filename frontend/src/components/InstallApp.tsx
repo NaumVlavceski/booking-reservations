@@ -20,7 +20,7 @@ export default function InstallAppButton({onShowIosSteps, compact = false}: {
             onClick={() => (method === "ios" ? onShowIosSteps() : void promptInstall())}
             aria-haspopup={method === "ios" ? "dialog" : undefined}
             className={`flex w-full items-center rounded-control text-left font-medium transition-colors hover:bg-surface-hover ${
-                compact ? "min-h-11 gap-2.5 px-3 text-body-sm text-muted hover:text-fg" : "min-h-12 gap-3 px-3 text-body text-fg"
+                compact ? "min-h-9 gap-3 px-3 py-1.5 text-body-sm text-muted hover:text-fg" : "min-h-12 gap-3 px-3 text-body text-fg"
             }`}
         >
             <InstallIcon size={compact ? 18 : 20} className="shrink-0 text-muted"/>

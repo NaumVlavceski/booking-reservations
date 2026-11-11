@@ -1,13 +1,18 @@
 package com.naumvlavceski.bookingbackend.web.controller;
 
 import com.naumvlavceski.bookingbackend.config.OpenApiConfig;
+import com.naumvlavceski.bookingbackend.config.openapi.MessageSchema;
 import com.naumvlavceski.bookingbackend.config.security.CurrentUser;
+import com.naumvlavceski.bookingbackend.demo.DemoGuard;
 import com.naumvlavceski.bookingbackend.dto.AuthResponse;
 import com.naumvlavceski.bookingbackend.dto.ChangePasswordRequest;
 import com.naumvlavceski.bookingbackend.dto.DeleteAccountRequest;
 import com.naumvlavceski.bookingbackend.dto.MeResponse;
+import com.naumvlavceski.bookingbackend.dto.SupportRequest;
+import com.naumvlavceski.bookingbackend.ratelimit.RateLimits;
 import com.naumvlavceski.bookingbackend.service.AccountService;
 import com.naumvlavceski.bookingbackend.service.AuthService;
+import com.naumvlavceski.bookingbackend.service.ContactService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,6 +44,9 @@ public class MeController {
 
     private final AuthService authService;
     private final AccountService accountService;
+    private final ContactService contactService;
+    private final DemoGuard demoGuard;
+    private final RateLimits rateLimits;
 
     @Operation(summary = "The signed-in account",
             description = "Email, name, and which versions of the Terms and Privacy Policy were accepted.")
@@ -79,6 +87,30 @@ public class MeController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(filename).build().toString())
                 .cacheControl(CacheControl.noStore())
                 .body(accountService.export(currentUser.userId(), currentUser.ownerId()));
+    }
+
+    /** "Contact support" in the app's menu: the message goes to the contact inbox, Reply-To this account's email. */
+    @Operation(summary = "Contact support",
+            description = "Emails the message to RoomTrack, like the contact form, but the reply goes to this "
+                    + "account's own email (no email or subject in the request). Not available in the demo. "
+                    + "5 per hour per account, and counts toward the contact form's 30 per hour for everyone. "
+                    + "503 `CONTACT_UNAVAILABLE` or `CONTACT_FAILED` when it could not be sent.")
+    @ApiResponse(responseCode = "200", description = "Sent",
+            content = @Content(schema = @Schema(implementation = MessageSchema.class)))
+    @ApiResponse(responseCode = "400", ref = OpenApiConfig.BAD_REQUEST)
+    @ApiResponse(responseCode = "403", ref = OpenApiConfig.FORBIDDEN)
+    @ApiResponse(responseCode = "429", ref = OpenApiConfig.TOO_MANY_REQUESTS)
+    @ApiResponse(responseCode = "503", description = "Not sent (`CONTACT_UNAVAILABLE` or `CONTACT_FAILED`)",
+            content = @Content(schema = @Schema(ref = "#/components/schemas/ApiError")))
+    @PostMapping("/support")
+    public Map<String, String> contactSupport(@AuthenticationPrincipal CurrentUser currentUser,
+                                              @Valid @RequestBody SupportRequest request) {
+        demoGuard.requireNotDemo(currentUser.ownerId());
+        rateLimits.enforce("support-account:" + currentUser.userId(), rateLimits.limits().contactPerIp());
+        rateLimits.enforce("contact-total", rateLimits.limits().contactTotal());
+        MeResponse me = authService.me(currentUser.userId());
+        contactService.sendSupport(me.email(), me.fullName(), request.message());
+        return Map.of("message", "Thanks, your message was sent. We'll reply to " + me.email() + ".");
     }
 
     /** "Delete my account": immediate and permanent. 204, after which every token of this account stops working. */

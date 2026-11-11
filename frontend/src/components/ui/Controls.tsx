@@ -45,7 +45,7 @@ interface SwitchProps {
     className?: string;
 }
 
-/** On/off row: the whole row is the switch, 44px+ tall. */
+/** On/off row: the whole row is the switch, 48px tall (36px when compact, in the desktop sidebar). */
 export function Switch({checked, onChange, label, icon, disabled, compact = false, className = ""}: SwitchProps) {
     return (
         <button
@@ -54,18 +54,18 @@ export function Switch({checked, onChange, label, icon, disabled, compact = fals
             aria-checked={checked}
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className={`flex w-full items-center rounded-control text-left font-medium text-fg transition-colors hover:bg-surface-hover disabled:opacity-60 ${compact ? "min-h-11 gap-2.5 px-3 text-body-sm text-muted" : "min-h-12 gap-3 px-3 text-body"} ${className}`}
+            className={`flex w-full items-center rounded-control text-left font-medium text-fg transition-colors hover:bg-surface-hover disabled:opacity-60 ${compact ? "min-h-9 gap-3 px-3 py-1.5 text-body-sm text-muted" : "min-h-12 gap-3 px-3 text-body"} ${className}`}
         >
             {icon && <span className="text-muted">{icon}</span>}
             <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>
             <span
                 aria-hidden="true"
-                className={`relative shrink-0 rounded-full border transition-colors duration-200 ${compact ? "h-6 w-10" : "h-7 w-12"} ${
+                className={`relative shrink-0 rounded-full border transition-colors duration-200 ${compact ? "h-5 w-9" : "h-7 w-12"} ${
                     checked ? "border-primary bg-primary" : "border-strong bg-surface-sunken"
                 }`}
             >
                 <span className={`absolute top-0.5 left-0.5 rounded-full shadow-card transition-[translate] duration-200 ease-standard ${
-                    compact ? "size-[1.125rem]" : "size-[1.375rem]"
+                    compact ? "size-3.5" : "size-[1.375rem]"
                 } ${
                     checked ? `${compact ? "translate-x-4" : "translate-x-5"} bg-on-primary` : "bg-[var(--rt-border-strong)]"
                 }`}/>

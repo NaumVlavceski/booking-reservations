@@ -15,6 +15,7 @@ import {
 } from "../components/icons";
 import Button, {ButtonLink} from "../components/ui/Button";
 import {DEMO_ENABLED} from "../lib/demo";
+import {useMediaQuery} from "../lib/useMediaQuery";
 
 /**
  * The video tour. Put the files in public/landing/ and fill these in, e.g. src: "/landing/tour.mp4",
@@ -28,6 +29,18 @@ const VIDEO_TOUR = {
     captions: "",
     length: "1 min",
 };
+
+/** The same tour cut 9:16 for phones (1080×1920). Leave src empty to show the 16:9 one everywhere. */
+const VIDEO_TOUR_VERTICAL = {
+    src: "/landing/product-tour-vertical.mp4",
+    // The frame at 0:04.5: the phone calendar with "Every booking on one calendar."
+    poster: "/landing/product-tour-vertical-poster.jpg",
+    captions: "",
+    length: "36 sec",
+};
+
+/** Phones (below Tailwind's `sm`) get the vertical cut. */
+const PHONE_QUERY = "(max-width: 639px)";
 
 const NAV = [
     {href: "#features", label: "Features"},
@@ -308,6 +321,9 @@ function Audience() {
 }
 
 function VideoTour() {
+    const isPhone = useMediaQuery(PHONE_QUERY);
+    const vertical = isPhone && Boolean(VIDEO_TOUR_VERTICAL.src);
+    const tour = vertical ? VIDEO_TOUR_VERTICAL : VIDEO_TOUR;
     const chapters = [
         {title: "Add a reservation", text: "Pick the room, the dates and the guest. The calendar updates at once."},
         {title: "Move it to another room", text: "RoomTrack checks the new nights first and refuses if they are taken."},
@@ -322,11 +338,15 @@ function VideoTour() {
                 </SectionTitle>
                 <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                     <figure>
-                        {VIDEO_TOUR.src ? (
-                            <video controls preload="metadata" playsInline poster={VIDEO_TOUR.poster || undefined}
-                                   className="aspect-video w-full rounded-card bg-black shadow-popover">
-                                <source src={VIDEO_TOUR.src}/>
-                                {VIDEO_TOUR.captions && <track kind="captions" src={VIDEO_TOUR.captions} srcLang="en" label="English" default/>}
+                        {tour.src ? (
+                            // key: switching between the two cuts (rotating a tablet, resizing) loads the other file
+                            <video key={tour.src} controls preload="metadata" playsInline poster={tour.poster || undefined}
+                                   className={`rounded-card bg-black shadow-popover ${vertical
+                                       // Never taller than most of the screen, so the controls stay in view
+                                       ? "mx-auto aspect-[9/16] w-full max-w-[min(100%,calc(80svh*9/16))]"
+                                       : "aspect-video w-full"}`}>
+                                <source src={tour.src} type="video/mp4"/>
+                                {tour.captions && <track kind="captions" src={tour.captions} srcLang="en" label="English" default/>}
                             </video>
                         ) : (
                             <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed border-default bg-surface text-muted">
@@ -336,9 +356,9 @@ function VideoTour() {
                                 <span className="text-body-sm font-semibold">Video tour coming soon</span>
                             </div>
                         )}
-                        <figcaption className="mt-3 text-caption text-subtle">
-                            Product tour{VIDEO_TOUR.length && ` · ${VIDEO_TOUR.length}`}
-                            {VIDEO_TOUR.captions && " · Captions available"}
+                        <figcaption className={`mt-3 text-caption text-subtle ${vertical ? "text-center" : ""}`}>
+                            Product tour{tour.length && ` · ${tour.length}`}
+                            {tour.captions && " · Captions available"}
                         </figcaption>
                     </figure>
                     <ol className="space-y-3">

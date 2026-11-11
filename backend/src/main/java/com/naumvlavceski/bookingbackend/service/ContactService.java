@@ -16,8 +16,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * The contact form: one email to the owner (app.contact.to), with Reply-To set to the visitor so a normal Reply
- * answers them. Nothing is stored, and the visitor gets no email: their address is not verified, so sending to it
+ * The contact form, and "Contact support" inside the app: one email to the owner (app.contact.to), with Reply-To
+ * set to the visitor (or the signed-in account) so a normal Reply answers them. Nothing is stored, and the visitor gets no email: their address is not verified, so sending to it
  * would let anyone use the form to mail a stranger from our domain.
  */
 @Service
@@ -36,11 +36,23 @@ public class ContactService {
 
     /** Sends the message, or throws {@link ContactUnavailableException} when it could not be sent. */
     public void send(ContactRequest request) {
+        deliver(message(request));
+    }
+
+    /**
+     * "Contact support" from a signed-in account: same inbox as the contact form, Reply-To the account's own email.
+     * Throws {@link ContactUnavailableException} like {@link #send}.
+     */
+    public void sendSupport(String accountEmail, String fullName, String message) {
+        deliver(supportMessage(accountEmail, fullName, message));
+    }
+
+    private void deliver(EmailMessage message) {
         if (to.isEmpty()) {
             throw new ContactUnavailableException(ContactUnavailableException.UNAVAILABLE,
                     "The contact form is not available right now.");
         }
-        if (!emailService.sendNow(message(request))) {
+        if (!emailService.sendNow(message)) {
             throw new ContactUnavailableException(ContactUnavailableException.FAILED,
                     "Your message could not be sent right now. Please try again later.");
         }
@@ -48,20 +60,33 @@ public class ContactService {
 
     EmailMessage message(ContactRequest request) {
         String from = request.email().trim();
-        String subject = oneLine(request.subject());
-        String body = request.message().strip();
+        return email(from, from, "RoomTrack contact: " + oneLine(request.subject()), request.message(),
+                "Sent from the contact form on roomtrack.app.");
+    }
+
+    EmailMessage supportMessage(String accountEmail, String fullName, String message) {
+        String from = accountEmail.trim();
+        String name = fullName == null ? "" : oneLine(fullName);
+        String who = name.isEmpty() ? from : name + " (" + from + ")";
+        return email(from, who, "RoomTrack support: " + (name.isEmpty() ? from : name), message,
+                "Sent from Contact support in the RoomTrack app, by a signed-in account.");
+    }
+
+    /** One email to the inbox: who wrote and when, their words, and a footer saying where it came from. */
+    private EmailMessage email(String replyTo, String who, String subject, String message, String origin) {
+        String body = message.strip();
         String when = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC).format(WHEN);
 
-        String text = "From: " + from + "\n"
+        String text = "From: " + who + "\n"
                 + "Sent: " + when + "\n\n"
                 + body + "\n\n"
-                + "-- \nSent from the contact form on roomtrack.app. Reply to this email to answer " + from + ".";
-        String html = "<p style=\"color:#555\">From: <strong>" + HtmlUtils.htmlEscape(from) + "</strong><br>"
+                + "-- \n" + origin + " Reply to this email to answer " + replyTo + ".";
+        String html = "<p style=\"color:#555\">From: <strong>" + HtmlUtils.htmlEscape(who) + "</strong><br>"
                 + "Sent: " + when + "</p>"
                 + "<p style=\"white-space:pre-wrap\">" + HtmlUtils.htmlEscape(body) + "</p>"
-                + "<p style=\"color:#888;font-size:12px\">Sent from the contact form on roomtrack.app. "
-                + "Reply to this email to answer " + HtmlUtils.htmlEscape(from) + ".</p>";
-        return new EmailMessage(to, "RoomTrack contact: " + subject, html, text, Map.of(), from);
+                + "<p style=\"color:#888;font-size:12px\">" + origin + " "
+                + "Reply to this email to answer " + HtmlUtils.htmlEscape(replyTo) + ".</p>";
+        return new EmailMessage(to, subject, html, text, Map.of(), replyTo);
     }
 
     /** Line breaks and other control characters can't go into a subject line. */

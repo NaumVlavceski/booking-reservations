@@ -23,7 +23,7 @@ export default function ChannelNoticeDialog({open, onUnderstood, onClose}: Chann
             }
             footer={
                 <div className="flex flex-col sm:flex-row sm:justify-end">
-                    <Button size="lg" className="sm:min-h-11 sm:rounded-control sm:text-body-sm" onClick={onUnderstood}>
+                    <Button size="lg" className="sm:min-h-10 sm:rounded-control sm:text-body-sm" onClick={onUnderstood}>
                         I understand
                     </Button>
                 </div>

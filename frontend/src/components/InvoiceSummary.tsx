@@ -1,6 +1,7 @@
 import type {ReactNode} from "react";
-import {formatEarnings, type InvoiceTotals} from "../lib/api/invoices";
+import type {InvoiceTotals} from "../lib/api/invoices";
 import {plural} from "../lib/plural";
+import {AnimatedAmount} from "./AnimatedFigures";
 
 interface InvoiceSummaryProps {
     label: ReactNode;
@@ -11,25 +12,23 @@ interface InvoiceSummaryProps {
 }
 
 /**
- * The total at the bottom of an invoices screen. On phones it sticks just above the tab bar, so the number
- * stays in view while the list scrolls; from `sm` up it sits after the list.
+ * The total at the bottom of an invoices screen: what it covers on the left (label, period, days and
+ * bookings), and the amount large on the right, counting up from zero when it appears.
  */
 export default function InvoiceSummary({label, period, totals, currency}: InvoiceSummaryProps) {
     return (
         <section
             aria-label="Total"
-            className="bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+0.5rem)] z-10 mt-4 rounded-card border border-subtle bg-surface-raised px-4 py-3 shadow-popover sm:static sm:px-5 sm:py-4 sm:shadow-card"
+            className="mt-4 flex items-center justify-between gap-4 rounded-card border border-subtle bg-surface-raised px-4 py-6 shadow-card sm:px-5 sm:py-5"
         >
-            <div className="flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="text-label text-muted">{label}</p>
-                    <p className="num truncate text-caption text-muted">{period}</p>
-                </div>
-                <p className="num shrink-0 text-display text-fg sm:text-figure">{formatEarnings(totals.earnings, currency)}</p>
+            <div className="min-w-0">
+                <p className="text-label text-fg">{label}</p>
+                <p className="num truncate text-caption text-muted">{period}</p>
+                <p className="num text-caption text-muted">
+                    {plural(totals.totalDays, "day")} · {plural(totals.reservationCount, "booking")}
+                </p>
             </div>
-            <p className="num mt-1 text-body-sm text-muted">
-                {plural(totals.totalDays, "day")} · {plural(totals.reservationCount, "booking")}
-            </p>
+            <AnimatedAmount value={totals.earnings} currency={currency} className="shrink-0 text-right text-figure text-fg"/>
         </section>
     );
 }

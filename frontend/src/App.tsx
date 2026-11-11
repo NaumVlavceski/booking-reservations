@@ -67,7 +67,8 @@ export default function App() {
                     <Route path="/dashboard/reservations/new" element={<ReservationFormPage/>}/>
                     <Route path="/dashboard/reservations/:id" element={<ReservationFormPage/>}/>
                     <Route path="/dashboard/calendar" element={<OnboardingGate><CalendarGate><CalendarPage /></CalendarGate></OnboardingGate>} />
-                    <Route path="/dashboard/welcome" element={<OnboardingPage/>}/>
+                    <Route path="/dashboard/setup" element={<OnboardingPage/>}/>
+                    <Route path="/dashboard/welcome" element={<Navigate to="/dashboard/setup" replace/>}/>
                     <Route path="/dashboard/conflicts" element={<ConflictsPage />} />
                     <Route path="/dashboard/sync-health" element={<SyncHealthPage/>}/>
                     <Route path="/dashboard/cancelled" element={<CancelledReservationsPage/>}/>

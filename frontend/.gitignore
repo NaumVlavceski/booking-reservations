@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .env
+# Service worker written by `vite dev` (vite-plugin-pwa devOptions)
+dev-dist

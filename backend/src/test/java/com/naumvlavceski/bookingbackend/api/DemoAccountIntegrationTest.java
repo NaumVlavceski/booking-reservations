@@ -231,6 +231,9 @@ class DemoAccountIntegrationTest {
         send(put("/api/notifications/settings"), token, "{\"enabled\":false}", ip).andExpect(status().isOk());
         send(post("/api/notifications/test"), token, null, ip)
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("DEMO_RESTRICTED"));
+        // The demo's address is made up: a support reply could never reach the visitor
+        send(post("/api/me/support"), token, "{\"message\":\"Hello\"}", ip)
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("DEMO_RESTRICTED"));
 
         String units = send(get("/api/units"), token, null, ip).andReturn().getResponse().getContentAsString();
         String unitId = JsonPath.read(units, "$[0].id");

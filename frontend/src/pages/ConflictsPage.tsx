@@ -126,7 +126,7 @@ export default function ConflictsPage() {
                                 </dl>
 
                                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <ButtonLink to={`/dashboard/reservations/${c.conflictingReservationId}`} className="min-h-12 sm:min-h-11">
+                                    <ButtonLink to={`/dashboard/reservations/${c.conflictingReservationId}`}>
                                         Change {existing ? `${existingName}’s` : "my"} booking
                                     </ButtonLink>
                                     <Button

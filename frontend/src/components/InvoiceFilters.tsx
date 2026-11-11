@@ -42,7 +42,7 @@ export default function InvoiceFilters({range, invalid, activeCount, onChange, a
     return (
         <div className="mb-4">
             <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" className="min-h-10" icon={<FilterIcon size={18}/>}
+                <Button variant="secondary" size="sm" icon={<FilterIcon size={18}/>}
                         onClick={() => setOpen(true)} aria-haspopup="dialog">
                     Filters
                     {activeCount > 0 && (
@@ -61,7 +61,12 @@ export default function InvoiceFilters({range, invalid, activeCount, onChange, a
                 {range.source && (
                     <Chip label={SOURCE_LABEL[range.source]} onRemove={() => onChange({source: ""})} removeLabel="Remove source filter"/>
                 )}
-                {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+                {/* Phones: the actions get a full-width row of their own under the filters. */}
+                {actions && (
+                    <div className="mt-1 flex w-full items-center gap-2 *:flex-1 sm:mt-0 sm:ml-auto sm:w-auto sm:*:flex-none">
+                        {actions}
+                    </div>
+                )}
             </div>
             {invalid && <p role="alert" className="field-error">"From" must be on or before "To".</p>}
 
@@ -109,10 +114,10 @@ export default function InvoiceFilters({range, invalid, activeCount, onChange, a
 
 function Chip({label, onRemove, removeLabel}: { label: string; onRemove: () => void; removeLabel: string }) {
     return (
-        <span className="inline-flex min-h-10 items-center gap-1 rounded-full border border-primary-line bg-primary-soft pr-1 pl-3 text-body-sm font-semibold text-on-primary-soft">
+        <span className="inline-flex min-h-9 items-center gap-1 rounded-full border border-primary-line bg-primary-soft pr-1 pl-3 text-body-sm font-semibold text-on-primary-soft">
             <span className="num">{label}</span>
             <button type="button" onClick={onRemove} aria-label={removeLabel}
-                    className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-[var(--rt-border)]">
+                    className="flex size-7 items-center justify-center rounded-full transition-colors hover:bg-[var(--rt-border)]">
                 <CloseIcon size={14}/>
             </button>
         </span>

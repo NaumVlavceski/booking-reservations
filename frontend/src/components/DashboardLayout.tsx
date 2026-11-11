@@ -4,7 +4,6 @@ import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {meQuery} from "../lib/api/me";
-import {ONBOARDING_PATH, ONBOARDING_STEPS, useOnboardingState} from "../lib/onboarding";
 import {useFromHere} from "../lib/useReturnTo";
 import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
@@ -14,8 +13,8 @@ import {
     CalendarXIcon,
     ChannelsIcon,
     ChevronRightIcon,
-    CompassIcon,
     HelpIcon,
+    SupportIcon,
     HouseIcon,
     LogoutIcon,
     MoreHorizontalIcon,
@@ -30,6 +29,7 @@ import {useOnlineStatus} from "../lib/useOnlineStatus";
 import {useConnected} from "../lib/apiReachability";
 import {clearOfflineCalendar, hasOfflineCalendar} from "../lib/offlineCalendar";
 import AppLogo from "./AppLogo";
+import SupportDialog from "./SupportDialog";
 import OfflineScreen from "./OfflineScreen";
 import ErrorBoundary from "./ErrorBoundary";
 import InstallAppButton, {IosInstallSheet} from "./InstallApp";
@@ -64,9 +64,6 @@ export default function DashboardLayout() {
     const queryClient = useQueryClient();
     const {data: me} = useQuery(meQuery);
     const demo = Boolean(me?.demo);
-    // A setup left half-way stays one tap away (it ends once skipped or finished).
-    const {state: setup} = useOnboardingState();
-    const setupStep = setup?.status === "active" && pathname !== ONBOARDING_PATH ? setup.step : null;
     // Each account keeps its own light/dark choice (light until it picks dark).
     useEffect(() => {
         if (me?.email) applyAccountTheme(me.email);
@@ -81,6 +78,7 @@ export default function DashboardLayout() {
     const isCalendar = pathname.startsWith("/dashboard/calendar");
     const chrome = bottomChrome(pathname);
     const [iosStepsOpen, setIosStepsOpen] = useState(false);
+    const [supportOpen, setSupportOpen] = useState(false);
     // No connection or no answer from the server: pages make way for the offline screen. The calendar is the
     // exception: it shows the last bookings saved on this device, view only (lib/offlineCalendar.ts).
     // Forms stay, so nothing typed is lost; their Save is disabled while offline.
@@ -134,16 +132,11 @@ export default function DashboardLayout() {
                     {/* White tile: the logo's artwork is drawn for a light background, in both themes. */}
                     <span className="shrink-0 rounded-control bg-white p-1 ring-1 ring-(--rt-border-subtle)"><AppLogo
                         size={28}/></span>
-                    <p className="min-w-0 truncate text-title-3 text-fg">RoomTrack</p>
+                    <p className="min-w-0 flex-1 truncate text-title-3 text-fg">RoomTrack</p>
+                    <ThemeToggle email={me?.email} className="-mr-1"/>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-4">
                     <nav aria-label="Main" className="space-y-0.5">
-                        {setupStep && (
-                            <SidebarLink to={ONBOARDING_PATH} icon={CompassIcon} active={false}
-                                         trailing={<SetupStepCount step={setupStep}/>}>
-                                Finish setup
-                            </SidebarLink>
-                        )}
                         <SidebarLink to="/dashboard/calendar" icon={CalendarIcon}
                                      active={isCalendarArea(pathname)}>Calendar</SidebarLink>
                         <SidebarLink to="/dashboard/properties" icon={HouseIcon}
@@ -170,15 +163,22 @@ export default function DashboardLayout() {
                                  active={pathname.startsWith("/dashboard/help")}>
                         Channel setup guide
                     </SidebarLink>
+                    {/* The demo's email is made up, so a reply could never reach it: no support there. */}
+                    {!demo && (
+                        <button type="button" onClick={() => setSupportOpen(true)} aria-haspopup="dialog"
+                                className="flex min-h-9 w-full items-center gap-3 rounded-control px-3 py-1.5 text-left text-body-sm font-medium text-muted transition-colors hover:bg-surface-hover hover:text-fg">
+                            <SupportIcon size={18} className="shrink-0"/>
+                            Contact support
+                        </button>
+                    )}
                     <InstallAppButton compact onShowIosSteps={() => setIosStepsOpen(true)}/>
-                    <ThemeToggle email={me?.email} compact/>
                     <NotificationToggle compact/>
                     {!demo && (
                         <SidebarLink to={ACCOUNT_PATH} icon={PersonIcon} active={pathname === ACCOUNT_PATH}>
                             Account and privacy
                         </SidebarLink>
                     )}
-                    <div className="mt-2 flex items-center gap-3 rounded-control px-3 py-2">
+                    <div className="mt-2 flex items-center gap-3 rounded-control py-1 pr-1 pl-3">
                         <Avatar name={me?.fullName} size="sm"/>
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-body-sm font-semibold text-fg">{me?.fullName}</p>
@@ -186,7 +186,7 @@ export default function DashboardLayout() {
                             {me?.email && !demo && <p className="truncate text-caption text-subtle">{me.email}</p>}
                             {demo && <p className="text-caption text-info">{DEMO_NOTE}</p>}
                         </div>
-                        <button type="button" onClick={handleLogout} className="icon-btn text-muted"
+                        <button type="button" onClick={handleLogout} className="icon-btn size-9 text-muted"
                                 aria-label="Log out"
                                 title="Log out">
                             <LogoutIcon size={20}/>
@@ -263,23 +263,18 @@ export default function DashboardLayout() {
             }
 
             <Sheet open={isMoreOpen} onClose={closeMore} title="More" titleHidden showClose closeLabel="Close menu">
+                {/* pr-10 keeps clear of the sheet's close (×) button; the theme switch sits just left of it. */}
                 <div className="flex items-center gap-3 pr-10 pb-4">
                     <Avatar name={me?.fullName}/>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <p className="truncate text-title-3 text-fg">{me?.fullName}</p>
                         {me?.email && !demo && <p className="truncate text-body-sm text-muted">{me.email}</p>}
                         {demo && <p className="text-caption text-info">{DEMO_NOTE}</p>}
                     </div>
+                    {/* Lifted by half its margin (items-center) to sit level with the × above-right. */}
+                    <ThemeToggle email={me?.email} className="-mt-7"/>
                 </div>
                 <div className="space-y-3">
-                    {setupStep && (
-                        <SheetGroup>
-                            <SheetLink to={ONBOARDING_PATH} icon={CompassIcon} onClick={closeMore}
-                                       trailing={<SetupStepCount step={setupStep}/>} chevron>
-                                Finish setup
-                            </SheetLink>
-                        </SheetGroup>
-                    )}
                     <SheetGroup>
                         <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore}
                                    chevron>Properties</SheetLink>
@@ -295,11 +290,20 @@ export default function DashboardLayout() {
                     <SheetGroup>
                         <SheetLink to={HELP_PATH} state={fromHere} icon={HelpIcon} onClick={closeMore} chevron>Connect
                             Booking.com</SheetLink>
+                        {!demo && (
+                            <button type="button" aria-haspopup="dialog" className={sheetRow} onClick={() => {
+                                closeMore();
+                                setSupportOpen(true);
+                            }}>
+                                <SupportIcon size={20} className="shrink-0 text-muted"/>
+                                <span className="min-w-0 flex-1">Contact support</span>
+                                <ChevronRightIcon size={18} className="text-subtle"/>
+                            </button>
+                        )}
                         <InstallAppButton onShowIosSteps={() => {
                             closeMore();
                             setIosStepsOpen(true);
                         }}/>
-                        <ThemeToggle email={me?.email}/>
                         <NotificationToggle/>
                         <SheetLink to={ACCOUNT_PATH} icon={PersonIcon} onClick={closeMore} chevron>Account and
                             privacy</SheetLink>
@@ -313,18 +317,12 @@ export default function DashboardLayout() {
                 </div>
             </Sheet>
             <IosInstallSheet open={iosStepsOpen} onClose={() => setIosStepsOpen(false)}/>
+            {!demo && <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} email={me?.email}/>}
         </div>
     )
         ;
 }
 
-function SetupStepCount({step}: { step: number }) {
-    return (
-        <span className="num ml-auto pl-2 text-caption font-medium text-subtle">
-            <span className="sr-only">, </span>Step {step} of {ONBOARDING_STEPS.length}
-        </span>
-    );
-}
 
 const sheetRow = "flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-body font-medium text-fg transition-colors hover:bg-surface-hover";
 
@@ -365,7 +363,7 @@ function SidebarLink({to, state, icon: Icon, active, trailing, children}: {
             to={to}
             state={state}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-11 items-center gap-3 rounded-control px-3 py-2 text-body-sm font-medium transition-colors ${
+            className={`flex min-h-9 items-center gap-3 rounded-control px-3 py-1.5 text-body-sm font-medium transition-colors ${
                 active ? "bg-primary-soft font-semibold text-on-primary-soft" : "text-muted hover:bg-surface-hover hover:text-fg"
             }`}
         >
