@@ -51,6 +51,20 @@ public class AuthController {
     private final RateLimits rateLimits;
     private final DemoAccounts demoAccounts;
 
+    /**
+     * Audit API-03 (owner's decision: sign out everywhere). Bumps the user's token version, so every token issued so
+     * far (this device and any other) stops working. Needs a valid token (SecurityConfig).
+     */
+    @Operation(summary = "Sign out on every device", description = "Ends all sessions of the signed-in user.")
+    @ApiResponse(responseCode = "204", description = "Signed out")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            com.naumvlavceski.bookingbackend.config.security.CurrentUser currentUser) {
+        authService.incrementTokenVersion(currentUser.userId());
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Create an account",
             description = "Creates the owner and emails a 6-digit code; the account can sign in once the code is "
                     + "verified (POST /api/auth/verify-email). The answer is the same 202 for an address that already "

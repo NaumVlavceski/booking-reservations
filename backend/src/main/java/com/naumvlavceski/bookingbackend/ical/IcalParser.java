@@ -19,7 +19,7 @@ public class IcalParser {
     private static final Pattern VEVENT_START = Pattern.compile("BEGIN:VEVENT", Pattern.CASE_INSENSITIVE);
 
     /** No real stay is longer than this; anything longer would block a room for years. */
-    private static final int MAX_NIGHTS = 366;
+    private static final int MAX_NIGHTS = 800;
     private static final int MIN_YEAR = 2000;
     private static final int MAX_YEAR = 2100;
     /** The sizes of reservation.guest_name and external_event.uid. */

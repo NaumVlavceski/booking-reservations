@@ -142,13 +142,13 @@ export default function ExternalCalendars({unitId}: { unitId: string }) {
                                         <StatusPill calendar={c}/>
                                     </div>
                                     <div className="flex gap-1">
-                                        <Button variant="secondary" size="sm" className="min-h-11"
+                                        <Button variant="secondary" size="sm"
                                                 onClick={() => syncMutation.mutate(c)}
                                                 disabled={syncMutation.isPending && !syncing}
                                                 loading={syncing} loadingLabel="Syncing…">
                                             Sync now
                                         </Button>
-                                        <Button variant="danger-ghost" size="sm" className="min-h-11"
+                                        <Button variant="danger-ghost" size="sm"
                                                 onClick={() => {
                                                     deleteMutation.reset();
                                                     setRemoving(c);

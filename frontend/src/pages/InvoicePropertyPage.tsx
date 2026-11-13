@@ -1,7 +1,8 @@
 import {keepPreviousData, useQuery} from "@tanstack/react-query";
 import {isAxiosError} from "axios";
 import {Link, useParams} from "react-router-dom";
-import {formatEarnings, invoicePropertiesQuery, invoicePropertyUnitsQuery} from "../lib/api/invoices";
+import {invoicePropertiesQuery, invoicePropertyUnitsQuery} from "../lib/api/invoices";
+import {AnimatedAmount, ShareBar} from "../components/AnimatedFigures";
 import {CLEARED, formatPeriod, useInvoiceFilters} from "../lib/useInvoiceFilters";
 import {plural} from "../lib/plural";
 import {BedIcon, CalendarIcon, ChevronRightIcon, PlusIcon} from "../components/icons";
@@ -66,22 +67,23 @@ export default function InvoicePropertyPage() {
                     />
 
                     <h2 className="mb-2 px-1 text-label text-muted">{plural(data.units.length, "room")}</h2>
-                    <ul className="stack-list">
+                    {/* Phones: one card per room. From `sm` up: the rooms grouped in one card, with a chevron. */}
+                    <ul className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-subtle sm:overflow-hidden sm:rounded-card sm:border sm:border-subtle sm:bg-surface">
                         {data.units.map((unit) => {
                             // Each room's share of the property total, as a thin bar under its name.
-                            const share = total > 0 ? Math.round((unit.earnings / total) * 100) : 0;
+                            const share = total > 0 ? (unit.earnings / total) * 100 : 0;
                             return (
-                                <li key={unit.unitId} className="transition-colors hover:bg-surface-hover">
+                                <li key={unit.unitId}
+                                    className="rounded-card border border-subtle bg-surface transition-colors hover:bg-surface-hover sm:rounded-none sm:border-0">
                                     <Link
                                         to={`/dashboard/invoices/units/${unit.unitId}${search}`}
-                                        className="flex items-center gap-3 py-3.5 pr-3 pl-4 sm:gap-4 sm:pl-5"
+                                        className="flex items-center gap-3 rounded-card py-3.5 pr-4 pl-4 sm:gap-4 sm:rounded-none sm:pr-3 sm:pl-5"
                                     >
                                         <span className="min-w-0 flex-1">
                                             <span className="flex items-baseline justify-between gap-3">
                                                 <span className="truncate text-title-3 text-fg">{unit.unitName}</span>
-                                                <span className="num shrink-0 text-title-3 text-fg">
-                                                    {formatEarnings(unit.earnings, data.currency)}
-                                                </span>
+                                                <AnimatedAmount value={unit.earnings} currency={data.currency}
+                                                                className="shrink-0 text-title-3 text-fg"/>
                                             </span>
                                             <span className="num mt-0.5 flex flex-wrap items-center gap-x-2 text-caption text-subtle">
                                                 <span>{plural(unit.totalDays, "day")} · {plural(unit.reservationCount, "booking")}</span>
@@ -91,11 +93,9 @@ export default function InvoicePropertyPage() {
                                                     </span>
                                                 )}
                                             </span>
-                                            <span aria-hidden="true" className="mt-2 block h-1.5 overflow-hidden rounded-full bg-surface-sunken">
-                                                <span className="block h-full rounded-full bg-primary" style={{width: `${share}%`}}/>
-                                            </span>
+                                            <ShareBar percent={share} className="mt-2"/>
                                         </span>
-                                        <ChevronRightIcon size={20} className="shrink-0 text-subtle"/>
+                                        <ChevronRightIcon size={20} className="hidden shrink-0 text-subtle sm:block"/>
                                     </Link>
                                 </li>
                             );

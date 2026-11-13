@@ -31,6 +31,28 @@ public class SecurityConfig {
     @Value("${springdoc.api-docs.enabled:false}")
     private boolean apiDocsEnabled;
 
+    // Audit SEC-03: the allowed origins come from APP_CORS_ALLOWED_ORIGINS (app.cors.allowed-origins), exact matches
+    // only. The old Netlify site and its deploy previews are gone; the Vite dev server is added for "local" only.
+    @Value("${app.cors.allowed-origins}")
+    private List<String> configuredOrigins;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.core.env.Environment environment;
+
+    List<String> allowedOrigins() {
+        List<String> origins = new java.util.ArrayList<>();
+        for (String origin : configuredOrigins) {
+            String o = origin.trim();
+            if (o.isEmpty()) continue;
+            if (o.contains("*")) throw new IllegalStateException("APP_CORS_ALLOWED_ORIGINS must list exact origins, no '*'");
+            origins.add(o.endsWith("/") ? o.substring(0, o.length() - 1) : o);
+        }
+        if (environment.acceptsProfiles(org.springframework.core.env.Profiles.of("local"))) {
+            origins.add("http://localhost:5173");
+        }
+        return List.copyOf(origins);
+    }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -41,9 +63,23 @@ public class SecurityConfig {
         http
                 .cors(cors->cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                // Audit SEC-07. Spring already sends nosniff, X-Frame-Options and Cache-Control: no-store. The API only
+                // answers JSON, files and two small HTML pages (unsubscribe), so nothing may load or frame it; the
+                // Swagger UI (off unless APP_DOCS_ENABLED) needs its own scripts, so it is left out of the CSP.
+                .headers(headers -> headers
+                        .referrerPolicy(r -> r.policy(org.springframework.security.web.header.writers
+                                .ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .addHeaderWriter(new org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter(
+                                request -> !request.getRequestURI().startsWith("/swagger-ui")
+                                        && !request.getRequestURI().startsWith("/v3/api-docs"),
+                                new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                                        "Content-Security-Policy",
+                                        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"))))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint))
                 .authorizeHttpRequests(auth -> {
+                    // API-03: signing out needs the session it ends (first match wins, before /api/auth/** below)
+                    auth.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/logout").authenticated();
                     auth.requestMatchers(
                             "/api/auth/**",
                             "/api/contact",
@@ -64,12 +100,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:5173",
-                "https://resbooking.netlify.app",
-                "https://roomtrack.app",
-                "https://www.roomtrack.app",
-                "https://deploy-preview-*--resbooking.netlify.app"));
+        configuration.setAllowedOrigins(allowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

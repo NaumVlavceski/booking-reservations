@@ -449,15 +449,15 @@
     }
 
     .btn {
-        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-transparent px-4 py-2 text-body-sm font-semibold whitespace-nowrap transition-[background-color,border-color,color,transform] duration-(--rt-dur-fast) ease-standard select-none active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed;
+        @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-transparent px-3.5 py-1.5 text-body-sm font-semibold whitespace-nowrap transition-[background-color,border-color,color,transform] duration-(--rt-dur-fast) ease-standard select-none active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed;
     }
 
     .btn-lg {
-        @apply min-h-13 rounded-card px-5 text-body;
+        @apply min-h-11 rounded-card px-4 text-body;
     }
 
     .btn-sm {
-        @apply min-h-10 px-3 text-body-sm;
+        @apply min-h-9 gap-1.5 px-2.5 text-body-sm;
     }
 
     .btn-primary {
@@ -478,6 +478,11 @@
 
     .btn-danger {
         @apply bg-danger-solid text-on-danger-solid hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
+    }
+
+    /* An acknowledgement ("OK") in an information dialog: the same green as the success toast */
+    .btn-success {
+        @apply bg-success-solid text-on-success-solid hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
     }
 
     .btn-danger-ghost {

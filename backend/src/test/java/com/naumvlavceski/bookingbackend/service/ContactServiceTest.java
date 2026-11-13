@@ -36,4 +36,18 @@ class ContactServiceTest {
         assertEquals("guest@example.com", m.replyTo());
         assertTrue(m.text().startsWith("From: guest@example.com\nSent: 9 Nov 2026, 14:05 UTC\n\nA question"));
     }
+
+    @Test
+    void supportMessagesNameTheAccountAndReplyToIt() {
+        ContactService service = new ContactService(emailService, clock, "owner@example.test");
+        EmailMessage m = service.supportMessage(" ana@example.com ", "Ana\nOwner", "  Help please  ");
+        assertEquals("owner@example.test", m.to());
+        assertEquals("ana@example.com", m.replyTo());
+        assertEquals("RoomTrack support: Ana Owner", m.subject(), "a line break can't split the subject");
+        assertTrue(m.text().startsWith("From: Ana Owner (ana@example.com)\nSent: 9 Nov 2026, 14:05 UTC\n\nHelp please\n"));
+
+        EmailMessage noName = service.supportMessage("ana@example.com", "  ", "Hi");
+        assertEquals("RoomTrack support: ana@example.com", noName.subject());
+        assertTrue(noName.text().startsWith("From: ana@example.com\n"));
+    }
 }

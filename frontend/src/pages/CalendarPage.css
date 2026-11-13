@@ -170,6 +170,13 @@
     padding: 8px;
 }
 
+/* Jump to date: today's date outlined in the today colour (the picked date keeps its own fill). */
+.cal-popover--date .rdp-today:not(.rdp-selected) .rdp-day_button {
+    border: 2px solid var(--rt-today);
+    color: var(--rt-today);
+    font-weight: 700;
+}
+
 .cal-menu {
     min-width: 220px;
     padding: 6px;

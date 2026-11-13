@@ -37,13 +37,18 @@ export default function LoginPage() {
         if (passwordChanged || accountDeleted) navigate(location.pathname, {replace: true, state: null});
     }, [passwordChanged, accountDeleted, navigate, location.pathname]);
 
+    // FE-01: where to go once signed in. Read once (takeReturnTo clears it) and used by both the navigate() below and
+    // the "already signed in" redirect, which used to win the race and always went to the calendar.
+    const [signedInTo, setSignedInTo] = useState<string | null>(null);
     const mutation = useMutation({
         mutationFn: login,
         onSuccess: (data) => {
+            const target = takeReturnTo("/dashboard/calendar");
+            setSignedInTo(target);
             tokenStorage.set(data.token);
             // A copy left by another account on this device is never shown to this one.
             clearOfflineCalendar();
-            navigate(takeReturnTo("/dashboard/calendar"), {replace: true});
+            navigate(target, {replace: true});
         },
         onError: (error) => {
             if (errorCode(error) === "EMAIL_NOT_VERIFIED") {
@@ -71,7 +76,7 @@ export default function LoginPage() {
     }
 
     if (tokenStorage.get()) {
-        return <Navigate to="/dashboard/calendar" replace/>;
+        return <Navigate to={signedInTo ?? "/dashboard/calendar"} replace/>;
     }
 
     return (

@@ -1,6 +1,7 @@
 package com.naumvlavceski.bookingbackend.service;
 
 import com.naumvlavceski.bookingbackend.ical.IcalFetchException;
+import com.naumvlavceski.bookingbackend.ical.IcalFetchGuard;
 import com.naumvlavceski.bookingbackend.ical.IcalFetcher;
 import com.naumvlavceski.bookingbackend.ical.IcalParser;
 import com.naumvlavceski.bookingbackend.ical.IcalReconciler;
@@ -29,6 +30,7 @@ public class IcalSyncService {
     private static final String SAVE_FAILED = "The bookings from this calendar could not be saved.";
 
     private final IcalReconciler reconciler;
+    private final IcalFetchGuard fetchGuard;
     private final UnitRepository unitRepository;
     private final ReservationNotifier notifier;
     private final Set<UUID> inProgress = ConcurrentHashMap.newKeySet();
@@ -40,6 +42,7 @@ public class IcalSyncService {
 
             Instant startedAt = Instant.now();
             try {
+                fetchGuard.check(calendar.getIcsUrl());
                 String ics = IcalFetcher.fetch(calendar.getIcsUrl());
                 ParseResult feed = IcalParser.parse(ics);
                 reconciler.reconcile(calendar, feed);

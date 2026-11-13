@@ -172,6 +172,15 @@ export const BellIcon = (p: IconProps) => (
     </Icon>
 );
 
+/** Contact support: a speech bubble. */
+export const SupportIcon = (p: IconProps) => (
+    <Icon {...p}>
+        <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/>
+        <line x1="8.5" y1="10.5" x2="15.5" y2="10.5"/>
+        <line x1="8.5" y1="14" x2="13" y2="14"/>
+    </Icon>
+);
+
 export const HelpIcon = (p: IconProps) => (
     <Icon {...p}>
         <circle cx="12" cy="12" r="10"/>

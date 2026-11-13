@@ -86,9 +86,18 @@ public class AuthService {
         String email = RateLimits.email(request.email());
         Optional<AppUser> existing = appUserRepository.findFirstByEmailIgnoreCase(email);
         if (existing.isPresent()) {
-            passwordEncoder.encode(request.password()); // the same work as a real sign-up
+            String passwordHash = passwordEncoder.encode(request.password()); // the same work as a real sign-up
             AppUser user = existing.get();
-            if (user.isActive() && user.getEmailVerifiedAt() == null) verificationService.resend(email);
+            if (user.isActive() && user.getEmailVerifiedAt() == null) {
+                user.setPasswordHash(passwordHash);
+                user.setFullName(request.fullName());
+                user.getOwner().setContactPhone(request.contactPhone());
+                user.setTermsAcceptedAt(OffsetDateTime.now(ZoneOffset.UTC));
+                user.setTermsVersion(request.termsVersion());
+                user.setPrivacyVersion(request.privacyVersion());
+                appUserRepository.save(user);
+                verificationService.resend(email);
+            }
             else if (user.isActive() && !user.getOwner().isDemo()) sendAlreadyRegisteredNotice(user);
             return new RegistrationResponse(email, true);
         }

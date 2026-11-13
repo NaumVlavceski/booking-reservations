@@ -79,7 +79,8 @@ class IcalParserTest {
                 event("UID:zero-nights\r\nDTSTART;VALUE=DATE:20300901\r\nDTEND;VALUE=DATE:20300901\r\n"),
                 event("UID:same-day-timed\r\nDTSTART:20300901T100000Z\r\nDTEND:20300901T120000Z\r\n"),
                 event("UID:century\r\nDTSTART;VALUE=DATE:19000101\r\nDTEND;VALUE=DATE:21000101\r\n"),
-                event("UID:too-long\r\nDTSTART;VALUE=DATE:20300101\r\nDTEND;VALUE=DATE:20310103\r\n"),
+                // MAX_NIGHTS is 800 since 2026-11-13 (Booking.com closes a room for ~18 months in one event): 801 nights
+                event("UID:too-long\r\nDTSTART;VALUE=DATE:20300101\r\nDTEND;VALUE=DATE:20320312\r\n"),
                 event("UID:year-zero\r\nDTSTART;VALUE=DATE:00000101\r\nDTEND;VALUE=DATE:00000105\r\n"),
                 event("UID:good\r\nDTSTART;VALUE=DATE:20300201\r\nDTEND;VALUE=DATE:20300203\r\n")));
         assertEquals(1, result.events().size());

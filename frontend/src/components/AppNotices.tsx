@@ -1,5 +1,5 @@
 // import {useEffect, useRef} from "react"; // weekly install banner, switched off for now (see InstallNotice)
-import {useState, type ReactNode} from "react";
+import {useLayoutEffect, useRef, useState, type ReactNode} from "react";
 import {useLocation} from "react-router-dom";
 import {useRegisterSW} from "virtual:pwa-register/react";
 import {bottomChrome} from "../lib/shellRoutes";
@@ -106,8 +106,24 @@ function NoticeCard({icon, children, action, onClose, closeLabel}: {
     onClose: () => void;
     closeLabel: string;
 }) {
+    // FE-21: while a notice is on screen, the floating "Add …" button (ui/Fab) moves up by its height instead of
+    // being covered by it (both sit just above the phone tab bar).
+    const ref = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const root = document.documentElement;
+        const publish = () => root.style.setProperty("--rt-notice-dock", `${el.offsetHeight + 12}px`);
+        publish();
+        const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
+        observer?.observe(el);
+        return () => {
+            observer?.disconnect();
+            root.style.removeProperty("--rt-notice-dock");
+        };
+    }, []);
     return (
-        <div className="pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-card border border-subtle bg-surface-raised py-2 pr-2 pl-4 text-body-sm font-semibold text-fg shadow-overlay">
+        <div ref={ref} className="pointer-events-auto flex w-full max-w-md animate-pop-in items-center gap-3 rounded-card border border-subtle bg-surface-raised py-2 pr-2 pl-4 text-body-sm font-semibold text-fg shadow-overlay">
             <span aria-hidden="true" className="shrink-0 text-on-primary-soft">{icon}</span>
             <span className="min-w-0 flex-1 py-1.5">{children}</span>
             {action}

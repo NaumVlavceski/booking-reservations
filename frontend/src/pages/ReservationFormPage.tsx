@@ -13,7 +13,8 @@ import {allUnitsQuery, getUnit} from "../lib/api/units.ts";
 import {useConnected} from "../lib/apiReachability";
 import {useEffect, useId, useState} from "react";
 import {bookingLabel, guestNameOf} from "../lib/bookingLabel";
-import {clearFormDraft, readFormDraft, setCurrentFormDraft} from "../lib/formDraft";
+import {PLATFORM_NAME} from "../lib/syncErrors";
+import {clearFormDraft, readFormDraft, setCurrentFormDraft, stashFormDraft} from "../lib/formDraft";
 
 import FormTopBar from "../components/FormTopBar";
 import MoveReservationDialog from "../components/MoveReservationDialog";
@@ -294,6 +295,13 @@ export default function ReservationFormPage() {
         setCurrentFormDraft(isDirty ? form : null);
         return () => setCurrentFormDraft(null);
     }, [form, isDirty]);
+    // A refresh (or the browser reloading the page) keeps unsaved changes too: they are put aside as the page unloads
+    // and restored above with the same "We kept what you typed" note. This tab only (sessionStorage), never sent anywhere.
+    useEffect(() => {
+        const keep = () => stashFormDraft(window.location.pathname + window.location.search);
+        window.addEventListener("pagehide", keep);
+        return () => window.removeEventListener("pagehide", keep);
+    }, []);
 
     // A new reservation needs a room, which comes from the calendar cell that was clicked.
     if (!isEditing && !prefillUnitId) return <Navigate to="/dashboard/calendar" replace/>;
@@ -323,14 +331,18 @@ export default function ReservationFormPage() {
             label={label}
             id={name}
             name={name}
-            type="number"
+            // Text, not type="number": a number field in an English browser turns "45,50" into 4550 (audit FE-03).
+            // A comma is read as the decimal point, and anything that is not a plain amount is not taken.
+            type="text"
             inputMode="decimal"
-            step="any"
-            min="0"
+            autoComplete="off"
             enterKeyHint="next"
             value={form[name] ?? ""}
             onChange={(e) => {
-                onChange(e);
+                const typed = e.target.value.replace(",", ".");
+                if (!/^\d*\.?\d*$/.test(typed)) return;
+                setForm({...form, [name]: typed});
+                recheck(e.target);
                 setLastEdited(name);
             }}
             disabled={pricesLocked}
@@ -357,7 +369,8 @@ export default function ReservationFormPage() {
                     setConfirmCancel(true);
                 } : undefined}
                 deleteLabel="Cancel"
-                onMove={canCancel ? () => setMoveOpen(true) : undefined}
+                // Owner's decision (2026-11-13): a booking from a channel (not Direct) stays in its room
+                onMove={canCancel && existing?.source === "DIRECT" ? () => setMoveOpen(true) : undefined}
                 onCopy={canCancel ? () => setCopyOpen(true) : undefined}
                 hideSave={form.status === "CANCELLED"}
             />
@@ -496,6 +509,24 @@ export default function ReservationFormPage() {
                 />
             )}
 
+            {existing && existing.source !== "DIRECT" ? (
+                // Owner's decision (ICAL-01, 2026-11-13): a booking from a channel is cancelled on that channel. The
+                // Cancel action only explains this; nothing is sent to the server.
+                <ConfirmDialog
+                    open={confirmCancel}
+                    infoOnly
+                    variant="neutral"
+                    title={`Cancel it on ${PLATFORM_NAME[existing.source] ?? existing.source}`}
+                    message={<>
+                        This booking is still on {PLATFORM_NAME[existing.source] ?? existing.source}. Cancel it on{" "}
+                        {PLATFORM_NAME[existing.source] ?? existing.source}: RoomTrack takes it off the calendar by
+                        itself at the next syncs.
+                    </>}
+                    cancelLabel="OK"
+                    onConfirm={() => setConfirmCancel(false)}
+                    onCancel={() => setConfirmCancel(false)}
+                />
+            ) : (
             <ConfirmDialog
                 open={confirmCancel}
                 title={`Cancel ${(existing && guestNameOf(existing)) || "this booking"}?`}
@@ -514,6 +545,7 @@ export default function ReservationFormPage() {
                 onConfirm={() => cancelMutation.mutate()}
                 onCancel={() => setConfirmCancel(false)}
             />
+            )}
         </div>
     )
 }

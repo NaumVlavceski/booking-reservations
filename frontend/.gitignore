@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 
 .env
+# Service worker written by `vite dev` (vite-plugin-pwa devOptions)
+dev-dist
+
+# E2E / test output (frontend/e2e, Playwright)
+e2e/.dist
+e2e/.work
+test-results
+playwright-report
+blob-report

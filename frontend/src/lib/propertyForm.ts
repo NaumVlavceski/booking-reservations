@@ -8,7 +8,7 @@ export const PROPERTY_MESSAGES: ValidationMessages = {
     unitCount: {
         valueMissing: `Enter how many rooms it has (0 to ${MAX_ROOMS}).`,
         badInput: "Enter a whole number.",
-        rangeUnderflow: "Enter 0 or more rooms.",
+        rangeUnderflow: "Enter 1 or more rooms.",
         rangeOverflow: `Enter at most ${MAX_ROOMS} rooms.`,
         stepMismatch: "Enter a whole number.",
     },

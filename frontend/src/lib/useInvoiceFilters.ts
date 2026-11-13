@@ -4,17 +4,24 @@ import type {InvoiceFilters} from "./api/invoices";
 import {parseLocalDate} from "./dates";
 
 const STATUSES = ["CONFIRMED", "PAID"] as const;
-const SOURCES = ["DIRECT", "BOOKING", "AIRBNB"] as const;
+// FE-14: Airbnb links are not accepted any more, so ?source=AIRBNB is ignored instead of showing an "Airbnb" chip
+const SOURCES = ["DIRECT", "BOOKING"] as const;
 const FILTER_KEYS = ["from", "to", "status", "source"] as const;
 
 const day = (value: string) => format(parseLocalDate(value), "d MMM yyyy");
 
-/** "1 Jan 2026 → 31 Mar 2026", "From 1 Jan 2026", "Until 31 Mar 2026", or "All time". */
 /** No filters: all dates, every status and source. */
 export const CLEARED: InvoiceFilters = {from: "", to: "", status: "", source: ""};
 
+/**
+ * "1 Jan → 31 Mar 2026" (the year once when both dates share it), "1 Dec 2025 → 31 Jan 2026",
+ * "From 1 Jan 2026", "Until 31 Mar 2026", or "All time".
+ */
 export function formatPeriod({from, to}: Pick<InvoiceFilters, "from" | "to">): string {
-    if (from && to) return `${day(from)} → ${day(to)}`;
+    if (from && to) {
+        const sameYear = from.slice(0, 4) === to.slice(0, 4);
+        return `${sameYear ? format(parseLocalDate(from), "d MMM") : day(from)} → ${day(to)}`;
+    }
     if (from) return `From ${day(from)}`;
     if (to) return `Until ${day(to)}`;
     return "All time";

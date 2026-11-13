@@ -29,6 +29,12 @@ public class UnsubscribeLinks {
                      @Value("${app.public-api-url}") String baseUrl) {
         // Derived, so a leaked unsubscribe token can never double as anything JWT-related
         this.key = ("unsubscribe:" + secret).getBytes(StandardCharsets.UTF_8);
+        // Audit BIZ-04: an empty PUBLIC_API_URL (the compose default) made every unsubscribe link relative, which no
+        // mail client can open. Production adds stricter rules in config.PublicApiUrlCheck (https, not localhost).
+        if (baseUrl == null || !baseUrl.matches("(?i)https?://[^/\\s]+(/\\S*)?")) {
+            throw new IllegalStateException("PUBLIC_API_URL must be a full address such as https://api.roomtrack.app "
+                    + "(the links in emails are built from it)");
+        }
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 

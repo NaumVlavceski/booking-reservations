@@ -12,7 +12,7 @@ export default function MissingAmountsCallout({count, to}: { count: number; to: 
             title="Some bookings have no amount"
             className="mb-4"
             action={
-                <ButtonLink to={to} variant="secondary" size="sm" className="min-h-10">
+                <ButtonLink to={to} variant="secondary" size="sm">
                     Show {plural(count, "booking")}
                     <ChevronRightIcon size={16}/>
                 </ButtonLink>

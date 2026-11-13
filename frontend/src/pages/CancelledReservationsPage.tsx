@@ -91,7 +91,7 @@ export default function CancelledReservationsPage() {
     function restoreButton(r: ReservationResponse) {
         const restoring = restoreMutation.isPending && restoreMutation.variables?.id === r.id;
         return (
-            <Button variant="secondary" size="sm" className="min-h-11 shrink-0"
+            <Button variant="secondary" size="sm" className="shrink-0"
                     onClick={() => restoreMutation.mutate(r)}
                     disabled={restoreMutation.isPending && !restoring}
                     loading={restoring} loadingLabel="Restoring…"
@@ -136,7 +136,7 @@ export default function CancelledReservationsPage() {
                             {summary} · {checkInFrom ? "latest check-in first" : "most recently cancelled first"}
                         </p>
                         {(name !== "" || checkInFrom !== "") && (
-                            <Button variant="ghost" size="sm" className="min-h-11" onClick={clearFilters}>
+                            <Button variant="ghost" size="sm" onClick={clearFilters}>
                                 Clear filters
                             </Button>
                         )}
