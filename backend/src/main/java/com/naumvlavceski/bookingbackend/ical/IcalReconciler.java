@@ -129,6 +129,9 @@ public class IcalReconciler {
 
     private void reviveIfCancelled(ExternalCalendar calendar, ParsedIcalEvent incoming, ExternalEvent existing) {
         if (existing.getReservationId() == null) return;
+        // Owner's decision (2026-11-13, ICAL-01): a booking the owner cancelled here stays cancelled. Only one this sync
+        // cancelled itself (its event went missing, so missingSince is set) comes back when Booking.com lists it again.
+        if (existing.getMissingSince() == null) return;
         reservationRepository.findById(existing.getReservationId())
                 .filter(r -> r.getStatus() == ReservationStatus.CANCELLED)
                 .ifPresent(r -> {
@@ -181,6 +184,13 @@ public class IcalReconciler {
         }
 
         Reservation reservation = reservationOpt.get();
+        if (reservation.getStatus() == ReservationStatus.CANCELLED && existing.getMissingSince() == null) {
+            // Cancelled by the owner (ICAL-01): Booking.com's changes no longer touch it, and it can't collide with
+            // whatever the owner put in its place. Remember the new version so this is not re-checked every sync.
+            existing.setRawHash(newHash);
+            externalEventRepository.save(existing);
+            return;
+        }
         // The owner may have moved it: the room it is in now is the one that counts
         Unit room = reservation.getUnit();
         List<Reservation> overlaps = reservationRepository.findOverlapping(

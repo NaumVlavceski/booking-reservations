@@ -257,29 +257,50 @@ class IcalSyncE2eAuditTest extends IcalAuditSupport {
 
     // ---- S2: an owner-cancelled import comes back ---------------------------------------------------------
 
-    // Finding ICAL-01, owner's decision (2026-11-12): a booking Booking.com still lists is cancelled on Booking.com,
-    // not in RoomTrack. Before the fix, cancelling it here worked and the next sync silently made it CONFIRMED again.
+    // Finding ICAL-01, owner's decision (2026-11-13): the owner may cancel a Booking.com booking here (the app warns
+    // first), and it STAYS cancelled although Booking.com still lists it. Before the fix the next sync silently made
+    // it CONFIRMED again.
     @Test
-    void anImportStillListedOnBookingComCannotBeCancelledHere() throws Exception {
+    void anImportTheOwnerCancelledStaysCancelled() throws Exception {
         Room room = newOwnerRoom();
         stub.serve("/f", calendar(event("s2@booking.com", inDays(10), inDays(13), "CLOSED - Not available")));
         UUID cal = connect(room, "/f");
         syncService.sync(cal);
         String id = rows(room).getFirst().get("id").toString();
 
-        send(delete("/api/reservations/" + id), room.token(), null)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("CHANNEL_BOOKING"))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Cancel it on Booking.com")));
-        send(put("/api/reservations/" + id), room.token(), reservationJson(room.roomId(), inDays(10).toString(),
-                inDays(13).toString(), "\"status\":\"CANCELLED\""))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("CHANNEL_BOOKING"));
-        assertEquals("CONFIRMED", reservation(UUID.fromString(id)).get("status"));
+        send(delete("/api/reservations/" + id), room.token(), null).andExpect(status().isNoContent());
+        assertEquals("CANCELLED", reservation(UUID.fromString(id)).get("status"));
 
-        syncService.sync(cal); // the feed is unchanged: nothing to undo and nothing to report
-        assertEquals("CONFIRMED", reservation(UUID.fromString(id)).get("status"));
+        syncService.sync(cal); // the feed still lists it, unchanged
+        assertEquals("CANCELLED", reservation(UUID.fromString(id)).get("status"));
+
+        // The owner re-lets the nights; then Booking.com changes the cancelled booking's dates onto them: nothing
+        // comes back, nothing is overwritten and no conflict is filed for a booking the owner already cancelled
+        String direct = createReservation(room.token(), room.roomId(), inDays(10).toString(), inDays(13).toString(),
+                "\"totalAmount\":250");
+        stub.serve("/f", calendar(event("s2@booking.com", inDays(11), inDays(14), "CLOSED - Not available")));
+        syncService.sync(cal);
+        assertEquals("CANCELLED", reservation(UUID.fromString(id)).get("status"));
+        assertEquals("CONFIRMED", reservation(UUID.fromString(direct)).get("status"));
         send(get("/api/conflicts"), room.token(), null).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void anImportCancelledByTheSyncComesBackWhenBookingComListsItAgain() throws Exception {
+        // The other kind of cancel: the event left the feed long enough for the sync to cancel it; when Booking.com
+        // lists it again (same event) it is restored, as before
+        Room room = newOwnerRoom();
+        String feed = calendar(event("s2r@booking.com", inDays(10), inDays(13), "CLOSED - Not available"),
+                event("keep@booking.com", inDays(30), inDays(32), "CLOSED - Not available"));
+        stub.serve("/f", feed);
+        UUID cal = connect(room, "/f");
+        syncService.sync(cal);
+        UUID id = (UUID) rows(room).getFirst().get("id");
+        jdbc.update("update reservation set status = 'CANCELLED', cancelled_at = now() where id = ?", id);
+        jdbc.update("update external_event set missing_since = now() - interval '2 hours', missing_syncs = 3 where reservation_id = ?", id);
+
+        syncService.sync(cal);
+        assertEquals("CONFIRMED", reservation(id).get("status"));
     }
 
     @Test

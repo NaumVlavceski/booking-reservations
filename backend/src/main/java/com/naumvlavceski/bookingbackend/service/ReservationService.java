@@ -1,7 +1,6 @@
 package com.naumvlavceski.bookingbackend.service;
 
 import com.naumvlavceski.bookingbackend.demo.DemoGuard;
-import com.naumvlavceski.bookingbackend.exception.ChannelBookingException;
 import com.naumvlavceski.bookingbackend.exception.DatesTakenException;
 import com.naumvlavceski.bookingbackend.dto.MoveOptionResponse;
 import com.naumvlavceski.bookingbackend.dto.PageResponse;
@@ -11,7 +10,6 @@ import com.naumvlavceski.bookingbackend.model.Reservation;
 import com.naumvlavceski.bookingbackend.model.ReservationSource;
 import com.naumvlavceski.bookingbackend.model.ReservationStatus;
 import com.naumvlavceski.bookingbackend.model.Unit;
-import com.naumvlavceski.bookingbackend.repository.ExternalEventRepository;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import io.hypersistence.utils.hibernate.type.range.Range;
@@ -33,33 +31,17 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UnitRepository unitRepository;
     private final DemoGuard demoGuard;
-    private final ExternalEventRepository externalEventRepository;
 
     /**
-     * Owner's decision for audit finding ICAL-01: a booking that Booking.com still lists is cancelled on Booking.com,
-     * not here. Cancelling it here made the next sync bring it back; keeping it cancelled would show nights as free
-     * that Booking.com still sells. Once it is gone from the feed (or the calendar was disconnected) it can be
-     * cancelled here as usual.
-     */
-    /**
      * Owner's decision (2026-11-13): a booking from a channel (not Direct) stays in the room its channel booked;
-     * changing it is done on the channel. Applies to POST /move and to a PUT that changes the room.
+     * changing it is done on the channel. Applies to POST /move and to a PUT that changes the room. (Cancelling one is
+     * allowed: it then stays cancelled, see IcalReconciler.reviveIfCancelled.)
      */
     private void rejectMoveOfChannelBooking(Reservation reservation) {
         if (reservation.getSource() == ReservationSource.DIRECT) return;
         String channel = reservation.getSource() == ReservationSource.BOOKING ? "Booking.com" : "its channel";
         throw new IllegalArgumentException("A booking from " + channel + " can't be moved to another room. Change it on "
                 + channel + ".");
-    }
-
-    private void rejectIfStillListedByChannel(Reservation reservation) {
-        if (reservation.getSource() == ReservationSource.DIRECT
-                || reservation.getStatus() == ReservationStatus.CANCELLED) return;
-        if (externalEventRepository.existsByReservationIdAndMissingSinceIsNull(reservation.getId())) {
-            String channel = reservation.getSource() == ReservationSource.BOOKING ? "Booking.com" : "its channel";
-            throw new ChannelBookingException("This booking is still on " + channel + ". Cancel it on " + channel
-                    + ": RoomTrack takes it off the calendar by itself at the next syncs.");
-        }
     }
 
     public List<ReservationResponse> findAllForOwner(UUID ownerId, UUID unitId, ReservationStatus status) {
@@ -137,7 +119,6 @@ public class ReservationService {
                 .orElseThrow(() -> new NoSuchElementException("Reservation not found"));
         ReservationStatus status = request.status() != null ? request.status() : reservation.getStatus();
         if (!unit.getId().equals(reservation.getUnit().getId())) rejectMoveOfChannelBooking(reservation);
-        if (status == ReservationStatus.CANCELLED) rejectIfStillListedByChannel(reservation);
         if (status != ReservationStatus.CANCELLED) rejectIfTaken(unit, request.checkIn(), request.checkOut(), reservationId);
         reservation.setUnit(unit);
         reservation.setStayRange(Range.closedOpen(request.checkIn(), request.checkOut()));
@@ -235,7 +216,6 @@ public class ReservationService {
 
     public void delete(UUID ownerId, UUID reservationId) {
         Reservation reservation = reservationRepository.findByIdAndOwnerId(reservationId, ownerId).orElseThrow(() -> new NoSuchElementException("Reservation not found"));
-        rejectIfStillListedByChannel(reservation);
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
     }
