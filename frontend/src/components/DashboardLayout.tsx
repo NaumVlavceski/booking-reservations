@@ -114,13 +114,13 @@ export default function DashboardLayout() {
         },
         // Owner's choice (2026-11-13): no Channels tab. Conflicts and sync problems show up by themselves in the alert
         // strip when there are any; Cancelled bookings is the more useful everyday destination.
-        {
-            key: "cancelled",
-            to: "/dashboard/cancelled",
-            label: "Cancelled",
-            icon: CalendarXIcon,
-            active: pathname.startsWith("/dashboard/cancelled")
-        },
+        // {
+        //     key: "cancelled",
+        //     to: "/dashboard/cancelled",
+        //     label: "Cancelled",
+        //     icon: CalendarXIcon,
+        //     active: pathname.startsWith("/dashboard/cancelled")
+        // },
     ];
 
     return (
@@ -237,7 +237,7 @@ export default function DashboardLayout() {
             {
                 chrome === "tabs" && (
                     <nav aria-label="Main"
-                         className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) grid grid-cols-3 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+                         className="fixed inset-x-0 bottom-0 z-(--rt-z-nav) grid grid-cols-2 border-t border-subtle bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
                         {destinations.map((d) => (
                             <TabItem key={d.key} to={d.to} label={d.label} icon={d.icon} active={d.active} count={d.count}/>
                         ))}

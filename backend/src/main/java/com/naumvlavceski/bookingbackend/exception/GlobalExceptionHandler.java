@@ -93,11 +93,6 @@ public class GlobalExceptionHandler {
                 "DATES_TAKEN");
     }
 
-    @ExceptionHandler(ChannelBookingException.class)
-    public ResponseEntity<Map<String, Object>> handleChannelBooking(ChannelBookingException ex) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), "CHANNEL_BOOKING");
-    }
-
     // 400 on purpose, never 401/403: the frontend signs people out on those
     @ExceptionHandler(VerificationException.class)
     public ResponseEntity<Map<String, Object>> handleVerification(VerificationException ex) {

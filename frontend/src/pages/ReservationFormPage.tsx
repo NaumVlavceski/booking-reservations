@@ -510,20 +510,24 @@ export default function ReservationFormPage() {
             )}
 
             {existing && existing.source !== "DIRECT" ? (
-                // Owner's decision (ICAL-01, 2026-11-13): a booking from a channel is cancelled on that channel. The
-                // Cancel action only explains this; nothing is sent to the server.
+                // Owner's decision (ICAL-01, 2026-11-13): a booking from a channel should be cancelled on that channel,
+                // so that is what the dialog says, with Keep booking as the safe choice. Cancelling here anyway is
+                // allowed, and the booking then stays cancelled in RoomTrack (the sync no longer brings it back).
                 <ConfirmDialog
                     open={confirmCancel}
-                    infoOnly
-                    variant="neutral"
+                    safeVariant="success"
                     title={`Cancel it on ${PLATFORM_NAME[existing.source] ?? existing.source}`}
                     message={<>
                         This booking is still on {PLATFORM_NAME[existing.source] ?? existing.source}. Cancel it on{" "}
                         {PLATFORM_NAME[existing.source] ?? existing.source}: RoomTrack takes it off the calendar by
                         itself at the next syncs.
                     </>}
-                    cancelLabel="OK"
-                    onConfirm={() => setConfirmCancel(false)}
+                    cancelLabel="Keep booking"
+                    confirmLabel="Cancel anyway"
+                    pendingLabel="Cancelling…"
+                    pending={cancelMutation.isPending}
+                    error={cancelMutation.isError ? errorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
+                    onConfirm={() => cancelMutation.mutate()}
                     onCancel={() => setConfirmCancel(false)}
                 />
             ) : (

@@ -18,8 +18,8 @@ interface ConfirmDialogProps {
     onCancel: () => void;
     /** "danger" (default) is for destructive actions like delete; "neutral" is for e.g. discarding unsaved changes. */
     variant?: "danger" | "neutral";
-    /** Information only: one button (cancelLabel, e.g. "OK") that closes the dialog; there is nothing to confirm. */
-    infoOnly?: boolean;
+    /** "success" makes the safe button (cancelLabel, e.g. "Keep booking") the green, recommended choice. */
+    safeVariant?: "secondary" | "success";
 }
 
 /** Confirmation: a bottom sheet on phones, a centred dialog from sm up. Focus starts on the safe choice. */
@@ -35,7 +35,7 @@ export default function ConfirmDialog({
     onConfirm,
     onCancel,
     variant = "danger",
-    infoOnly = false,
+    safeVariant = "secondary",
 }: ConfirmDialogProps) {
     // Focus Cancel, not Delete — a stray Enter shouldn't destroy anything.
     const cancelRef = useRef<HTMLButtonElement>(null);
@@ -58,18 +58,16 @@ export default function ConfirmDialog({
             dismissible={!pending}
             footer={
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <Button ref={cancelRef} variant={infoOnly ? "success" : "secondary"} size="lg"
+                    <Button ref={cancelRef} variant={safeVariant} size="lg"
                             className="sm:min-h-10 sm:rounded-control sm:text-body-sm"
                             onClick={onCancel} disabled={pending}>
                         {cancelLabel}
                     </Button>
-                    {!infoOnly && (
-                        <Button variant={variant === "danger" ? "danger" : "primary"} size="lg"
-                                className="sm:min-h-10 sm:rounded-control sm:text-body-sm"
-                                onClick={onConfirm} loading={pending} loadingLabel={pendingLabel}>
-                            {confirmLabel}
-                        </Button>
-                    )}
+                    <Button variant={variant === "danger" ? "danger" : "primary"} size="lg"
+                            className="sm:min-h-10 sm:rounded-control sm:text-body-sm"
+                            onClick={onConfirm} loading={pending} loadingLabel={pendingLabel}>
+                        {confirmLabel}
+                    </Button>
                 </div>
             }
         >

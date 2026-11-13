@@ -450,33 +450,35 @@ test.describe("edit, move, copy, cancel", () => {
         expect((await apiOk<Full>("GET", `/api/reservations/${r.id}`, o.token)).status).toBe("PAID");
     });
 
-    test("a Booking.com booking: no Move; Cancel only explains where to cancel it (one green OK, nothing sent)", async ({page, signedIn}) => {
-        // Owner's decision (2026-11-13): for any booking that is not Direct, Cancel shows this message and OK only.
-        // (The API still refuses with 409 CHANNEL_BOOKING while the feed lists it: IcalSyncE2eAuditTest.)
+    test("a Booking.com booking: no Move; Cancel warns (green Keep booking) and Cancel anyway cancels it", async ({page, signedIn}) => {
+        // Owner's decision (2026-11-13): for any booking that is not Direct, Cancel shows where to cancel it, with
+        // Keep booking (green, focused) and Cancel anyway. A booking cancelled here stays cancelled (IcalSyncE2eAuditTest).
         const o = await freshOwner();
         const r = await createReservation(o.token, {unitId: o.units[0].id, checkIn: day(5), checkOut: day(8), guestName: "CLOSED - Not available"});
         psql(`UPDATE reservation SET source = 'BOOKING' WHERE id = '${r.id}'`);
-        let deleteSent = false;
-        await page.route(`**/api/reservations/${r.id}`, (route) => {
-            if (route.request().method() === "DELETE") deleteSent = true;
-            return route.continue();
-        });
         await signedIn(o);
         await page.goto(`/dashboard/reservations/${r.id}`);
         await page.getByRole("button", {name: "Booking actions"}).click();
-        // Owner's decision: a booking from a channel cannot be moved (Copy and Cancel stay)
+        // A booking from a channel cannot be moved (Copy and Cancel stay)
         await expect(page.getByRole("menuitem", {name: "Copy"})).toBeVisible();
         await expect(page.getByRole("menuitem", {name: "Move"})).toHaveCount(0);
         await page.getByRole("menuitem", {name: "Cancel"}).click();
         const dialog = page.getByRole("alertdialog");
         await expect(dialog.getByText("This booking is still on Booking.com. Cancel it on Booking.com: RoomTrack takes it off the calendar by itself at the next syncs.")).toBeVisible();
-        await expect(dialog.getByRole("button")).toHaveCount(1);
-        await expect(dialog.getByRole("button", {name: "OK"})).toBeFocused();
-        await expect(dialog.getByRole("button", {name: "OK"})).toHaveClass(/btn-success/); // green
-        await dialog.getByRole("button", {name: "OK"}).click();
+        const keep = dialog.getByRole("button", {name: "Keep booking"});
+        await expect(keep).toBeFocused();
+        await expect(keep).toHaveClass(/btn-success/); // green
+        await expect(dialog.getByRole("button", {name: "Cancel anyway"})).toHaveClass(/btn-danger/);
+        // Keep booking: nothing changes
+        await keep.click();
         await expect(dialog).toBeHidden();
-        expect(deleteSent, "Cancel must not call the API for a Booking.com booking").toBe(false);
         expect((await apiOk<Full>("GET", `/api/reservations/${r.id}`, o.token)).status).toBe("CONFIRMED");
+        // Cancel anyway: cancelled
+        await page.getByRole("button", {name: "Booking actions"}).click();
+        await page.getByRole("menuitem", {name: "Cancel"}).click();
+        await dialog.getByRole("button", {name: "Cancel anyway"}).click();
+        await expect(page.getByText("Booking cancelled. The dates are free again.")).toBeVisible();
+        expect((await apiOk<Full>("GET", `/api/reservations/${r.id}`, o.token)).status).toBe("CANCELLED");
     });
 
     test("a cancelled booking opens read-only with no Save until a status is picked", async ({page, signedIn}) => {
