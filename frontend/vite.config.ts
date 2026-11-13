@@ -2,30 +2,24 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { productionApiUrlProblem } from './src/lib/buildChecks.ts'
 
-// https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  if (command === 'build') {
+    const problem = productionApiUrlProblem(mode, env.VITE_API_URL, env.VITE_ALLOW_LOCAL_API === '1')
+    if (problem) throw new Error(`Production build refused: ${problem}. Set VITE_API_URL (e.g. https://api.roomtrack.app).`)
+  }
   return {
     plugins: [
       react(),
       tailwindcss(),
-      // Installable app + service worker. The worker only serves the app's own built files (the "app shell").
-      // It has no runtime routes at all, so requests to the API (another origin) never go through it: they
-      // reach the network exactly as the app sent them (Authorization, X-Background, X-Refreshed-Token) and
-      // nothing from the API is ever cached. Booking data is always live.
-      VitePWA({
-        // A new version waits until the user taps "Reload" in the update banner (src/components/AppUpdateBanner.tsx).
+     VitePWA({
         registerType: 'prompt',
-        // Registered from React (src/lib/pwa.ts) instead of an injected script.
         injectRegister: false,
-        // The icons are already in the precache through globPatterns below; don't list them twice.
         includeManifestIcons: false,
-        // `vite dev` serves the manifest and a service worker too, so Chrome offers "Install app" while testing.
-        // To get rid of the dev worker later: DevTools → Application → Service workers → Unregister.
         devOptions: {
           enabled: true,
-          // The dev worker has no built files to precache; this hides the "glob pattern doesn't match" warnings.
           suppressWarnings: true,
           navigateFallback: 'index.html',
         },
@@ -39,9 +33,7 @@ export default defineConfig(({ mode }) => {
           start_url: '/',
           scope: '/',
           display: 'standalone',
-          // "any": the calendar is useful in landscape and on tablets; a manifest can't lock phones only.
           orientation: 'any',
-          // tokens.css: --rt-surface (top bar) and --rt-canvas (app background, used for the splash screen).
           theme_color: '#FFFFFF',
           background_color: '#F3F5F6',
           categories: ['business', 'productivity'],
@@ -65,26 +57,17 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          // The app shell: built JS/CSS/HTML, the interface font, the logo and icons. Not the help screenshots.
           globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
-          // Help and home-page pictures load when a page shows them; the installed app doesn't need them up front.
           globIgnores: ['help/**', 'landing/**'],
-          // Any address in the app opens index.html (offline too); React Router then shows the right page.
           navigateFallback: '/index.html',
-          // /api/ical/* is the calendar feed Netlify forwards to the backend (public/_redirects): never the app.
           navigateFallbackDenylist: [/^\/api\//],
-          // Deleting the previous version's precache once the new one is active.
           cleanupOutdatedCaches: true,
-          // The very first worker takes over open tabs at once (nothing to replace). Updates still wait for "Reload".
           clientsClaim: true,
-          // Deliberately no runtimeCaching: see the comment above VitePWA().
-        },
+          },
       }),
     ],
     server: {
       proxy: {
-        // The calendar feed link shown in the app is /api/ical/<token>.ics on the app's own domain.
-        // In production Netlify forwards it to the backend (public/_redirects); this does the same for `vite dev`.
         '/api/ical': {
           target: env.VITE_API_URL ?? 'http://localhost:8080',
           changeOrigin: true,

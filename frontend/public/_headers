@@ -1,5 +1,20 @@
 # Netlify response headers (copied into dist/ by Vite). Build settings stay in the Netlify UI; redirects in _redirects.
 
+# Security headers for every page (audit SEC-06 / FE-04). Derived from what the production build loads: scripts,
+# styles, fonts, pictures, videos, the manifest and the service worker all come from this site; the only other
+# origin is the API (VITE_API_URL = https://api.roomtrack.app). If the API address changes, change connect-src too.
+# - script-src: the one inline script in index.html (theme before first paint) is allowed by its hash. If that
+#   script changes, the hash must change: src/lib/securityHeaders.test.ts fails until it matches.
+# - style-src-attr 'unsafe-inline': index.html's hidden SVG pattern definitions use style="" attributes. Only
+#   attributes; <style> blocks and stylesheets from other sites stay blocked.
+# Roll back: delete the Content-Security-Policy line below (the other headers are harmless) and redeploy.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-Yn/RY4uwoNs5Y939vcx6MghTxs6GENNapiB+bUnHKL8='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self'; connect-src 'self' https://api.roomtrack.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+
 # The service worker must always be checked with the server, or a new deploy can't reach installed apps.
 /sw.js
   Cache-Control: no-cache

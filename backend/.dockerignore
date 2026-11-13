@@ -1,0 +1,13 @@
+# Audit SEC-13: only pom.xml and src/ are needed to build the image (see Dockerfile).
+target/
+.idea/
+*.iml
+.mvn/
+mvnw
+mvnw.cmd
+http/
+HELP.md
+.git*
+# Developer-only settings (git-ignored): turns API docs on under the "local" profile; must never reach the image
+src/main/resources/application-local.yml
+src/test/

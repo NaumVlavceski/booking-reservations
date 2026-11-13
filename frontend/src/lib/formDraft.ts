@@ -32,8 +32,12 @@ function signedInUser(): string | null {
 /** Call before the token is cleared: the draft is tied to the account it belongs to. */
 export function stashFormDraft(path: string) {
     if (current === null) return;
+    const user = signedInUser();
+    // Signed out already (e.g. the page unloading right after a session ended): such a draft could never be restored,
+    // and writing it would replace the one the session end just put aside.
+    if (user === null) return;
     try {
-        const draft: StoredDraft = {path, user: signedInUser(), values: current};
+        const draft: StoredDraft = {path, user, values: current};
         sessionStorage.setItem(KEY, JSON.stringify(draft));
     } catch {
         // Storage unavailable: the user just starts the form again.

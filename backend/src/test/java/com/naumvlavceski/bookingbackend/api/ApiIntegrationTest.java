@@ -351,6 +351,7 @@ class ApiIntegrationTest {
     }
 
     @Autowired SyncConflictRepository syncConflicts;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private static UUID ownerOf(String token) {
         String payload = new String(Base64.getUrlDecoder().decode(token.split("\\.")[1]), StandardCharsets.UTF_8);
@@ -663,6 +664,10 @@ class ApiIntegrationTest {
         String calId = JsonPath.read(calBody, "$.id");
 
         send(post(path), token, "{\"icsUrl\":\"https://ical.booking.com/v1/export?t=other\"}").andExpect(status().isConflict());
+
+        // Audit ICAL-02: the sync below used to download from the real Booking.com. The stored link now points at a
+        // local address the fetch guard refuses before connecting, so the sync still fails gracefully, offline.
+        jdbc.update("update external_calendar set ics_url = 'https://127.0.0.1:9/not-a-feed.ics' where id = ?::uuid", calId);
 
         // First sync runs (and fails gracefully: that token is not a real feed). A second one right away is throttled.
         send(post("/api/calendars/" + calId + "/sync"), token, null).andExpect(status().isOk());

@@ -1,0 +1,147 @@
+name: CI
+
+# Tests on every push and pull request. Nothing here deploys: deploy.yml stays a manual button.
+# Added by the pre-production audit (Docs/testing/report/platform.md); review before relying on it.
+# Action versions are pinned to exact releases; for stricter supply-chain hygiene pin them to commit SHAs
+# (Dependabot "github-actions" keeps both up to date).
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Also run the Playwright end-to-end suite (starts Postgres + the backend jar in Docker)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (mvn verify, Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      # mvnw is committed without the executable bit (git mode 100644), so call it through bash
+      - name: Build and test (Testcontainers starts a throwaway PostgreSQL 16)
+        run: bash ./mvnw -B -ntp verify
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-reports
+          path: |
+            backend/target/surefire-reports/
+            backend/target/site/jacoco/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  frontend:
+    name: Frontend (lint, unit tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Unit tests (only if package.json has a "test" script)
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then npm test; else echo "no test script"; fi
+      - name: Production build
+        # Same value Netlify must use; without it the bundle falls back to http://localhost:8080 (see platform.md)
+        env:
+          VITE_API_URL: https://api.roomtrack.app
+          VITE_DEMO_ENABLED: "true"
+        run: npm run build
+      - name: The production bundle must not point at localhost
+        run: |
+          if grep -rl "http://localhost:8080" dist/assets; then echo "::error::bundle contains http://localhost:8080"; exit 1; fi
+
+  e2e:
+    name: Frontend end-to-end (Playwright, opt-in)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run the suite (only if package.json has an "e2e" script)
+        # The local stack scripts reach the API container through host.docker.internal; on Linux runners that name
+        # needs Docker's host-gateway mapping, which e2e/stack/up.sh may have to add (--add-host) before this passes.
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.e2e ? 0 : 1)"; then npm run e2e; else echo "no e2e script"; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        # --redact keeps any hit out of the public log. target/ build output and node_modules are not committed.
+        run: |
+          docker run --rm -v "$PWD":/repo zricethezav/gitleaks:v8.30.1 \
+            git /repo --redact --no-banner --exit-code 1
+
+  dependencies:
+    name: Dependency vulnerabilities (high and above)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: npm audit (runtime dependencies, high+)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: osv-scanner (backend pom.xml with transitive dependencies, frontend lockfile)
+        # Fails on any known vulnerability; triage with an osv-scanner.toml ignore list (with a reason and expiry)
+        # for findings that do not apply (e.g. Tomcat DIGEST/FORM authentication, which RoomTrack does not use).
+        run: |
+          docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:v2.7.1 \
+            scan source -L /src/backend/pom.xml -L /src/frontend/package-lock.json

@@ -4,14 +4,14 @@ import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
 import {meQuery} from "../lib/api/me";
+import {logoutEverywhere} from "../lib/api/auth";
 import {useFromHere} from "../lib/useReturnTo";
-import {useAlertStripVisible, useSyncAlerts} from "../lib/useSyncAlerts";
+import {useAlertStripVisible} from "../lib/useSyncAlerts";
 import {bottomChrome} from "../lib/shellRoutes";
 import DemoTasks from "./DemoTasks";
 import {
     CalendarIcon,
     CalendarXIcon,
-    ChannelsIcon,
     ChevronRightIcon,
     HelpIcon,
     SupportIcon,
@@ -44,10 +44,6 @@ type IconType = ComponentType<{ size?: number; className?: string }>;
 const HELP_PATH = "/dashboard/help/connect-calendars";
 const ACCOUNT_PATH = "/dashboard/account";
 
-function isChannels(pathname: string) {
-    return pathname.startsWith("/dashboard/conflicts") || pathname.startsWith("/dashboard/sync-health");
-}
-
 function isCalendarArea(pathname: string) {
     return pathname.startsWith("/dashboard/calendar") || pathname.startsWith("/dashboard/reservations");
 }
@@ -68,7 +64,6 @@ export default function DashboardLayout() {
     useEffect(() => {
         if (me?.email) applyAccountTheme(me.email);
     }, [me?.email]);
-    const {total: alertCount} = useSyncAlerts();
     const stripVisible = useAlertStripVisible();
     const fromHere = useFromHere();
     // The More sheet (phones and tablets) closes by itself when you navigate somewhere.
@@ -91,6 +86,9 @@ export default function DashboardLayout() {
     const page = showOffline ? <OfflineScreen offline={!online} calendarSaved={calendarSaved}/> : outlet;
 
     function handleLogout() {
+        // API-03: end the session on the server too (every device); this device signs out whatever the answer
+        const token = tokenStorage.get();
+        if (token) logoutEverywhere(token).catch(() => {});
         tokenStorage.clear();
         clearOfflineCalendar();
         queryClient.clear();
@@ -98,7 +96,7 @@ export default function DashboardLayout() {
         navigate("/login", {replace: true});
     }
 
-    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/cancelled") || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname.startsWith(ACCOUNT_PATH);
+    const moreActive = isMoreOpen || pathname.startsWith("/dashboard/invoices") || pathname.startsWith("/dashboard/help") || pathname.startsWith(ACCOUNT_PATH);
     const destinations: {
         key: string;
         to: string;
@@ -114,13 +112,14 @@ export default function DashboardLayout() {
             icon: CalendarIcon,
             active: isCalendarArea(pathname)
         },
+        // Owner's choice (2026-11-13): no Channels tab. Conflicts and sync problems show up by themselves in the alert
+        // strip when there are any; Cancelled bookings is the more useful everyday destination.
         {
-            key: "channels",
-            to: "/dashboard/conflicts",
-            label: "Channels",
-            icon: ChannelsIcon,
-            active: isChannels(pathname),
-            count: alertCount
+            key: "cancelled",
+            to: "/dashboard/cancelled",
+            label: "Cancelled",
+            icon: CalendarXIcon,
+            active: pathname.startsWith("/dashboard/cancelled")
         },
     ];
 
@@ -147,16 +146,6 @@ export default function DashboardLayout() {
                         <SidebarLink to="/dashboard/invoices" icon={ReceiptIcon}
                                      active={pathname.startsWith("/dashboard/invoices")}>Invoices</SidebarLink>
                     </nav>
-                    {/*<SidebarGroup label="Channels">*/}
-                    {/*    <SidebarLink to="/dashboard/conflicts" icon={AlertIcon} active={pathname === "/dashboard/conflicts"}*/}
-                    {/*                 trailing={<CountBubble count={conflictCount} className="ml-auto"/>}>*/}
-                    {/*        Booking conflicts{warnings(conflictCount)}*/}
-                    {/*    </SidebarLink>*/}
-                    {/*    <SidebarLink to="/dashboard/sync-health" icon={SyncIcon} active={pathname === "/dashboard/sync-health"}*/}
-                    {/*                 trailing={<CountBubble count={failingCount} tone="warning" className="ml-auto"/>}>*/}
-                    {/*        Sync status{warnings(failingCount)}*/}
-                    {/*    </SidebarLink>*/}
-                    {/*</SidebarGroup>*/}
                 </div>
                 <div className="space-y-0.5 border-t border-subtle px-3 pt-3 pb-4">
                     <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon}
@@ -278,8 +267,6 @@ export default function DashboardLayout() {
                     <SheetGroup>
                         <SheetLink to="/dashboard/properties" icon={HouseIcon} onClick={closeMore}
                                    chevron>Properties</SheetLink>
-                        <SheetLink to="/dashboard/cancelled" icon={CalendarXIcon} onClick={closeMore} chevron>Cancelled
-                            bookings</SheetLink>
                         <SheetLink to="/dashboard/invoices" icon={ReceiptIcon} onClick={closeMore}
                                    chevron>Invoices</SheetLink>
                         {/*<SheetLink to="/dashboard/conflicts" icon={AlertIcon} onClick={closeMore}*/}

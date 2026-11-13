@@ -50,7 +50,7 @@ export default function PropertyFields({form, onChange, unitCount, onUnitCountCh
                     name="unitCount"
                     type="number"
                     inputMode="numeric"
-                    min={0}
+                    min={1}
                     max={MAX_ROOMS}
                     step={1}
                     value={unitCount}

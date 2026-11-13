@@ -1,10 +1,17 @@
 # Integration tests run against their OWN database so they never touch dev data.
-# Create it once:  CREATE DATABASE booking_test OWNER booking;
+# Default: a throwaway PostgreSQL 16 started by Testcontainers (needs Docker), migrated from empty by Flyway.
+# Or point TEST_DB_URL at a local database whose name contains "test" (testsupport.LocalDatabaseOnlyGuard refuses
+# anything else), e.g. jdbc:postgresql://localhost:5432/booking_test after CREATE DATABASE booking_test OWNER booking;
 spring:
   datasource:
-    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/booking_test}
+    url: ${TEST_DB_URL:jdbc:tc:postgresql:16:///booking_test}
     username: ${TEST_DB_USER:booking}
     password: ${TEST_DB_PASSWORD:booking}
+    # Spring keeps every distinct test context alive (about a dozen with the audit tests), each with its own pool.
+    # Ten connections each ran PostgreSQL out of slots ("too many clients already"); six each stays well under 100.
+    hikari:
+      maximum-pool-size: 6
+      minimum-idle: 1
   flyway:
     locations: classpath:db/migration,classpath:db/testfix
 app:

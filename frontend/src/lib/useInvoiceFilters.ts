@@ -4,7 +4,8 @@ import type {InvoiceFilters} from "./api/invoices";
 import {parseLocalDate} from "./dates";
 
 const STATUSES = ["CONFIRMED", "PAID"] as const;
-const SOURCES = ["DIRECT", "BOOKING", "AIRBNB"] as const;
+// FE-14: Airbnb links are not accepted any more, so ?source=AIRBNB is ignored instead of showing an "Airbnb" chip
+const SOURCES = ["DIRECT", "BOOKING"] as const;
 const FILTER_KEYS = ["from", "to", "status", "source"] as const;
 
 const day = (value: string) => format(parseLocalDate(value), "d MMM yyyy");

@@ -44,6 +44,15 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
     return res.data;
 }
 
+/**
+ * Ends every session of this user on the server (audit API-03; owner's decision: all devices). The token is passed in
+ * because the caller clears it from storage straight away. Failures are the caller's to ignore: signing out on this
+ * device must never depend on the network.
+ */
+export async function logoutEverywhere(token: string): Promise<void> {
+    await apiClient.post("/api/auth/logout", null, {headers: {Authorization: `Bearer ${token}`}, timeout: 5000});
+}
+
 /** A new private demo with sample data, already signed in. No sign-up; the server deletes it after 1 hour. */
 export async function startDemo(): Promise<AuthResponse> {
     const res = await apiClient.post<AuthResponse>("/api/auth/demo");

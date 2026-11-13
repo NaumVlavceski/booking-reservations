@@ -480,6 +480,11 @@
         @apply bg-danger-solid text-on-danger-solid hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
     }
 
+    /* An acknowledgement ("OK") in an information dialog: the same green as the success toast */
+    .btn-success {
+        @apply bg-success-solid text-on-success-solid hover:brightness-95 active:brightness-90 disabled:bg-surface-pressed disabled:text-disabled disabled:shadow-none;
+    }
+
     .btn-danger-ghost {
         @apply text-danger hover:bg-danger-soft active:bg-danger-soft disabled:text-disabled;
     }

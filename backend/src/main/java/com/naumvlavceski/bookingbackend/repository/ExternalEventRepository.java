@@ -12,4 +12,7 @@ public interface ExternalEventRepository extends JpaRepository<ExternalEvent, UU
     List<ExternalEvent> findAllByExternalCalendarId(UUID externalCalendarId);
     boolean existsByReservationId(UUID reservationId);
 
+    /** True while the booking's event is in its feed (not missing since the last syncs). */
+    boolean existsByReservationIdAndMissingSinceIsNull(UUID reservationId);
+
 }

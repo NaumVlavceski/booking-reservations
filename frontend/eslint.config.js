@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // FE-22: dev-dist is vite-plugin-pwa's generated dev service worker; e2e/.dist and the reports are build output
+  globalIgnores(['dist', 'dev-dist', 'e2e/.dist', 'e2e/.work', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
