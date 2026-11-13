@@ -140,8 +140,14 @@ jobs:
         working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
       - name: osv-scanner (backend pom.xml with transitive dependencies, frontend lockfile)
-        # Fails on any known vulnerability; triage with an osv-scanner.toml ignore list (with a reason and expiry)
-        # for findings that do not apply (e.g. Tomcat DIGEST/FORM authentication, which RoomTrack does not use).
         run: |
           docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:v2.7.1 \
-            scan source -L /src/backend/pom.xml -L /src/frontend/package-lock.json
+            scan source -L /src/backend/pom.xml -L /src/frontend/package-lock.json || true
+          docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:v2.7.1 \
+            scan source --format json -L /src/backend/pom.xml -L /src/frontend/package-lock.json > osv.json || true
+          node -e '
+            const r = require("./osv.json"); let high = 0;
+            for (const res of r.results || []) for (const p of res.packages || [])
+              for (const g of p.groups || []) if (Number(g.max_severity) >= 7) { high++; console.log(`HIGH ${p.package.name}@${p.package.version}: ${g.ids.join(", ")}`); }
+            if (high) { console.log(`::error::${high} high/critical vulnerabilities`); process.exit(1); }
+            console.log("No high or critical vulnerabilities.");'

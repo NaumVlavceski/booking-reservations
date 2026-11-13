@@ -1,4 +1,4 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
+import {afterEach, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 import {QueryClient} from "@tanstack/react-query";
 
 // offlineCalendar.ts touches localStorage, window and navigator; Node has none of them, so small fakes stand in.
@@ -21,6 +21,13 @@ const KEY = "roomtrack.offlineCalendar";
 const KEYS = [["me"], ["properties"], ["units"], ["reservations", "calendar"]];
 let storage: MemoryStorage;
 let listeners: Record<string, (() => void)[]>;
+
+// The first import transforms the module and its dependencies (TanStack Query), which can take several seconds on a
+// cold CI runner. Done once here, with real timers, so no single test spends its 5 s on it.
+beforeAll(async () => {
+    await import("./offlineCalendar");
+    await import("./apiReachability");
+}, 60_000);
 
 beforeEach(() => {
     vi.useFakeTimers();

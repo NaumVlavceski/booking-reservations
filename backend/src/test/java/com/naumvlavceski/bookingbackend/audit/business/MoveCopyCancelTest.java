@@ -152,7 +152,8 @@ class MoveCopyCancelTest extends BusinessTestBase {
             assertEquals(rooms.get(i + 1), JsonPath.read(copies, c + "unitId"));
             assertEquals("2036-05-10", JsonPath.read(copies, c + "checkIn"));
             assertEquals("2036-05-13", JsonPath.read(copies, c + "checkOut"));
-            assertEquals("PAID", JsonPath.read(copies, c + "status"));
+            // Owner's rule (2026-11-13): a copy starts as CONFIRMED (it has no amounts, so it cannot be paid yet)
+            assertEquals("CONFIRMED", JsonPath.read(copies, c + "status"));
             assertEquals("DIRECT", JsonPath.read(copies, c + "source"));
             assertEquals("Ana Petrova", JsonPath.read(copies, c + "guestName"));
             assertEquals("ana@example.test", JsonPath.read(copies, c + "guestEmail"));
