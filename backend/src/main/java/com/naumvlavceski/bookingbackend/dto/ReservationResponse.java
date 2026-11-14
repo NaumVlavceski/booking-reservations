@@ -27,6 +27,15 @@ public record ReservationResponse(
         @Schema(description = "True when an imported booking's dates changed after an amount was entered: the amount "
                 + "may need updating. Cleared by saving the reservation.")
         boolean priceNeedsReview,
+        @Schema(description = "True when an imported booking was missing from its calendar's last sync. A live one: a "
+                + "following sync (usually within a few minutes) cancels it if it is still missing, or clears this if "
+                + "it is back. A cancelled one: restoring it as a channel booking would get it cancelled again; "
+                + "restore it with asDirect instead.")
+        boolean missingFromFeed,
+        @Schema(description = "True for a live booking from a channel that the channel's feed listed at the last sync. "
+                + "It is cancelled on the channel, not here (DELETE answers 409 CHANNEL_BOOKING); the sync then "
+                + "cancels it here.")
+        boolean listedByChannel,
         @Schema(description = "When it was cancelled; null unless status is CANCELLED", example = "2026-06-30T08:12:00Z")
         OffsetDateTime cancelledAt
 ) {

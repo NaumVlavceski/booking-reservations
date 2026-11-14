@@ -34,6 +34,10 @@ public class ExternalCalendar {
     @Column(nullable = false)
     private int consecutiveFailures = 0;
 
+    /** A booking went missing from the last read; the next read, which confirms the cancellation, comes sooner. */
+    @Column(nullable = false)
+    private boolean recheckSoon = false;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

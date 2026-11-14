@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
 @Slf4j
 public class IcalSyncScheduler {
     private static final Duration SYNC_INTERVAL = Duration.ofMinutes(10);
+    /** For a calendar whose last read was missing a booking: the next read confirms (and cancels) or clears it. */
+    private static final Duration RECHECK_INTERVAL = Duration.ofMinutes(2);
     private static final int BATCH_SIZE = 5;
 
     private final ExternalCalendarRepository calendarRepository;
@@ -25,8 +27,9 @@ public class IcalSyncScheduler {
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 30_000)
     public void tick() {
-        Instant cutoff = Instant.now().minus(SYNC_INTERVAL);
-        for (ExternalCalendar c : calendarRepository.findDue(cutoff, PageRequest.of(0, BATCH_SIZE))) {
+        Instant now = Instant.now();
+        for (ExternalCalendar c : calendarRepository.findDue(now.minus(SYNC_INTERVAL), now.minus(RECHECK_INTERVAL),
+                PageRequest.of(0, BATCH_SIZE))) {
             try {
                 syncService.sync(c.getId());
             } catch (Exception e) {

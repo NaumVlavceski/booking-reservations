@@ -66,6 +66,7 @@ public class IcalSyncService {
 
     private void recordFailure(ExternalCalendar calendar, Instant startedAt, String message) {
         calendar.setLastSyncedAt(startedAt);
+        calendar.setRecheckSoon(false); // a failing feed is retried at the usual pace, not every couple of minutes
         calendar.setLastError(truncate(message));
         calendar.setConsecutiveFailures(calendar.getConsecutiveFailures() + 1);
         // Exactly once per failing streak; a success resets the counter so a later streak notifies again

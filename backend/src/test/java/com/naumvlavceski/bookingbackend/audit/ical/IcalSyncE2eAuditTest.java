@@ -5,6 +5,7 @@ import com.naumvlavceski.bookingbackend.model.ExternalCalendar;
 import com.naumvlavceski.bookingbackend.model.ExternalEvent;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -143,8 +144,10 @@ class IcalSyncE2eAuditTest extends IcalAuditSupport {
 
     // ---- removal: the documented safety rule --------------------------------------------------------------
 
+    // Owner's decision (2026-11-14): the first sync that misses a booking flags it and the calendar is re-checked
+    // after 2 minutes instead of 10; the second sync that misses it cancels it.
     @Test
-    void aRemovedEventIsCancelledOnlyAfterThreeSyncsAndOneHour() throws Exception {
+    void aRemovedEventIsFlaggedOnTheFirstSyncAndCancelledOnTheSecond() throws Exception {
         Room room = newOwnerRoom();
         stub.serve("/f", calendar(event("keep@booking.com", inDays(40), inDays(42), "Keep"),
                 event("gone@booking.com", inDays(10), inDays(12), "Gone")));
@@ -152,41 +155,48 @@ class IcalSyncE2eAuditTest extends IcalAuditSupport {
         syncService.sync(cal);
         stub.serve("/f", calendar(event("keep@booking.com", inDays(40), inDays(42), "Keep")));
 
-        for (int i = 1; i <= 4; i++) {
-            syncService.sync(cal);
-            assertEquals(2, activeRows(room).size(), "sync " + i + " within the hour must not cancel");
-        }
-        ExternalEvent gone = events.findByExternalCalendarIdAndUid(cal, "gone@booking.com").orElseThrow();
-        assertEquals(4, gone.getMissingSyncs());
-
-        // An hour passes (the reconciler uses Instant.now(), so the stored timestamp is moved back instead)
-        backdateMissing(cal, "gone@booking.com", Duration.ofMinutes(61));
         syncService.sync(cal);
+        assertEquals(2, activeRows(room).size(), "one read is not enough");
+        assertTrue(calendarRow(cal).isRecheckSoon());
+        String gone = activeRows(room).getFirst().get("id").toString(); // ordered by check-in: Gone
+        send(get("/api/reservations/" + gone), room.token(), null)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.missingFromFeed").value(true));
 
+        syncService.sync(cal);
         List<Map<String, Object>> active = activeRows(room);
         assertEquals(1, active.size());
         assertEquals("Keep", active.getFirst().get("guest_name"));
+        assertFalse(calendarRow(cal).isRecheckSoon());
         assertEquals(1, awaitEmails(room.ownerId(), CANCELLED, 1));
     }
 
     @Test
-    void anHourIsNotEnoughWithFewerThanThreeMissingSyncs() throws Exception {
+    void aCalendarWaitingToConfirmIsDueAtTheShortIntervalOthersAtTheLongOne() throws Exception {
         Room room = newOwnerRoom();
-        stub.serve("/f", calendar(event("keep@booking.com", inDays(40), inDays(42), "Keep"),
-                event("gone@booking.com", inDays(10), inDays(12), "Gone")));
-        UUID cal = connect(room, "/f");
-        syncService.sync(cal);
-        stub.serve("/f", calendar(event("keep@booking.com", inDays(40), inDays(42), "Keep")));
-        syncService.sync(cal);
-        backdateMissing(cal, "gone@booking.com", Duration.ofHours(5));
-        syncService.sync(cal); // 2nd missing sync, 5 h missing
-        assertEquals(2, activeRows(room).size());
-        syncService.sync(cal); // 3rd
-        assertEquals(1, activeRows(room).size());
+        UUID waiting = connect(room, "/f");
+        // Synced "in the future", so the live scheduler (which asks with the real clock) never picks it up meanwhile
+        Instant lastSync = Instant.now().plus(Duration.ofDays(1));
+        Instant longCutoff = lastSync;                              // the 10-minute interval has not passed
+        Instant shortCutoff = lastSync.plus(Duration.ofMinutes(1)); // the 2-minute one has
+        ExternalCalendar c = calendarRow(waiting);
+        c.setLastSyncedAt(lastSync);
+        c.setRecheckSoon(true);
+        calendars.save(c);
+
+        assertTrue(dueIds(longCutoff, shortCutoff).contains(waiting));
+
+        c.setRecheckSoon(false);
+        calendars.save(c);
+        assertFalse(dueIds(longCutoff, shortCutoff).contains(waiting));
+    }
+
+    private List<UUID> dueIds(Instant cutoff, Instant recheckCutoff) {
+        return calendars.findDue(cutoff, recheckCutoff, PageRequest.of(0, 10_000)).stream()
+                .map(ExternalCalendar::getId).toList();
     }
 
     @Test
-    void anEventThatComesBackBeforeTheDeadlineResetsTheCount() throws Exception {
+    void anEventThatComesBackBeforeTheSecondSyncResetsTheCount() throws Exception {
         Room room = newOwnerRoom();
         String both = calendar(event("keep@booking.com", inDays(40), inDays(42), "Keep"),
                 event("flaky@booking.com", inDays(10), inDays(12), "Flaky"));
@@ -195,13 +205,15 @@ class IcalSyncE2eAuditTest extends IcalAuditSupport {
         syncService.sync(cal);
         stub.serve("/f", calendar(event("keep@booking.com", inDays(40), inDays(42), "Keep")));
         syncService.sync(cal);
-        syncService.sync(cal);
         stub.serve("/f", both);
         syncService.sync(cal);
         ExternalEvent flaky = events.findByExternalCalendarIdAndUid(cal, "flaky@booking.com").orElseThrow();
         assertEquals(0, flaky.getMissingSyncs());
         assertNull(flaky.getMissingSince());
         assertEquals(2, activeRows(room).size());
+        assertFalse(calendarRow(cal).isRecheckSoon());
+        settle();
+        assertEquals(0, emails(room.ownerId(), CANCELLED));
     }
 
     @Test
@@ -257,32 +269,28 @@ class IcalSyncE2eAuditTest extends IcalAuditSupport {
 
     // ---- S2: an owner-cancelled import comes back ---------------------------------------------------------
 
-    // Finding ICAL-01, owner's decision (2026-11-13): the owner may cancel a Booking.com booking here (the app warns
-    // first), and it STAYS cancelled although Booking.com still lists it. Before the fix the next sync silently made
-    // it CONFIRMED again.
+    // Finding ICAL-01, owner's decision revisited (2026-11-14): a Booking.com booking that Booking.com still lists can't
+    // be cancelled here (409 CHANNEL_BOOKING): cancelling only here would free nights the guest still holds, here and
+    // in RoomTrack's own calendar link. One cancelled here anyway (before this rule) comes back at the next sync.
     @Test
-    void anImportTheOwnerCancelledStaysCancelled() throws Exception {
+    void anImportBookingComStillListsIsCancelledThereNotHere() throws Exception {
         Room room = newOwnerRoom();
         stub.serve("/f", calendar(event("s2@booking.com", inDays(10), inDays(13), "CLOSED - Not available")));
         UUID cal = connect(room, "/f");
         syncService.sync(cal);
         String id = rows(room).getFirst().get("id").toString();
+        send(get("/api/reservations/" + id), room.token(), null)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.listedByChannel").value(true));
 
-        send(delete("/api/reservations/" + id), room.token(), null).andExpect(status().isNoContent());
-        assertEquals("CANCELLED", reservation(UUID.fromString(id)).get("status"));
+        send(delete("/api/reservations/" + id), room.token(), null)
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CHANNEL_BOOKING"));
+        send(put("/api/reservations/" + id), room.token(), reservationJson(room.roomId(), inDays(10).toString(),
+                inDays(13).toString(), "\"status\":\"CANCELLED\"")).andExpect(status().isConflict());
+        assertEquals("CONFIRMED", reservation(UUID.fromString(id)).get("status"));
 
-        syncService.sync(cal); // the feed still lists it, unchanged
-        assertEquals("CANCELLED", reservation(UUID.fromString(id)).get("status"));
-
-        // The owner re-lets the nights; then Booking.com changes the cancelled booking's dates onto them: nothing
-        // comes back, nothing is overwritten and no conflict is filed for a booking the owner already cancelled
-        String direct = createReservation(room.token(), room.roomId(), inDays(10).toString(), inDays(13).toString(),
-                "\"totalAmount\":250");
-        stub.serve("/f", calendar(event("s2@booking.com", inDays(11), inDays(14), "CLOSED - Not available")));
-        syncService.sync(cal);
-        assertEquals("CANCELLED", reservation(UUID.fromString(id)).get("status"));
-        assertEquals("CONFIRMED", reservation(UUID.fromString(direct)).get("status"));
-        send(get("/api/conflicts"), room.token(), null).andExpect(jsonPath("$.length()").value(0));
+        jdbc.update("update reservation set status = 'CANCELLED', cancelled_at = now() where id = ?", UUID.fromString(id));
+        syncService.sync(cal); // the feed still lists it
+        assertEquals("CONFIRMED", reservation(UUID.fromString(id)).get("status"), "back: the guest holds the dates");
     }
 
     @Test
@@ -305,7 +313,7 @@ class IcalSyncE2eAuditTest extends IcalAuditSupport {
 
     @Test
     void onceBookingComDropsTheEventTheOwnerCanCancelItAtOnce() throws Exception {
-        // The automatic cancel waits for 3 syncs and an hour; an owner who saw the cancellation on Booking.com need not
+        // The automatic cancel waits for a second sync; an owner who saw the cancellation on Booking.com need not
         Room room = newOwnerRoom();
         stub.serve("/f", calendar(event("s2b@booking.com", inDays(10), inDays(13), "CLOSED - Not available"),
                 event("s2c@booking.com", inDays(30), inDays(32), "CLOSED - Not available")));

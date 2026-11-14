@@ -82,7 +82,8 @@ public class ReservationController {
 
     @Operation(summary = "Change a reservation",
             description = "Replaces every field (send the whole reservation). Without `status` the current one "
-                    + "stays. `status: CANCELLED` cancels it and answers 204 with no body; sending another status "
+                    + "stays. `status: CANCELLED` cancels it and answers 204 with no body (409 CHANNEL_BOOKING for a "
+                    + "channel booking its channel still lists, as for DELETE); sending another status "
                     + "for a cancelled reservation restores it if the nights are still free. Saving clears "
                     + "`priceNeedsReview`.")
     @ApiResponse(responseCode = "200", description = "Updated")
@@ -152,9 +153,12 @@ public class ReservationController {
 
     @Operation(summary = "Cancel a reservation",
             description = "Not a hard delete: the status becomes CANCELLED, the nights become free, and the "
-                    + "reservation moves to the cancelled list (it can be restored with PUT).")
+                    + "reservation moves to the cancelled list (it can be restored with PUT). A booking from a channel "
+                    + "that the channel's feed still lists is cancelled on the channel instead (409 CHANNEL_BOOKING); "
+                    + "the sync then cancels it here.")
     @ApiResponse(responseCode = "204", description = "Cancelled")
     @ApiResponse(responseCode = "404", ref = OpenApiConfig.NOT_FOUND)
+    @ApiResponse(responseCode = "409", description = "CHANNEL_BOOKING: still listed by its channel; cancel it there")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@CurrentUserId UUID ownerId, @PathVariable UUID id) {
         reservationService.delete(ownerId, id);

@@ -32,6 +32,18 @@ public record ReservationRequest(
         @Schema(example = "guest@example.com") @Email @Size(max = 255) String guestEmail,
         @Schema(example = "+389 70 000 000") @Size(max = 255) String guestPhone,
         @Schema(description = "1 to 100; defaults to 2", example = "2") @Min(1) @Max(100) Integer guestsCount,
-        @Schema(example = "Late arrival, around 22:00") @Size(max = 255) String notes
+        @Schema(example = "Late arrival, around 22:00") @Size(max = 255) String notes,
+        @Schema(description = "Changing only: true makes a booking from a channel a Direct booking that the sync no "
+                + "longer touches. For restoring one its channel no longer lists (missingFromFeed), which the sync "
+                + "would otherwise cancel again.")
+        Boolean asDirect
 ) {
+    /** Without the newer optional fields, as older callers send it. */
+    public ReservationRequest(UUID unitId, LocalDate checkIn, LocalDate checkOut, ReservationStatus status,
+                              BigDecimal pricePerGuest, BigDecimal nightlyRate, BigDecimal totalAmount,
+                              String guestName, String guestEmail, String guestPhone, Integer guestsCount,
+                              String notes) {
+        this(unitId, checkIn, checkOut, status, pricePerGuest, nightlyRate, totalAmount, guestName, guestEmail,
+                guestPhone, guestsCount, notes, null);
+    }
 }

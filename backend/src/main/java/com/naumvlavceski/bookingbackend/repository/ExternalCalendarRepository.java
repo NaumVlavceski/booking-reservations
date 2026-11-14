@@ -16,8 +16,10 @@ public interface ExternalCalendarRepository extends JpaRepository<ExternalCalend
     List<ExternalCalendar> findAllByUnitId(UUID unitId);
 
     @Query("SELECT c FROM ExternalCalendar c WHERE c.lastSyncedAt IS NULL OR c.lastSyncedAt < :cutoff " +
+            "OR (c.recheckSoon = TRUE AND c.lastSyncedAt < :recheckCutoff) " +
             "ORDER BY c.lastSyncedAt ASC NULLS FIRST")
-    List<ExternalCalendar> findDue(@Param("cutoff") Instant cutoff, Pageable pageable);
+    List<ExternalCalendar> findDue(@Param("cutoff") Instant cutoff, @Param("recheckCutoff") Instant recheckCutoff,
+                                   Pageable pageable);
 
     @Query("SELECT c FROM ExternalCalendar c JOIN Unit u ON u.id = c.unitId " +
             "WHERE u.ownerId = :ownerId AND c.lastError IS NOT NULL")

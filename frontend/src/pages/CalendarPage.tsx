@@ -24,6 +24,7 @@ import SyncAllButton from "../components/SyncAllButton.tsx";
 import {SourceBadge, StatusBadge} from "../components/ReservationBadges";
 import {amountDue, layoutBarLabel} from "../lib/barLabel";
 import {bookingLabel} from "../lib/bookingLabel";
+import {PLATFORM_NAME} from "../lib/syncErrors";
 import {formatStay} from "../lib/dates";
 import {easeOutQuad, flingTail} from "../lib/fling";
 
@@ -707,6 +708,9 @@ export default function CalendarPage() {
                     measure: measureLabel,
                 });
                 const summary = [
+                    r.missingFromFeed
+                        ? `Not in the ${PLATFORM_NAME[r.source] ?? r.source} calendar any more: cancelled at the next sync if still missing`
+                        : null,
                     guestName,
                     formatStay(r.checkIn, r.checkOut),
                     due ? (due.missing ? "No amount recorded" : due.review ? `Due ${due.text.slice(2)} · dates changed, check the price` : `Due ${due.text}`) : r.status === "PAID" ? "Paid" : null,
@@ -727,6 +731,7 @@ export default function CalendarPage() {
                     nameFontSize: label.fontSize,
                     labelAlign: label.align,
                     amountMissing: due ? due.missing || Boolean(due.review) : false,
+                    missingFromFeed: r.missingFromFeed,
                     summary,
                 };
             })
@@ -1057,7 +1062,7 @@ export default function CalendarPage() {
                                             to={`/dashboard/reservations/${b.id}`}
                                             title={b.summary}
                                             aria-label={b.summary}
-                                            className="cal-bar"
+                                            className={`cal-bar${b.missingFromFeed ? " is-missing-from-feed" : ""}`}
                                             style={{
                                                 gridColumn: b.gridColumn,
                                                 gridRow: b.gridRow,
@@ -1099,6 +1104,10 @@ export default function CalendarPage() {
                                                         : line.text}
                                                 </span>
                                             ))}
+                                            {/* Gone from its channel's feed; the next sync confirms (cancels) or clears it */}
+                                            {b.missingFromFeed && (
+                                                <span aria-hidden="true" className="cal-bar-feed-check">?</span>
+                                            )}
                                         </Link>
                                     ))}
                                     </div>

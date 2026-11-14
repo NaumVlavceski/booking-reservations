@@ -26,10 +26,7 @@ public class IcalReconciler {
     private static final String OWN_UID_SUFFIX = "@roomtrack";
     private static final String LEGACY_UID_SUFFIX = "@staytrack"; // feeds exported before the rename
 
-    // A booking missing from its feed is only cancelled once it has stayed missing, so one bad read of a feed can't
-    // cancel real bookings. A feed with no events at all is the most suspicious, so it waits longest.
-    private static final int SYNCS_MISSING_BEFORE_CANCEL = 3;
-    private static final Duration MISSING_BEFORE_CANCEL = Duration.ofHours(1);
+    private static final int SYNCS_MISSING_BEFORE_CANCEL = 2;
     private static final Duration MISSING_FROM_EMPTY_FEED_BEFORE_CANCEL = Duration.ofHours(6);
 
     private final ExternalEventRepository externalEventRepository;
@@ -46,17 +43,23 @@ public class IcalReconciler {
         List<ExternalEvent> existingEvents =
                 externalEventRepository.findAllByExternalCalendarId(calendar.getId());
 
-        // Still in the feed, even if an event couldn't be used
-        Set<String> uidsInFeed = new HashSet<>(feed.rejectedUids());
-        for (ParsedIcalEvent incoming : feed.events()) {
-            if (incoming.uid().endsWith(OWN_UID_SUFFIX) || incoming.uid().endsWith(LEGACY_UID_SUFFIX)) continue; // our own export echoed back
-            uidsInFeed.add(incoming.uid());
-            reconcileOne(calendar, unit, incoming);
-        }
-
         // An entry we can't name could be any booking, so nothing counts as missing from this read
         boolean partialRead = feed.unreadable() > 0;
         boolean emptyFeed = feed.events().isEmpty() && feed.skipped() == 0;
+
+        List<ParsedIcalEvent> incomingEvents = feed.events().stream()
+                .filter(e -> !e.uid().endsWith(OWN_UID_SUFFIX) && !e.uid().endsWith(LEGACY_UID_SUFFIX)) // our own export echoed back
+                .toList();
+        // Still in the feed, even if an event couldn't be used
+        Set<String> uidsInFeed = new HashSet<>(feed.rejectedUids());
+        incomingEvents.forEach(e -> uidsInFeed.add(e.uid()));
+
+        Optional<String> movedTo = partialRead ? Optional.empty()
+                : moveBookingToItsNewEvent(calendar, existingEvents, incomingEvents, uidsInFeed);
+        for (ParsedIcalEvent incoming : incomingEvents) {
+            if (movedTo.isPresent() && movedTo.get().equals(incoming.uid())) continue; // handled just above
+            reconcileOne(calendar, unit, incoming);
+        }
 
         boolean waitingToCancel = false;
         for (ExternalEvent existing : existingEvents) {
@@ -67,6 +70,8 @@ public class IcalReconciler {
                 waitingToCancel = true;
             }
         }
+        // The confirming read comes soon, not at the usual pace; an empty feed waits hours anyway
+        calendar.setRecheckSoon(waitingToCancel && !emptyFeed);
 
         // An incoming event that vanished from the feed no longer needs a human
         if (partialRead || (emptyFeed && waitingToCancel)) return;
@@ -76,6 +81,75 @@ public class IcalReconciler {
                 resolve(conflict);
             }
         }
+    }
+
+    /**
+     * Owner's decision (2026-11-14): Booking.com gives a booking a new UID when its check-in day changes (the UID
+     * follows the room and check-in day), so a moved check-in reads as one booking gone and another one new. When
+     * the match is clear (exactly one live booking of this calendar gone from the feed, exactly one new event
+     * overlapping it, and nothing else in its way), it is taken as the same booking with new dates: it
+     * keeps its price, notes and guest, the owner gets one "dates changed" email, and there is no conflict or
+     * cancellation. Anything less clear (no overlap, several candidates) stays a cancellation plus a new booking.
+     * Accepted risk: a cancellation and an unrelated overlapping booking in the same few minutes look the same; the
+     * email and the "check the price" flag point the owner to it.
+     *
+     * @return the UID of the new event, if a booking was moved onto it
+     */
+    private Optional<String> moveBookingToItsNewEvent(ExternalCalendar calendar, List<ExternalEvent> existingEvents,
+                                                      List<ParsedIcalEvent> incomingEvents, Set<String> uidsInFeed) {
+        List<ExternalEvent> gone = new ArrayList<>();
+        Map<UUID, Reservation> goneBookings = new HashMap<>();
+        for (ExternalEvent e : existingEvents) {
+            if (uidsInFeed.contains(e.getUid()) || e.getReservationId() == null) continue;
+            reservationRepository.findById(e.getReservationId())
+                    .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
+                    .filter(r -> r.getStayRange().upper().isAfter(LocalDate.now())) // an ended stay just left the feed
+                    .ifPresent(r -> {
+                        gone.add(e);
+                        goneBookings.put(e.getId(), r);
+                    });
+        }
+        if (gone.size() != 1) return Optional.empty();
+        ExternalEvent event = gone.getFirst();
+        Reservation reservation = goneBookings.get(event.getId());
+
+        LocalDate oldStart = reservation.getStayRange().lower();
+        LocalDate oldEnd = reservation.getStayRange().upper();
+        Set<String> knownUids = new HashSet<>();
+        existingEvents.forEach(e -> knownUids.add(e.getUid()));
+        List<ParsedIcalEvent> candidates = incomingEvents.stream()
+                .filter(e -> !knownUids.contains(e.uid()))
+                .filter(e -> e.startDate().isBefore(oldEnd) && oldStart.isBefore(e.endDate()))
+                .toList();
+        if (candidates.size() != 1) return Optional.empty(); // no overlap: a cancellation and a new booking
+        ParsedIcalEvent incoming = candidates.getFirst();
+
+        Unit room = reservation.getUnit();
+        if (!reservationRepository.findOverlapping(room.getId(), incoming.startDate(), incoming.endDate(),
+                reservation.getId()).isEmpty()) {
+            return Optional.empty(); // something else is in the way: the usual conflict handling applies
+        }
+
+        reservation.setStayRange(Range.closedOpen(incoming.startDate(), incoming.endDate()));
+        BigDecimal keptPrice = reservation.getTotalAmount();
+        boolean priceNeedsReview = keptPrice != null && keptPrice.signum() > 0;
+        if (priceNeedsReview) reservation.setPriceNeedsReview(true);
+        reservationRepository.save(reservation);
+
+        event.setUid(incoming.uid());
+        event.setRawHash(IcalParser.hash(incoming.rawBlock()));
+        event.setLastSeenAt(LocalDateTime.now());
+        event.setMissingSince(null);
+        event.setMissingSyncs(0);
+        externalEventRepository.save(event);
+        resolveConflictIfAny(calendar, incoming.uid()); // the false "overlap" an earlier sync may have filed
+
+        if (incoming.endDate().isAfter(LocalDate.now())) {
+            notifier.externalReservationModified(room, calendar.getPlatform(), oldStart, oldEnd,
+                    incoming.startDate(), incoming.endDate(), reservation.getGuestName(),
+                    priceNeedsReview ? keptPrice : null);
+        }
+        return Optional.of(incoming.uid());
     }
 
     private void reconcileOne(ExternalCalendar calendar, Unit unit, ParsedIcalEvent incoming) {
@@ -127,11 +201,13 @@ public class IcalReconciler {
                 && !externalEventRepository.existsByReservationId(reservation.getId());
     }
 
+    /**
+     * Owner's decision (2026-11-14, ICAL-01 revisited): a cancelled booking its channel lists comes back. The sync
+     * cancelled it while the event was missing, Booking.com reused the UID for a new booking on that check-in day, or
+     * it was cancelled in the app before that was refused (ReservationService): either way the guest holds the dates.
+     */
     private void reviveIfCancelled(ExternalCalendar calendar, ParsedIcalEvent incoming, ExternalEvent existing) {
         if (existing.getReservationId() == null) return;
-        // Owner's decision (2026-11-13, ICAL-01): a booking the owner cancelled here stays cancelled. Only one this sync
-        // cancelled itself (its event went missing, so missingSince is set) comes back when Booking.com lists it again.
-        if (existing.getMissingSince() == null) return;
         reservationRepository.findById(existing.getReservationId())
                 .filter(r -> r.getStatus() == ReservationStatus.CANCELLED)
                 .ifPresent(r -> {
@@ -184,13 +260,6 @@ public class IcalReconciler {
         }
 
         Reservation reservation = reservationOpt.get();
-        if (reservation.getStatus() == ReservationStatus.CANCELLED && existing.getMissingSince() == null) {
-            // Cancelled by the owner (ICAL-01): Booking.com's changes no longer touch it, and it can't collide with
-            // whatever the owner put in its place. Remember the new version so this is not re-checked every sync.
-            existing.setRawHash(newHash);
-            externalEventRepository.save(existing);
-            return;
-        }
         // The owner may have moved it: the room it is in now is the one that counts
         Unit room = reservation.getUnit();
         List<Reservation> overlaps = reservationRepository.findOverlapping(
@@ -202,6 +271,11 @@ public class IcalReconciler {
             return;
         }
 
+        // Cancelled and now listed again, changed (see reviveIfCancelled): Booking.com rewrites DTSTAMP on every
+        // download and reuses an event's UID for a new booking, so "changed" is the usual way a booking comes back.
+        boolean revived = reservation.getStatus() == ReservationStatus.CANCELLED;
+        if (revived) reservation.setStatus(ReservationStatus.CONFIRMED);
+
         LocalDate oldStart = reservation.getStayRange().lower();
         LocalDate oldEnd = reservation.getStayRange().upper();
         reservation.setStayRange(Range.closedOpen(incoming.startDate(), incoming.endDate()));
@@ -212,7 +286,8 @@ public class IcalReconciler {
             reservation.setPriceNeedsReview(true);
         reservationRepository.save(reservation);
 
-        if (datesChanged && reservation.getStatus() != ReservationStatus.CANCELLED
+        // Not for a restored booking: "changed from <dates of a booking you were told was cancelled>" would confuse
+        if (datesChanged && !revived && reservation.getStatus() != ReservationStatus.CANCELLED
                 && incoming.endDate().isAfter(LocalDate.now())) {
             notifier.externalReservationModified(room, calendar.getPlatform(), oldStart, oldEnd,
                     incoming.startDate(), incoming.endDate(), reservation.getGuestName(),
@@ -241,9 +316,9 @@ public class IcalReconciler {
         if (existing.getMissingSince() == null) existing.setMissingSince(now);
         existing.setMissingSyncs(existing.getMissingSyncs() + 1);
 
-        Duration wait = emptyFeed ? MISSING_FROM_EMPTY_FEED_BEFORE_CANCEL : MISSING_BEFORE_CANCEL;
         if (existing.getMissingSyncs() < SYNCS_MISSING_BEFORE_CANCEL
-                || Duration.between(existing.getMissingSince(), now).compareTo(wait) < 0) {
+                || emptyFeed && Duration.between(existing.getMissingSince(), now)
+                        .compareTo(MISSING_FROM_EMPTY_FEED_BEFORE_CANCEL) < 0) {
             return false;
         }
 

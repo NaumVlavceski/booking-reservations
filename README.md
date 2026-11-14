@@ -149,9 +149,21 @@ about every 10 minutes; the owner can also sync on demand (at most once a minute
 - **New** event: saved as a booking with source `BOOKING`, or recorded as a **conflict** if it overlaps.
 - **Changed dates**: the booking moves; if the owner had entered an amount, it is flagged *price needs review*. The
   overlap check uses the room the booking is in now, since the owner may have moved it.
-- **Event gone from the feed**: the booking is cancelled only once the event has stayed gone for at least 3 syncs and
-  1 hour (6 hours if the feed has no events at all), and it is restored if the event comes back. One bad read of a feed
-  can therefore not cancel real bookings; a real cancellation takes up to an hour to arrive. A stay that has already
+- **Event gone from the feed**: the first sync that misses it only marks the booking (faded, with a "?", on the
+  calendar) and has the calendar checked again after 2 minutes instead of 10. If that sync still misses it, the booking
+  is cancelled; if the event is back, the mark goes away. A feed with no events at all must also stay empty for 6 hours.
+  One bad (e.g. cached) read can therefore not cancel real bookings, and a real cancellation arrives within a few
+  minutes. A cancelled booking whose event is listed (again) comes back, even changed (Booking.com reuses UIDs).
+- **Cancelling a channel booking**: while its channel's feed lists it, it is cancelled on the channel, not in RoomTrack
+  (the app says so; the API answers 409 `CHANNEL_BOOKING`). Cancelling it only in RoomTrack would free nights the guest
+  still holds, in RoomTrack and in RoomTrack's own calendar link. Once the feed drops it (the "?" mark), or for a booking
+  no calendar syncs any more, it can be cancelled here. Restoring a cancelled channel booking that the channel no longer lists
+  asks first: as a channel booking the next sync would cancel it again, so it can be restored as a **Direct** booking
+  (unlinked from the feed, so the sync leaves it alone) or kept cancelled.
+- **Moved check-in**: Booking.com gives a booking a new UID when its check-in day changes. When one sync sees exactly
+  one booking gone and exactly one new event overlapping it, with nothing else in the way, it is the same booking with
+  new dates: price, notes and guest are kept, the price is flagged for review, and the owner gets one "dates changed"
+  email. Dates that don't overlap the old ones arrive as a cancellation plus a new booking. A stay that has already
   ended is never cancelled this way: feeds drop old events, and that says nothing about whether the stay happened.
 - **Entries that can't be used** (no UID, dates in the wrong order, no nights, over 366 nights) are skipped and shown to
   the owner as a sync problem, and the rest of the feed still comes in. While an entry has no readable UID at all,

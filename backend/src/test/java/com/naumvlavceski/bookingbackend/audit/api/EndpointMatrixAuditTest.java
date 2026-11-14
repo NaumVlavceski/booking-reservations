@@ -289,7 +289,7 @@ class EndpointMatrixAuditTest extends ApiAuditBase {
         String created = body(send(post("/api/reservations"), o.token(), reservationJson(rooms.get(0), "2040-06-01", "2040-06-04",
                 "\"totalAmount\":120.50,\"guestsCount\":2")).andExpect(status().isOk()));
         Set<String> resKeys = Set.of("id", "unitId", "checkIn", "checkOut", "status", "source", "guestName", "guestEmail",
-                "guestPhone", "guestsCount", "pricePerGuest", "nightlyRate", "totalAmount", "notes", "priceNeedsReview", "cancelledAt");
+                "guestPhone", "guestsCount", "pricePerGuest", "nightlyRate", "totalAmount", "notes", "priceNeedsReview", "missingFromFeed", "listedByChannel", "cancelledAt");
         assertEquals(resKeys, keys(created));
         assertNothingSensitive(created);
         String rid = JsonPath.read(created, "$.id");
