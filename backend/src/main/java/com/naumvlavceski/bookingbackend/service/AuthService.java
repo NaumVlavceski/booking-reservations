@@ -56,6 +56,7 @@ public class AuthService {
     private final RateLimits rateLimits;
     private final RateLimiter rateLimiter;
     private final EmailService emailService;
+    private final com.naumvlavceski.bookingbackend.admin.AdminProperties adminProperties;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -73,7 +74,8 @@ public class AuthService {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
         return new MeResponse(user.getEmail(), user.getFullName(),
-                user.getTermsVersion(), user.getPrivacyVersion(), user.getTermsAcceptedAt(), user.getOwner().isDemo());
+                user.getTermsVersion(), user.getPrivacyVersion(), user.getTermsAcceptedAt(), user.getOwner().isDemo(),
+                adminProperties.enabled() && user.isAdmin());
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.naumvlavceski.bookingbackend.mail;
 
 import com.naumvlavceski.bookingbackend.model.EmailLog;
+import com.naumvlavceski.bookingbackend.util.SafeErrorText;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -19,7 +20,8 @@ public class EmailService {
     @Async("mailExecutor")
     public void send(UUID ownerId, String type, EmailMessage msg) {
         Delivery d = deliver(msg);
-        if (d != null) record(ownerId, type, msg, d.sent() ? "SENT" : "FAILED", d.attempts(), d.providerId(), d.error());
+        if (d != null) record(ownerId, type, msg, d.sent() ? EmailLog.SENT : EmailLog.FAILED,
+                d.attempts(), d.providerId(), d.error());
     }
 
     /**
@@ -43,6 +45,30 @@ public class EmailService {
             return false;
         }
         return true;
+    }
+
+    /** The outcome of an admin message: whether it went out, and its email_log row (null if the row couldn't be written). */
+    public record AdminSend(boolean sent, UUID logId) {}
+
+    /**
+     * An email the admin wrote (Send email in the admin panel): sent now, on the caller's thread, and logged as
+     * ADMIN_MESSAGE with its plain-text body and the admin's id. The only email type whose content is stored.
+     */
+    public AdminSend sendAdminMessage(UUID ownerId, UUID adminUserId, EmailMessage msg, String plainBody) {
+        Delivery d = deliver(msg);
+        boolean sent = d != null && d.sent();
+        UUID logId = null;
+        try {
+            EmailLog row = EmailLog.of(ownerId, msg.to(), EmailLog.ADMIN_MESSAGE, msg.subject(),
+                    sent ? EmailLog.SENT : EmailLog.FAILED, d == null ? 0 : d.attempts(),
+                    d == null ? null : d.providerId(), d == null ? null : SafeErrorText.of(d.error()));
+            row.setBody(plainBody);
+            row.setSentByAdminId(adminUserId);
+            logId = logs.save(row).getId();
+        } catch (Exception e) {
+            log.warn("Could not write email_log row: {}", e.toString());
+        }
+        return new AdminSend(sent, logId);
     }
 
     private record Delivery(boolean sent, int attempts, String providerId, String error) {}
@@ -71,11 +97,13 @@ public class EmailService {
 
     private void record(UUID ownerId, String type, EmailMessage m, String status,
                         int attempts, String providerId, String error) {
+        // Never the body of an automatic email, never a full error (provider errors can echo links or keys)
         try {
             logs.save(EmailLog.of(ownerId, m.to(), type, m.subject(), status, attempts, providerId,
-                    error == null ? null : error.substring(0, Math.min(error.length(), 1000))));
+                    SafeErrorText.of(error)));
         } catch (Exception e) {
-            log.warn("Could not write email_log row", e);
+            // The email itself is already out (or failed); a log problem must never change that
+            log.warn("Could not write email_log row: {}", e.toString());
         }
     }
 }

@@ -15,6 +15,13 @@
   X-Content-Type-Options: nosniff
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
 
+# The admin panel is never indexed (the pages also carry a robots meta tag).
+/admin
+  X-Robots-Tag: noindex, nofollow
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+
 # The service worker must always be checked with the server, or a new deploy can't reach installed apps.
 /sw.js
   Cache-Control: no-cache

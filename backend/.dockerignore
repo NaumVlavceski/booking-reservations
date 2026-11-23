@@ -11,3 +11,5 @@ HELP.md
 # Developer-only settings (git-ignored): turns API docs on under the "local" profile; must never reach the image
 src/main/resources/application-local.yml
 src/test/
+# Local-only fake data for the admin panel (dev-data/admin-seed.sql); never part of an image
+dev-data/

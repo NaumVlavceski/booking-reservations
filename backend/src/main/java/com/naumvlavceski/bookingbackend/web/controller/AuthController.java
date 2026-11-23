@@ -50,6 +50,7 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
     private final RateLimits rateLimits;
     private final DemoAccounts demoAccounts;
+    private final com.naumvlavceski.bookingbackend.admin.AdminSessionService adminSessions;
 
     /**
      * Audit API-03 (owner's decision: sign out everywhere). Bumps the user's token version, so every token issued so
@@ -62,6 +63,8 @@ public class AuthController {
             @org.springframework.security.core.annotation.AuthenticationPrincipal
             com.naumvlavceski.bookingbackend.config.security.CurrentUser currentUser) {
         authService.incrementTokenVersion(currentUser.userId());
+        // Signing out as owner also ends any admin session (the token_version binding already does; this is explicit)
+        adminSessions.revokeAll(currentUser.userId());
         return ResponseEntity.noContent().build();
     }
 

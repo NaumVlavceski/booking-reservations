@@ -186,7 +186,8 @@ class EndpointMatrixAuditTest extends ApiAuditBase {
     void accountNotificationContactAndPublicEndpointsAnswerTheirDocumentedShapes() throws Exception {
         TestOwner o = newOwner();
         String me = body(send(get("/api/me"), o.token(), null).andExpect(status().isOk()));
-        assertEquals(Set.of("email", "fullName", "termsVersion", "privacyVersion", "termsAcceptedAt", "demo"), keys(me));
+        assertEquals(Set.of("email", "fullName", "termsVersion", "privacyVersion", "termsAcceptedAt", "demo",
+                "isAdmin"), keys(me));
         assertNothingSensitive(me);
 
         String unit = newRoom(o.token());

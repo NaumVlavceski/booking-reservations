@@ -31,7 +31,7 @@ public class ResendEmailSender implements EmailSender {
     @Override
     public String send(EmailMessage m) {
         Map<String, Object> body = new HashMap<>();
-        body.put("from", from);
+        body.put("from", m.from() != null && !m.from().isBlank() ? m.from() : from);
         body.put("to", List.of(m.to()));
         body.put("subject", m.subject());
         body.put("html", m.html());

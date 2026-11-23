@@ -58,7 +58,8 @@ export default defineConfig(({ mode, command }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
-          globIgnores: ['help/**', 'landing/**'],
+          // assets/admin/: the admin panel's chunks are never precached (owners never need them; online only)
+          globIgnores: ['help/**', 'landing/**', 'assets/admin/**'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
           cleanupOutdatedCaches: true,
@@ -66,6 +67,29 @@ export default defineConfig(({ mode, command }) => {
           },
       }),
     ],
+    build: {
+      rolldownOptions: {
+        output: {
+          // The admin panel's lazy chunks (their entry module is in src/admin/) go to assets/admin/, so the service
+          // worker can leave them out. Code the owner app also uses stays in the owner chunks.
+          chunkFileNames: (chunk) => {
+            const inAdmin = (id: string | null) => Boolean(id && id.replace(/\\/g, '/').includes('/src/admin/'))
+            const adminOnly = chunk.facadeModuleId ? inAdmin(chunk.facadeModuleId)
+              : chunk.moduleIds.length > 0 && chunk.moduleIds.every(inAdmin)
+            return adminOnly ? 'assets/admin/[name]-[hash].js' : 'assets/[name]-[hash].js'
+          },
+          minifyInternalExports: true,
+          // Everything the owner app uses stays in one chunk (only the admin chunks import from it). Left out: the admin
+          // code itself, the service-worker helper (loaded lazily as before) and the infinite-list code only Admin uses.
+          codeSplitting: {
+            groups: [{
+              name: 'app',
+              test: (id: string) => !/\/src\/admin\/|\/workbox-window\/|infiniteQuery/i.test(id.replace(/\\/g, '/')),
+            }],
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         '/api/ical': {

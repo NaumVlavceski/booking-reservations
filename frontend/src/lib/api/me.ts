@@ -11,6 +11,8 @@ export interface MeResponse {
     termsAcceptedAt: string | null;
     /** A temporary "Try the demo" account: sample data, deleted after 1 hour, a few actions turned off. */
     demo: boolean;
+    /** Only a hint for showing the Admin Panel item; the server checks every admin request. */
+    isAdmin?: boolean;
 }
 
 export async function getMe(): Promise<MeResponse> {

@@ -28,6 +28,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final AppUserRepository appUserRepository;
+    private final LastSeenTracker lastSeenTracker;
 
     @Override
     protected void doFilterInternal(
@@ -73,6 +74,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 if (!"true".equalsIgnoreCase(request.getHeader(BACKGROUND_HEADER))) {
                     jwtService.renewIfDue(claims, user)
                             .ifPresent(renewed -> response.setHeader(REFRESHED_TOKEN_HEADER, renewed));
+                    // Owner activity only: polling (X-Background) and the admin panel don't count
+                    if (!request.getRequestURI().startsWith("/api/admin/")) lastSeenTracker.touch(user.getId());
                 }
             }
         }

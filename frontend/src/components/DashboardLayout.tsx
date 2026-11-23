@@ -1,5 +1,5 @@
 // src/components/DashboardLayout.tsx
-import {useEffect, useState, type ComponentType, type ReactNode} from "react";
+import {lazy, Suspense, useEffect, useState, type ComponentType, type ReactNode} from "react";
 import {Link, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {tokenStorage} from "../lib/auth/tokenStorage";
@@ -20,6 +20,7 @@ import {
     MoreHorizontalIcon,
     PersonIcon,
     ReceiptIcon,
+    ShieldIcon,
 } from "./icons";
 import SyncAlerts from "./SyncAlerts";
 import NotificationToggle from "./NotificationToggle";
@@ -38,6 +39,11 @@ import {CountBubble} from "./ui/Badge";
 import Avatar from "./ui/Avatar";
 
 const DEMO_NOTE = "Demo · sample data";
+
+// Only downloaded when the admin clicks "Admin Panel"; owners never load it.
+const AdminVerifyDialog = lazy(() => import("../admin/AdminVerifyDialog"));
+/** Same key as admin/adminSession.ts; duplicated so the owner app doesn't pull admin code in. */
+const ADMIN_SESSION_KEY = "rt_admin_session";
 
 type IconType = ComponentType<{ size?: number; className?: string }>;
 
@@ -74,6 +80,9 @@ export default function DashboardLayout() {
     const chrome = bottomChrome(pathname);
     const [iosStepsOpen, setIosStepsOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
+    const [adminOpen, setAdminOpen] = useState(false);
+    // A hint only: the server checks is_admin (and APP_ADMIN_ENABLED) on every admin request
+    const isAdmin = Boolean(me?.isAdmin) && !demo;
     // No connection or no answer from the server: pages make way for the offline screen. The calendar is the
     // exception: it shows the last bookings saved on this device, view only (lib/offlineCalendar.ts).
     // Forms stay, so nothing typed is lost; their Save is disabled while offline.
@@ -90,6 +99,12 @@ export default function DashboardLayout() {
         const token = tokenStorage.get();
         if (token) logoutEverywhere(token).catch(() => {});
         tokenStorage.clear();
+        // Signing out as owner ends the admin session too (the server revokes it as well)
+        try {
+            sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        } catch {
+            // no storage
+        }
         clearOfflineCalendar();
         queryClient.clear();
         closeMore();
@@ -122,7 +137,6 @@ export default function DashboardLayout() {
         //     active: pathname.startsWith("/dashboard/cancelled")
         // },
     ];
-
     return (
         <div className="min-h-dvh">
             <aside aria-label="Main menu"
@@ -146,6 +160,14 @@ export default function DashboardLayout() {
                         <SidebarLink to="/dashboard/invoices" icon={ReceiptIcon}
                                      active={pathname.startsWith("/dashboard/invoices")}>Invoices</SidebarLink>
                     </nav>
+                    {isAdmin && (
+                        <button type="button" onClick={() => setAdminOpen(true)} aria-haspopup="dialog"
+                                className="mt-4 flex min-h-11 w-full items-center gap-3 rounded-control border border-primary px-3 text-left text-body-sm font-semibold text-on-primary-soft transition-colors hover:bg-primary-soft">
+                            <ShieldIcon size={18} className="shrink-0"/>
+                            <span className="flex-1">Admin Panel</span>
+                            <ChevronRightIcon size={16}/>
+                        </button>
+                    )}
                 </div>
                 <div className="space-y-0.5 border-t border-subtle px-3 pt-3 pb-4">
                     <SidebarLink to={HELP_PATH} state={fromHere} icon={HelpIcon}
@@ -295,6 +317,21 @@ export default function DashboardLayout() {
                         <SheetLink to={ACCOUNT_PATH} icon={PersonIcon} onClick={closeMore} chevron>Account and
                             privacy</SheetLink>
                     </SheetGroup>
+                    {isAdmin && (
+                        <button type="button" aria-haspopup="dialog" onClick={() => {
+                            closeMore();
+                            setAdminOpen(true);
+                        }} className="flex min-h-16 w-full items-center gap-3 rounded-card border border-primary bg-primary-soft px-4 text-left">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary text-on-primary">
+                                <ShieldIcon size={20}/>
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-body font-semibold text-fg">Admin Panel</span>
+                                <span className="block text-caption text-muted">Needs an email code</span>
+                            </span>
+                            <ChevronRightIcon size={18} className="text-subtle"/>
+                        </button>
+                    )}
                     <SheetGroup>
                         <button type="button" onClick={handleLogout} className={sheetRow}>
                             <LogoutIcon size={20} className="text-muted"/>
@@ -305,6 +342,15 @@ export default function DashboardLayout() {
             </Sheet>
             <IosInstallSheet open={iosStepsOpen} onClose={() => setIosStepsOpen(false)}/>
             {!demo && <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} email={me?.email}/>}
+            {isAdmin && adminOpen && (
+                <Suspense fallback={null}>
+                    <AdminVerifyDialog open={adminOpen} onClose={() => setAdminOpen(false)}
+                                       onVerified={() => {
+                                           setAdminOpen(false);
+                                           navigate("/admin");
+                                       }}/>
+                </Suspense>
+            )}
         </div>
     )
         ;

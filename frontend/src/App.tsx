@@ -1,3 +1,4 @@
+import {lazy, Suspense} from "react";
 import {Routes, Route, Navigate} from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -31,6 +32,8 @@ import LandingPage from "./pages/LandingPage.tsx";
 import ContactPage from "./pages/ContactPage.tsx";
 import {tokenStorage} from "./lib/auth/tokenStorage";
 import {isStandalone} from "./lib/pwa";
+
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 
 /**
  * "/": the home page for visitors. Signed in, it opens the calendar as before; the installed app (which starts at
@@ -81,6 +84,8 @@ export default function App() {
                     <Route path="/dashboard/account/password" element={<ChangePasswordPage/>}/>
                     <Route path="*" element={<NotFoundPage/>}/>
                 </Route>
+                {/* Admin panel: its own chunk (assets/admin/), loaded only here; the server decides who gets in */}
+                <Route path="/admin/*" element={<Suspense fallback={null}><AdminApp/></Suspense>}/>
             </Route>
         </Routes>
     );

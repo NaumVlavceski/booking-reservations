@@ -25,7 +25,12 @@ public record RateLimitProperties(
         Limit docsPerIp,
         Limit demoPerIp,
         Limit contactPerIp,
-        Limit contactTotal
+        Limit contactTotal,
+        // Resend delivery reports (POST /api/webhooks/resend)
+        Limit webhookPerIp,
+        // Admin panel: Send email per admin session, Delete owner per admin
+        Limit adminMailPerSession,
+        Limit adminDeletePerAdmin
 ) {
     /** At most {@code max} calls per {@code window} (1 ms to 1 hour). */
     public record Limit(int max, Duration window) {

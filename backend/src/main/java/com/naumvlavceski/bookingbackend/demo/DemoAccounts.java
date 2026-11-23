@@ -16,7 +16,7 @@ import com.naumvlavceski.bookingbackend.repository.OwnerRepository;
 import com.naumvlavceski.bookingbackend.repository.PropertyRepository;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
-import com.naumvlavceski.bookingbackend.service.AccountService;
+import com.naumvlavceski.bookingbackend.service.OwnerDeletionService;
 import io.hypersistence.utils.hibernate.type.range.Range;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -67,13 +67,13 @@ public class DemoAccounts {
     private final ReservationRepository reservations;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final AccountService accountService;
+    private final OwnerDeletionService ownerDeletion;
     private final Clock clock;
     private final TransactionTemplate tx;
 
     DemoAccounts(DemoProperties props, OwnerRepository owners, AppUserRepository users, PropertyRepository properties,
                  UnitRepository units, ReservationRepository reservations, PasswordEncoder passwordEncoder,
-                 JwtService jwtService, AccountService accountService, Clock clock,
+                 JwtService jwtService, OwnerDeletionService ownerDeletion, Clock clock,
                  PlatformTransactionManager transactionManager) {
         this.props = props;
         this.owners = owners;
@@ -83,7 +83,7 @@ public class DemoAccounts {
         this.reservations = reservations;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.accountService = accountService;
+        this.ownerDeletion = ownerDeletion;
         this.clock = clock;
         this.tx = new TransactionTemplate(transactionManager);
     }
@@ -151,7 +151,7 @@ public class DemoAccounts {
         int deleted = 0;
         for (Owner owner : expired) {
             try {
-                accountService.deleteOwnerData(owner.getId());
+                ownerDeletion.deleteOwnerData(owner.getId());
                 deleted++;
             } catch (RuntimeException e) {
                 log.warn("Could not delete demo owner {}: {}", owner.getId(), e.toString());
