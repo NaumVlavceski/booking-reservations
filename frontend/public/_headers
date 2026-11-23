@@ -15,6 +15,13 @@
   X-Content-Type-Options: nosniff
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
 
+# The admin panel is never indexed (the pages also carry a robots meta tag).
+/admin
+  X-Robots-Tag: noindex, nofollow
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+
 # The service worker must always be checked with the server, or a new deploy can't reach installed apps.
 /sw.js
   Cache-Control: no-cache
@@ -31,6 +38,10 @@
 # Built files have a content hash in their name: they never change, cache them for a year.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Landing pictures and videos have no hash in their name: a day, then revalidate (not immutable).
+/landing/*
+  Cache-Control: public, max-age=86400
 
 # Font files carry a version in their name (-v1); a new version gets a new name.
 /fonts/*

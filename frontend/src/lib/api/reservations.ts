@@ -1,5 +1,6 @@
 import {queryOptions} from "@tanstack/react-query";
 import {apiClient} from "./client.ts";
+import {guestNameOf} from "../bookingLabel";
 
 export interface ReservationResponse {
     id: string;
@@ -17,6 +18,13 @@ export interface ReservationResponse {
     totalAmount: number;
     notes: string;
     priceNeedsReview: boolean;
+    /**
+     * Imported booking its channel's feed no longer lists. Live: the next sync cancels it if it's still gone.
+     * Cancelled: it can only be restored as a Direct booking (asDirect), or the sync cancels it again.
+     */
+    missingFromFeed: boolean;
+    /** Live channel booking its channel listed at the last sync: cancelled on the channel, not in RoomTrack. */
+    listedByChannel: boolean;
     cancelledAt: string | null;
 }
 
@@ -33,6 +41,8 @@ export interface ReservationRequest{
     guestPhone: string;
     guestsCount: number;
     notes: string;
+    /** Changing only: makes a channel booking a Direct one that the sync no longer touches. */
+    asDirect?: boolean;
 }
 
 export interface ReservationFilters {
@@ -75,6 +85,8 @@ export async function getCancelledReservations(params: CancelledParams): Promise
 export const allReservationsQuery = queryOptions({
     queryKey: ["reservations", "calendar"],
     queryFn: () => getReservations(),
+    // While a booking waits for the sync that confirms its cancellation (a couple of minutes), keep the calendar fresh
+    refetchInterval: (query) => query.state.data?.some((r) => r.missingFromFeed) ? 60_000 : false,
 });
 
 export async function deleteReservation(id: string): Promise<void> {
@@ -91,8 +103,15 @@ export async function createReservation(data: ReservationRequest): Promise<Reser
 }
 
 /** Puts a cancelled booking back on the calendar. Fails with 409 if its dates were taken meanwhile. */
-export async function restoreReservation(r: ReservationResponse, status: ReservationRequest["status"] = "CONFIRMED") {
+/** A channel booking its channel no longer lists only stays restored as a Direct one (see needsRestoreAsDirect). */
+export function needsRestoreAsDirect(r: ReservationResponse): boolean {
+    return r.status === "CANCELLED" && r.source !== "DIRECT" && r.missingFromFeed;
+}
+
+export async function restoreReservation(r: ReservationResponse, status: ReservationRequest["status"] = "CONFIRMED",
+                                         asDirect = false) {
     return updateReservation(r.id, {
+        asDirect,
         unitId: r.unitId,
         checkIn: r.checkIn,
         checkOut: r.checkOut,
@@ -100,7 +119,8 @@ export async function restoreReservation(r: ReservationResponse, status: Reserva
         pricePerGuest: r.pricePerGuest ?? null,
         nightlyRate: r.nightlyRate ?? null,
         totalAmount: r.totalAmount ?? null,
-        guestName: r.guestName ?? "",
+        // As Direct, a channel's placeholder ("CLOSED - Not available") would show as the guest's name
+        guestName: asDirect ? guestNameOf(r) : r.guestName ?? "",
         guestEmail: r.guestEmail ?? "",
         guestPhone: r.guestPhone ?? "",
         guestsCount: r.guestsCount,

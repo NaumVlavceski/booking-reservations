@@ -5,7 +5,7 @@ import {Navigate, useLocation, useParams, useSearchParams} from "react-router-do
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     allReservationsQuery, createReservation, deleteReservation, getReservation, restoreReservation,
-    getReservations,
+    getReservations, needsRestoreAsDirect,
     type ReservationRequest,
     updateReservation
 } from "../lib/api/reservations.ts";
@@ -19,6 +19,8 @@ import {clearFormDraft, readFormDraft, setCurrentFormDraft, stashFormDraft} from
 import FormTopBar from "../components/FormTopBar";
 import MoveReservationDialog from "../components/MoveReservationDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import RestoreAsDirectDialog from "../components/RestoreAsDirectDialog";
+import CancelOnChannelDialog from "../components/CancelOnChannelDialog";
 import {useToast} from "../lib/toast";
 import {formatStay} from "../lib/dates";
 import StayDatesPicker from "../components/StayDatesPicker";
@@ -211,6 +213,7 @@ export default function ReservationFormPage() {
         },
     });
     const isCancelled = existing?.status === "CANCELLED";
+    const [askAsDirect, setAskAsDirect] = useState(false);
 
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -229,7 +232,16 @@ export default function ReservationFormPage() {
             notes?.scrollIntoView({block: "center"}); // clear of the Save bar, with its message in view
             return;
         }
+        // Restoring a channel booking its channel no longer lists: only a Direct one stays (see RestoreAsDirectDialog)
+        if (existing && needsRestoreAsDirect(existing) && form.status !== "CANCELLED") {
+            setAskAsDirect(true);
+            return;
+        }
         mutation.mutate(form)
+    }
+
+    function restoreAsDirect() {
+        mutation.mutate({...form, asDirect: true}, {onSettled: () => setAskAsDirect(false)});
     }
 
     function onChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
@@ -383,6 +395,14 @@ export default function ReservationFormPage() {
                     <Callout tone="danger" role="alert">{otherErrors.length > 0 ? otherErrors.join(" ") : errorMessage(mutation.error, "Couldn't save the booking.")}</Callout>
                 )}
 
+                {existing?.missingFromFeed && !isCancelled && (
+                    <Callout tone="warning" title={`Not in the ${PLATFORM_NAME[existing.source] ?? existing.source} calendar any more`}>
+                        The last sync didn't find this booking on {PLATFORM_NAME[existing.source] ?? existing.source}.
+                        If the next sync (within a few minutes) still doesn't find it, it is cancelled and you get an
+                        email. If it was only a glitch, it stays as it is.
+                    </Callout>
+                )}
+
                 {existing?.priceNeedsReview && !isCancelled && (
                     <Callout tone="warning" role="alert" title="Check the price">
                         The dates of this booking were changed on {existing.source === "AIRBNB" ? "Airbnb" : "Booking.com"},
@@ -509,26 +529,23 @@ export default function ReservationFormPage() {
                 />
             )}
 
-            {existing && existing.source !== "DIRECT" ? (
-                // Owner's decision (ICAL-01, 2026-11-13): a booking from a channel should be cancelled on that channel,
-                // so that is what the dialog says, with Keep booking as the safe choice. Cancelling here anyway is
-                // allowed, and the booking then stays cancelled in RoomTrack (the sync no longer brings it back).
-                <ConfirmDialog
+            {existing && existing.source !== "DIRECT" && (
+                <RestoreAsDirectDialog
+                    open={askAsDirect}
+                    source={existing.source}
+                    pending={mutation.isPending}
+                    onRestoreAsDirect={restoreAsDirect}
+                    onKeepCancelled={() => setAskAsDirect(false)}
+                />
+            )}
+
+            {existing && existing.source !== "DIRECT" && existing.listedByChannel ? (
+                // Owner's decision (2026-11-14, ICAL-01 revisited): while its channel lists it, a channel booking is
+                // cancelled there, not here. Once the channel drops it (the "?" mark) it can be cancelled here too.
+                <CancelOnChannelDialog
                     open={confirmCancel}
-                    safeVariant="success"
-                    title={`Cancel it on ${PLATFORM_NAME[existing.source] ?? existing.source}`}
-                    message={<>
-                        This booking is still on {PLATFORM_NAME[existing.source] ?? existing.source}. Cancel it on{" "}
-                        {PLATFORM_NAME[existing.source] ?? existing.source}: RoomTrack takes it off the calendar by
-                        itself at the next syncs.
-                    </>}
-                    cancelLabel="Keep booking"
-                    confirmLabel="Cancel anyway"
-                    pendingLabel="Cancelling…"
-                    pending={cancelMutation.isPending}
-                    error={cancelMutation.isError ? errorMessage(cancelMutation.error, "Couldn't cancel this booking.") : null}
-                    onConfirm={() => cancelMutation.mutate()}
-                    onCancel={() => setConfirmCancel(false)}
+                    source={existing.source}
+                    onClose={() => setConfirmCancel(false)}
                 />
             ) : (
             <ConfirmDialog

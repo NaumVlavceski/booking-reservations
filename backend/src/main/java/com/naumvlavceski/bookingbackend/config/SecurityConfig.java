@@ -27,6 +27,16 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UnauthorizedEntryPoint unauthorizedEntryPoint;
+    private final com.naumvlavceski.bookingbackend.admin.AdminAccessFilter adminAccessFilter;
+
+    /** The admin gate runs only inside the security chain (after the JWT filter), never as a plain servlet filter. */
+    @Bean
+    org.springframework.boot.web.servlet.FilterRegistrationBean<com.naumvlavceski.bookingbackend.admin.AdminAccessFilter>
+    adminAccessFilterRegistration(com.naumvlavceski.bookingbackend.admin.AdminAccessFilter filter) {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
 
     @Value("${springdoc.api-docs.enabled:false}")
     private boolean apiDocsEnabled;
@@ -88,11 +98,16 @@ public class SecurityConfig {
                             "/api/ical/**",
                             "/api/notifications/unsubscribe"
                     ).permitAll();
+                    // Resend delivery reports: no session, but every request must carry a valid Svix signature
+                    // (ResendWebhookController); 404 while RESEND_WEBHOOK_SECRET is empty
+                    auth.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/webhooks/resend").permitAll();
                     // app.docs.enabled (APP_DOCS_ENABLED) drives springdoc.api-docs.enabled, see application.yml
                     if (apiDocsEnabled) auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll();
                     auth.anyRequest().authenticated();
                 })
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // /api/admin/**: 404 unless enabled and is_admin, 403 without an admin session (AdminAccessFilter)
+                .addFilterAfter(adminAccessFilter, JwtAuthFilter.class);
 
         return http.build();
     }
@@ -101,10 +116,13 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(allowedOrigins());
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // PATCH: admin notes (PATCH /api/admin/notes/{id})
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(List.of(JwtAuthFilter.REFRESHED_TOKEN_HEADER, HttpHeaders.CONTENT_DISPOSITION));
+        configuration.setExposedHeaders(List.of(JwtAuthFilter.REFRESHED_TOKEN_HEADER, HttpHeaders.CONTENT_DISPOSITION,
+                com.naumvlavceski.bookingbackend.admin.AdminAccessFilter.EXPIRES_HEADER,
+                com.naumvlavceski.bookingbackend.admin.AdminAccessFilter.MAX_HEADER));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

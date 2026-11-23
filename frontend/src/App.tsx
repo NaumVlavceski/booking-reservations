@@ -1,4 +1,5 @@
-import {Routes, Route, Navigate} from "react-router-dom";
+import {lazy, Suspense} from "react";
+import {Routes, Route, Navigate, useLocation} from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
@@ -29,8 +30,13 @@ import TermsPage from "./pages/TermsPage.tsx";
 import AccountPage from "./pages/AccountPage.tsx";
 import LandingPage from "./pages/LandingPage.tsx";
 import ContactPage from "./pages/ContactPage.tsx";
+import HelpConnectBookingPage from "./pages/HelpConnectBookingPage.tsx";
 import {tokenStorage} from "./lib/auth/tokenStorage";
 import {isStandalone} from "./lib/pwa";
+// SEO: per-page title/description/canonical, noindex on private pages (src/publicRoutes.ts)
+import {usePageMeta} from "./lib/usePageMeta";
+
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 
 /**
  * "/": the home page for visitors. Signed in, it opens the calendar as before; the installed app (which starts at
@@ -44,6 +50,9 @@ function HomeRoute() {
 
 
 export default function App() {
+    // SEO: see src/lib/usePageMeta.ts
+    usePageMeta(useLocation().pathname);
+
     return (
         <Routes>
             <Route path="/login" element={<LoginPage/>}/>
@@ -54,6 +63,7 @@ export default function App() {
             <Route path="/privacy" element={<PrivacyPolicyPage/>}/>
             <Route path="/terms" element={<TermsPage/>}/>
             <Route path="/contact" element={<ContactPage/>}/>
+            <Route path="/help/connect-booking-com" element={<HelpConnectBookingPage/>}/>
             <Route path="/" element={<HomeRoute/>}/>
             <Route element={<ProtectedRoute/>}>
                 <Route element={<DashboardLayout />}>
@@ -81,6 +91,8 @@ export default function App() {
                     <Route path="/dashboard/account/password" element={<ChangePasswordPage/>}/>
                     <Route path="*" element={<NotFoundPage/>}/>
                 </Route>
+                {/* Admin panel: its own chunk (assets/admin/), loaded only here; the server decides who gets in */}
+                <Route path="/admin/*" element={<Suspense fallback={null}><AdminApp/></Suspense>}/>
             </Route>
         </Routes>
     );

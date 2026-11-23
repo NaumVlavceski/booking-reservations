@@ -1,4 +1,4 @@
-import {type ReactNode, useEffect} from "react";
+import {type ReactNode, useSyncExternalStore} from "react";
 import {Link} from "react-router-dom";
 import AppLogo from "../components/AppLogo";
 import {demoErrorMessage, useStartDemo} from "../lib/useStartDemo";
@@ -169,13 +169,7 @@ const FAQ: { question: string; answer: ReactNode; phoneOnly?: boolean }[] = [
 
 /** The public home page, for visitors who are not signed in. */
 export default function LandingPage() {
-    useEffect(() => {
-        document.title = "RoomTrack: every booking on one calendar";
-        return () => {
-            document.title = "RoomTrack";
-        };
-    }, []);
-
+    // The tab title and description come from src/publicRoutes.ts (usePageMeta in App.tsx).
     return (
         <div className="min-h-dvh bg-canvas text-fg">
             <Header/>
@@ -215,7 +209,7 @@ function Header() {
         <header className="sticky top-0 z-(--rt-z-sticky) border-b border-subtle bg-surface/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
             <Container className="flex h-16 items-center gap-6">
                 <Link to="/" className="flex items-center gap-2 text-title-3 font-bold">
-                    <AppLogo size={30}/>
+                    <AppLogo size={30} decorative/>
                     RoomTrack
                 </Link>
                 {/* From 1024px: at tablet width the five links don't fit next to the logo and buttons */}
@@ -285,9 +279,14 @@ function Hero() {
                     </a>
                 </div>
                 {/* A phone gets the phone picture (the wide calendar is unreadable that small); from 640px, the calendar
-                    from the video tour at 0:12. The browser downloads only the one it shows. */}
+                    from the video tour at 0:12. The browser downloads only the one it shows: AVIF, else WebP, else the
+                    original (scripts/one-off/hero-images.mjs makes the AVIF/WebP copies). */}
                 <picture className="block sm:overflow-hidden sm:rounded-card sm:border sm:border-subtle sm:bg-surface sm:shadow-popover">
+                    <source media="(min-width: 640px)" type="image/avif" srcSet="/landing/hero-calendar.avif" width={1560} height={800}/>
+                    <source media="(min-width: 640px)" type="image/webp" srcSet="/landing/hero-calendar.webp" width={1560} height={800}/>
                     <source media="(min-width: 640px)" srcSet="/landing/hero-calendar.jpg" width={1560} height={800}/>
+                    <source type="image/avif" srcSet="/landing/calendar-phone.avif" width={357} height={700}/>
+                    <source type="image/webp" srcSet="/landing/calendar-phone.webp" width={357} height={700}/>
                     <img
                         src="/landing/calendar-phone.png"
                         width={357}
@@ -320,8 +319,13 @@ function Audience() {
     );
 }
 
+const noSubscribe = () => () => {};
+
 function VideoTour() {
     const isPhone = useMediaQuery(PHONE_QUERY);
+    // True only in the build-time render (src/prerender.tsx): it can't know the screen size, so it leaves the poster
+    // out instead of making phones download the wide one next to the hero picture. In the browser: always false.
+    const prerendering = useSyncExternalStore(noSubscribe, () => false, () => true);
     const vertical = isPhone && Boolean(VIDEO_TOUR_VERTICAL.src);
     const tour = vertical ? VIDEO_TOUR_VERTICAL : VIDEO_TOUR;
     const chapters = [
@@ -340,13 +344,16 @@ function VideoTour() {
                     <figure>
                         {tour.src ? (
                             // key: switching between the two cuts (rotating a tablet, resizing) loads the other file
-                            <video key={tour.src} controls preload="metadata" playsInline poster={tour.poster || undefined}
+                            // preload="none": nothing is downloaded until play is pressed; the poster shows meanwhile
+                            <video key={tour.src} controls preload="none" playsInline poster={(!prerendering && tour.poster) || undefined}
                                    className={`rounded-card bg-black shadow-popover ${vertical
                                        // Never taller than most of the screen, so the controls stay in view
                                        ? "mx-auto aspect-[9/16] w-full max-w-[min(100%,calc(80svh*9/16))]"
                                        : "aspect-video w-full"}`}>
                                 <source src={tour.src} type="video/mp4"/>
                                 {tour.captions && <track kind="captions" src={tour.captions} srcLang="en" label="English" default/>}
+                                {/* Only shown by browsers that can't play the video */}
+                                <a href={tour.src} className="link">Download the product tour video (MP4)</a>
                             </video>
                         ) : (
                             <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed border-default bg-surface text-muted">
@@ -476,15 +483,22 @@ function InstallApp() {
                         Offline, the calendar is view-only. Changes wait until you are back online.
                     </p>
                 </div>
-                {/* Not on a phone: the hero already shows this picture there */}
-                <img
-                    src="/landing/calendar-phone.png"
-                    width={357}
-                    height={700}
-                    loading="lazy"
-                    alt="RoomTrack on an iPhone: the calendar with four rooms and their November bookings."
-                    className="mx-auto hidden h-auto w-64 sm:block"
-                />
+                {/* Not on a phone: the hero already shows this picture there. Same AVIF/WebP copies as the hero: in the
+                    prerendered page a phone can fetch it before the stylesheet hides it. */}
+                {/* The <picture> is the grid item (not display: contents, which would turn the <source>s into empty
+                    grid cells and push the picture into a second row). */}
+                <picture className="hidden sm:block">
+                    <source type="image/avif" srcSet="/landing/calendar-phone.avif" width={357} height={700}/>
+                    <source type="image/webp" srcSet="/landing/calendar-phone.webp" width={357} height={700}/>
+                    <img
+                        src="/landing/calendar-phone.png"
+                        width={357}
+                        height={700}
+                        loading="lazy"
+                        alt="RoomTrack on an iPhone: the calendar with four rooms and their November bookings."
+                        className="mx-auto block h-auto w-64"
+                    />
+                </picture>
             </Container>
         </section>
     );
@@ -598,6 +612,7 @@ function Footer() {
                 {label: "Video tour", href: "#video-tour"},
                 {label: "Pricing", href: "#pricing"},
                 {label: "FAQ", href: "#faq"},
+                {label: "How to connect Booking.com", to: "/help/connect-booking-com"},
             ],
         },
         {
@@ -618,14 +633,14 @@ function Footer() {
             <Container className="grid grid-cols-2 gap-8 py-12 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
                 <div className="col-span-2 lg:col-span-1">
                     <p className="flex items-center gap-2 text-title-3 font-bold">
-                        <AppLogo size={26}/>
+                        <AppLogo size={26} decorative/>
                         RoomTrack
                     </p>
                     <p className="mt-2 max-w-xs text-body-sm text-muted">Reservation management for small accommodation owners.</p>
                 </div>
                 {columns.map((column) => (
                     <nav key={column.title} aria-label={column.title}>
-                        <h2 className="text-label text-fg">{column.title}</h2>
+                        <p className="text-label text-fg">{column.title}</p>
                         <ul className="mt-3 space-y-2 text-body-sm">
                             {column.links.map((link) => (
                                 <li key={link.label}>

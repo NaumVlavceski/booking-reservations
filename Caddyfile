@@ -25,6 +25,8 @@ api.roomtrack.app {
 	header {
 		-Server
 		-Via
+		# The API is not a website: search engines must not index it.
+		X-Robots-Tag "noindex, nofollow"
 		defer
 	}
 	reverse_proxy backend:8080 {

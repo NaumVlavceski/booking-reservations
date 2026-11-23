@@ -29,3 +29,6 @@ app:
     idle-timeout-ms: 1800000
     absolute-timeout-ms: 86400000
     renew-threshold-ratio: 0.5
+  # The admin panel is on in tests (it is off by default); AdminDisabledTest checks the off state
+  admin:
+    enabled: true

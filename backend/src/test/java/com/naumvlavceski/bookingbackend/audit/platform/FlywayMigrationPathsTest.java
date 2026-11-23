@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class FlywayMigrationPathsTest {
 
-    private static final MigrationVersion LATEST = MigrationVersion.fromVersion("26");
+    private static final MigrationVersion LATEST = MigrationVersion.fromVersion("29");
 
     private record ProdFlywaySettings(String[] locations, String[] ignorePatterns) {}
 

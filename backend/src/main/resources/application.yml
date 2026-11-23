@@ -101,6 +101,17 @@ app:
     contact-total:
       max: 30
       window: 1h
+    # Resend delivery reports (signed, see ResendWebhookController). Resend sends from a few addresses.
+    webhook-per-ip:
+      max: 1000
+      window: 1h
+    # Admin panel: Send email (per admin session) and Delete owner (per admin)
+    admin-mail-per-session:
+      max: 20
+      window: 1h
+    admin-delete-per-admin:
+      max: 5
+      window: 1h
   jwt:
     secret: ${APP_JWT_SECRET:}
     idle-timeout-ms: ${APP_JWT_IDLE_TIMEOUT_MS}
@@ -110,7 +121,9 @@ app:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:RoomTrack <onboarding@resend.dev>}
-    log-retention-days: ${EMAIL_LOG_RETENTION_DAYS:90}
+    log-retention-days: ${APP_EMAIL_LOG_RETENTION_DAYS:${EMAIL_LOG_RETENTION_DAYS:90}}
+    # Resend webhook signing secret (whsec_...). Empty: POST /api/webhooks/resend answers 404.
+    resend-webhook-secret: ${RESEND_WEBHOOK_SECRET:}
   # The contact form sends each message to this address (Reply-To is the visitor's). Kept on the server only, never
   # in the code or the website. Empty: the form answers 503 CONTACT_UNAVAILABLE.
   contact:
@@ -123,6 +136,30 @@ app:
   # "Try the demo" (POST /api/auth/demo, see DemoAccounts). On by default; docker-compose.yml passes
   # APP_DEMO_ENABLED and turns it off there unless .env says true. Each visitor gets a
   # private copy of the sample data, deleted after `lifetime`; at most `max-active` demos exist at once.
+  # Admin panel (ADMIN_PANEL_CHANGES.md)
+  admin:
+    # Off unless APP_ADMIN_ENABLED=true; then the app refuses to start without working email (AdminStartupCheck)
+    enabled: ${APP_ADMIN_ENABLED:false}
+    # The admin session window (Continue adds another) and the absolute cap from the email code
+    session-minutes: ${APP_ADMIN_SESSION_MINUTES:30}
+    session-max-hours: ${APP_ADMIN_SESSION_MAX_HOURS:8}
+    # Optional read-only mount with the database backups; empty or unreadable: "unknown" in System status
+    backup-dir: ${APP_ADMIN_BACKUP_DIR:}
+    # Whose free space System status shows
+    disk-path: ${APP_ADMIN_DISK_PATH:/}
+    # Send email: the sender (a domain verified in Resend) and where replies go. Empty sender: Send email is off.
+    mail-from: ${APP_ADMIN_MAIL_FROM:}
+    mail-reply-to: ${APP_ADMIN_MAIL_REPLY_TO:}
+    # admin_audit_log rows older than this are deleted once a day (AdminAuditRetentionScheduler)
+    audit-retention-days: ${APP_AUDIT_RETENTION_DAYS:730}
+    # "Needs help" thresholds (AttentionRules)
+    attention:
+      unverified-hours: 24
+      sync-failures: 2
+      sync-stale-hours: 48
+      stuck-days: 3
+      email-problem-days: 30
+      inactive-days: 14
   demo:
     enabled: ${APP_DEMO_ENABLED:true}
     lifetime: 1h

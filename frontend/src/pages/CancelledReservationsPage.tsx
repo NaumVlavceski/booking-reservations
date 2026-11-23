@@ -2,7 +2,9 @@ import {keepPreviousData, useMutation, useQuery, useQueryClient} from "@tanstack
 import {isAxiosError} from "axios";
 import {useState} from "react";
 import {Link} from "react-router-dom";
-import {getCancelledReservations, restoreReservation, type ReservationResponse} from "../lib/api/reservations";
+import {
+    getCancelledReservations, needsRestoreAsDirect, restoreReservation, type ReservationResponse,
+} from "../lib/api/reservations";
 import {allUnitsQuery} from "../lib/api/units";
 import {propertiesQuery} from "../lib/api/properties";
 import {bookingLabel, guestNameOf} from "../lib/bookingLabel";
@@ -18,6 +20,7 @@ import Button from "../components/ui/Button";
 import Field from "../components/ui/Field";
 import {EmptyState, ErrorState, ListSkeleton} from "../components/ui/States";
 import {SourceBadge} from "../components/ReservationBadges";
+import RestoreAsDirectDialog from "../components/RestoreAsDirectDialog";
 
 const PAGE_SIZE = 20;
 
@@ -45,13 +48,18 @@ export default function CancelledReservationsPage() {
     // Restoring the last booking on the last page leaves that page empty: step back to the new last one
     if (data && page > 0 && page >= data.totalPages) setPage(Math.max(data.totalPages - 1, 0));
 
+    // A channel booking its channel no longer lists: ask first whether to restore it as Direct
+    const [askAsDirect, setAskAsDirect] = useState<ReservationResponse | null>(null);
     const restoreMutation = useMutation({
-        mutationFn: (r: ReservationResponse) => restoreReservation(r),
-        onSuccess: async (_data, r) => {
+        mutationFn: ({r, asDirect}: {r: ReservationResponse; asDirect: boolean}) =>
+            restoreReservation(r, "CONFIRMED", asDirect),
+        onSuccess: async (_data, {r, asDirect}) => {
+            setAskAsDirect(null);
             await queryClient.invalidateQueries({queryKey: ["reservations"]});
-            toast.show(`${guestNameOf(r) || "Booking"} is back on the calendar.`);
+            toast.show(`${guestNameOf(r) || "Booking"} is back on the calendar${asDirect ? " as a Direct booking" : ""}.`);
         },
         onError: (error) => {
+            setAskAsDirect(null);
             const message = isAxiosError(error) && error.response?.status === 409
                 ? "Can't restore: some of those nights have been booked since. Change its dates first, then restore it."
                 : errorMessage(error, "Couldn't restore this booking.");
@@ -89,10 +97,12 @@ export default function CancelledReservationsPage() {
     const summary = `${totalElements} ${filtering ? "matching" : "cancelled"} ${totalElements === 1 ? "booking" : "bookings"}`;
 
     function restoreButton(r: ReservationResponse) {
-        const restoring = restoreMutation.isPending && restoreMutation.variables?.id === r.id;
+        const restoring = restoreMutation.isPending && restoreMutation.variables?.r.id === r.id;
         return (
             <Button variant="secondary" size="sm" className="shrink-0"
-                    onClick={() => restoreMutation.mutate(r)}
+                    onClick={() => needsRestoreAsDirect(r)
+                        ? setAskAsDirect(r)
+                        : restoreMutation.mutate({r, asDirect: false})}
                     disabled={restoreMutation.isPending && !restoring}
                     loading={restoring} loadingLabel="Restoring…"
                     aria-label={`Restore ${guestNameOf(r) || "booking"}`}>
@@ -243,6 +253,14 @@ export default function CancelledReservationsPage() {
                     )}
                 </>
             )}
+
+            <RestoreAsDirectDialog
+                open={askAsDirect !== null}
+                source={askAsDirect?.source ?? "BOOKING"}
+                pending={restoreMutation.isPending}
+                onRestoreAsDirect={() => askAsDirect && restoreMutation.mutate({r: askAsDirect, asDirect: true})}
+                onKeepCancelled={() => setAskAsDirect(null)}
+            />
         </div>
     );
 }

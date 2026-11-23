@@ -186,7 +186,8 @@ class EndpointMatrixAuditTest extends ApiAuditBase {
     void accountNotificationContactAndPublicEndpointsAnswerTheirDocumentedShapes() throws Exception {
         TestOwner o = newOwner();
         String me = body(send(get("/api/me"), o.token(), null).andExpect(status().isOk()));
-        assertEquals(Set.of("email", "fullName", "termsVersion", "privacyVersion", "termsAcceptedAt", "demo"), keys(me));
+        assertEquals(Set.of("email", "fullName", "termsVersion", "privacyVersion", "termsAcceptedAt", "demo",
+                "isAdmin"), keys(me));
         assertNothingSensitive(me);
 
         String unit = newRoom(o.token());
@@ -289,7 +290,7 @@ class EndpointMatrixAuditTest extends ApiAuditBase {
         String created = body(send(post("/api/reservations"), o.token(), reservationJson(rooms.get(0), "2040-06-01", "2040-06-04",
                 "\"totalAmount\":120.50,\"guestsCount\":2")).andExpect(status().isOk()));
         Set<String> resKeys = Set.of("id", "unitId", "checkIn", "checkOut", "status", "source", "guestName", "guestEmail",
-                "guestPhone", "guestsCount", "pricePerGuest", "nightlyRate", "totalAmount", "notes", "priceNeedsReview", "cancelledAt");
+                "guestPhone", "guestsCount", "pricePerGuest", "nightlyRate", "totalAmount", "notes", "priceNeedsReview", "missingFromFeed", "listedByChannel", "cancelledAt");
         assertEquals(resKeys, keys(created));
         assertNothingSensitive(created);
         String rid = JsonPath.read(created, "$.id");

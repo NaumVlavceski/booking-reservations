@@ -10,6 +10,7 @@ import com.naumvlavceski.bookingbackend.mail.ReservationNotifier;
 import com.naumvlavceski.bookingbackend.model.ExternalCalendar;
 import com.naumvlavceski.bookingbackend.repository.UnitRepository;
 import com.naumvlavceski.bookingbackend.repository.ExternalCalendarRepository;
+import com.naumvlavceski.bookingbackend.util.SafeErrorText;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,8 +67,13 @@ public class IcalSyncService {
 
     private void recordFailure(ExternalCalendar calendar, Instant startedAt, String message) {
         calendar.setLastSyncedAt(startedAt);
+        calendar.setRecheckSoon(false); // a failing feed is retried at the usual pace, not every couple of minutes
         calendar.setLastError(truncate(message));
         calendar.setConsecutiveFailures(calendar.getConsecutiveFailures() + 1);
+        // For the admin panel: same failure, but without the calendar's link or anything that looks like a token
+        calendar.setLastErrorAt(startedAt);
+        String safe = SafeErrorText.of(message, calendar.getIcsUrl());
+        calendar.setLastErrorMessage(safe == null ? "Unknown error" : safe);
         // Exactly once per failing streak; a success resets the counter so a later streak notifies again
         if (calendar.getConsecutiveFailures() == FAILURES_BEFORE_ALERT) {
             notifySyncFailing(calendar);

@@ -15,4 +15,16 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, UUID> {
     @Modifying
     @Query("delete from EmailLog e where e.createdAt < :cutoff")
     int deleteOlderThan(@Param("cutoff") OffsetDateTime cutoff);
+
+    /** Resend webhook: bounced / complained always win. */
+    @Modifying
+    @Query("update EmailLog e set e.status = :status, e.updatedAt = :now where e.providerId = :providerId")
+    int updateStatusByProviderId(@Param("providerId") String providerId, @Param("status") String status,
+                                 @Param("now") OffsetDateTime now);
+
+    /** Resend webhook: "delivered" never overwrites a bounce or complaint that arrived first. */
+    @Modifying
+    @Query("update EmailLog e set e.status = 'DELIVERED', e.updatedAt = :now "
+            + "where e.providerId = :providerId and e.status not in ('BOUNCED', 'COMPLAINED')")
+    int markDelivered(@Param("providerId") String providerId, @Param("now") OffsetDateTime now);
 }

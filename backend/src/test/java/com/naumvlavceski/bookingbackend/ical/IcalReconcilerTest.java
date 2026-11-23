@@ -7,6 +7,7 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.naumvlavceski.bookingbackend.dto.ReservationRequest;
+import com.naumvlavceski.bookingbackend.exception.ChannelBookingException;
 import com.naumvlavceski.bookingbackend.mail.ReservationNotifier;
 import com.naumvlavceski.bookingbackend.service.ReservationService;
 import java.math.BigDecimal;
@@ -231,33 +232,295 @@ class IcalReconcilerTest {
         assertEquals(0, new BigDecimal("100").compareTo(saved.getTotalAmount()));
     }
 
+    // Owner's decision (2026-11-14): the first sync that misses a booking only flags it and asks for a quick re-check;
+    // the second one cancels it.
     @Test
-    void anEventThatStaysGoneIsCancelledOnlyAfterSeveralSyncsAndAnHour() {
+    void anEventMissingFromOneSyncIsOnlyFlaggedAndRecheckedSoon() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("a1", "20300610", "20300615"), stays));
+        assertFalse(calendar.isRecheckSoon());
+
+        reconcile(List.of(stays));
+
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus(), "one read is not enough");
+        ExternalEvent e = externalEventRepository.findByExternalCalendarIdAndUid(calendar.getId(), "a1").orElseThrow();
+        assertEquals(1, e.getMissingSyncs());
+        assertTrue(calendar.isRecheckSoon());
+        verify(notifier, never()).externalReservationCancelled(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void anEventStillMissingFromTheNextSyncIsCancelledWithoutWaitingAnHour() {
         ParsedIcalEvent stays = event("stays", "20300801", "20300805");
         reconcile(List.of(event("a1", "20300610", "20300615"), stays));
 
-        for (int sync = 0; sync < 5; sync++) reconcile(List.of(stays));
-        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus(), "under an hour: still booked");
-
-        missingFor("a1", Duration.ofMinutes(61));
         reconcile(List.of(stays));
+        reconcile(List.of(stays));
+
         assertEquals(ReservationStatus.CANCELLED, reservationFor("a1").getStatus());
         assertNotNull(reservationFor("a1").getCancelledAt(), "the cancelled list sorts by this");
         assertEquals(ReservationStatus.CONFIRMED, reservationFor("stays").getStatus());
+        assertFalse(calendar.isRecheckSoon(), "nothing left to confirm");
         verify(notifier, times(1)).externalReservationCancelled(any(), any(), any(), any(), any());
     }
 
     @Test
-    void anHourIsNotEnoughWithoutSeveralSyncs() {
+    void theFlagShowsOnTheBookingUntilTheEventIsBack() {
+        ParsedIcalEvent a1 = event("a1", "20300610", "20300615");
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(a1, stays));
+        UUID id = reservationFor("a1").getId();
+
+        reconcile(List.of(stays));
+        assertTrue(reservationService.findOneForOwner(unit.getOwnerId(), id).missingFromFeed());
+        assertFalse(reservationService.findOneForOwner(unit.getOwnerId(), reservationFor("stays").getId())
+                .missingFromFeed());
+
+        reconcile(List.of(a1, stays));
+        assertFalse(reservationService.findOneForOwner(unit.getOwnerId(), id).missingFromFeed());
+        assertFalse(calendar.isRecheckSoon());
+    }
+
+    // Seen on Booking.com (2026-11-14): an event left the feed, the sync cancelled its booking, and later the same UID
+    // came back for a new booking with other dates (and DTSTAMP changes on every download anyway). It used to stay
+    // cancelled for good: only a byte-identical event was restored, and the next sync took it for the owner's cancel.
+    @Test
+    void aBookingTheSyncCancelledComesBackWhenItsEventReturnsChanged() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("a1", "20300618", "20300629"), stays));
+        reconcile(List.of(stays));
+        reconcile(List.of(stays));
+        assertEquals(ReservationStatus.CANCELLED, reservationFor("a1").getStatus());
+
+        reconcile(List.of(event("a1", "20300618", "20300620"), stays));
+
+        Reservation back = reservationFor("a1");
+        assertEquals(ReservationStatus.CONFIRMED, back.getStatus());
+        assertEquals(LocalDate.of(2030, 6, 18), back.getStayRange().lower());
+        assertEquals(LocalDate.of(2030, 6, 20), back.getStayRange().upper());
+        verify(notifier, never()).externalReservationModified(any(), any(), any(), any(), any(), any(), any(), any());
+
+        reconcile(List.of(event("a1", "20300618", "20300620"), stays));
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus(), "and stays back");
+    }
+
+    @Test
+    void aBookingTheSyncCancelledWhoseDatesAreTakenComesBackOnceTheyAreFree() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("a1", "20300618", "20300629"), stays));
+        reconcile(List.of(stays));
+        reconcile(List.of(stays));
+        // Each sync commits on its own in the app; here everything is one transaction, and Hibernate would write the
+        // new booking before a1's cancellation, which the no-overlap constraint refuses
+        entityManager.flush();
+        Reservation direct = directIn(unit, "2030-06-19", "2030-06-21");
+
+        reconcile(List.of(event("a1", "20300618", "20300620"), stays));
+        assertEquals(ReservationStatus.CANCELLED, reservationFor("a1").getStatus(), "the dates are taken");
+        reconcile(List.of(event("a1", "20300618", "20300620"), stays));
+        assertEquals(ReservationStatus.CANCELLED, reservationFor("a1").getStatus());
+
+        reservationService.delete(unit.getOwnerId(), direct.getId());
+        reconcile(List.of(event("a1", "20300618", "20300620"), stays));
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus(), "still known as cancelled by the sync");
+    }
+
+    // Owner's decision (2026-11-14, ICAL-01 revisited): a cancelled booking its channel lists comes back, whoever
+    // cancelled it; while the channel lists it, the owner can't cancel it in the app at all.
+    @Test
+    void aBookingCancelledInTheAppWhileMarkedMissingComesBackWhenListedAgain() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("a1", "20300618", "20300629"), stays));
+        reconcile(List.of(stays)); // marked missing: the owner may cancel it now
+        reservationService.delete(unit.getOwnerId(), reservationFor("a1").getId());
+        assertEquals(ReservationStatus.CANCELLED, reservationFor("a1").getStatus());
+
+        reconcile(List.of(event("a1", "20300618", "20300620"), stays));
+
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus(), "the guest holds the dates");
+    }
+
+    @Test
+    void aBookingTheChannelStillListsCanNotBeCancelledInTheApp() {
+        reconcile(List.of(event("a1", "20300610", "20300615")));
+        UUID id = reservationFor("a1").getId();
+        assertTrue(reservationService.findOneForOwner(unit.getOwnerId(), id).listedByChannel());
+
+        assertThrows(ChannelBookingException.class, () -> reservationService.delete(unit.getOwnerId(), id));
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus());
+    }
+
+    @Test
+    void aBookingNoCalendarSyncsAnyMoreCanBeCancelledInTheApp() {
+        reconcile(List.of(event("a1", "20300610", "20300615")));
+        UUID id = reservationFor("a1").getId();
+        externalEventRepository.unlinkReservation(id); // what disconnecting the calendar leaves behind
+
+        assertFalse(reservationService.findOneForOwner(unit.getOwnerId(), id).listedByChannel());
+        reservationService.delete(unit.getOwnerId(), id);
+        assertEquals(ReservationStatus.CANCELLED, reservationRepository.findById(id).orElseThrow().getStatus());
+    }
+
+    @Test
+    void aCancelledBookingStillListedComesBackAtTheNextSync() {
+        // e.g. cancelled in the app before that was refused
+        ParsedIcalEvent a1 = event("a1", "20300610", "20300615");
+        reconcile(List.of(a1));
+        Reservation r = reservationFor("a1");
+        r.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(r);
+
+        reconcile(List.of(a1));
+
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus());
+    }
+
+    // Owner's decision (2026-11-14): Booking.com gives a booking a new UID when its check-in day changes. One booking
+    // gone plus one new event overlapping it, in the same read, is the same booking with new dates.
+    @Test
+    void aCheckInMovedEarlierKeepsTheBookingAndItsDetails() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("old-uid", "20300617", "20300620"), stays));
+        Reservation booking = reservationFor("old-uid");
+        booking.setTotalAmount(new BigDecimal("300"));
+        booking.setNotes("Late arrival");
+        booking.setGuestName("Ana");
+        reservationRepository.save(booking);
+
+        reconcile(List.of(event("new-uid", "20300616", "20300619"), stays));
+
+        Reservation moved = reservationFor("new-uid");
+        assertEquals(booking.getId(), moved.getId(), "the same booking, not a new one");
+        assertEquals(ReservationStatus.CONFIRMED, moved.getStatus());
+        assertEquals(LocalDate.of(2030, 6, 16), moved.getStayRange().lower());
+        assertEquals(LocalDate.of(2030, 6, 19), moved.getStayRange().upper());
+        assertEquals("Late arrival", moved.getNotes());
+        assertEquals("Ana", moved.getGuestName());
+        assertTrue(moved.isPriceNeedsReview());
+        assertTrue(externalEventRepository.findByExternalCalendarIdAndUid(calendar.getId(), "old-uid").isEmpty());
+        assertEquals(2, reservationRepository.findAllByUnitIdAndOwnerId(unit.getId(), unit.getOwnerId()).size());
+        assertTrue(conflictRepository.findAllByExternalCalendarIdAndStatus(calendar.getId(), ConflictStatus.OPEN).isEmpty());
+        assertFalse(calendar.isRecheckSoon(), "nothing is waiting to be cancelled");
+        verify(notifier, times(1)).externalReservationModified(any(), any(), eq(LocalDate.of(2030, 6, 17)),
+                eq(LocalDate.of(2030, 6, 20)), eq(LocalDate.of(2030, 6, 16)), eq(LocalDate.of(2030, 6, 19)),
+                any(), eq(new BigDecimal("300")));
+        verify(notifier, never()).externalReservationCancelled(any(), any(), any(), any(), any());
+        verify(notifier, never()).bookingConflict(any(), any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any());
+
+        reconcile(List.of(event("new-uid", "20300616", "20300619"), stays));
+        assertEquals(ReservationStatus.CONFIRMED, reservationFor("new-uid").getStatus(), "and it stays");
+    }
+
+    @Test
+    void aMoveToDatesThatDoNotOverlapIsACancellationAndANewBooking() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("old-uid", "20300616", "20300618"), stays));
+        UUID old = reservationFor("old-uid").getId();
+
+        reconcile(List.of(event("new-uid", "20300625", "20300628"), stays));
+        assertNotEquals(old, reservationFor("new-uid").getId(), "a new booking");
+        assertEquals(ReservationStatus.CONFIRMED, reservationRepository.findById(old).orElseThrow().getStatus(),
+                "the old one only marked missing so far");
+
+        reconcile(List.of(event("new-uid", "20300625", "20300628"), stays));
+        assertEquals(ReservationStatus.CANCELLED, reservationRepository.findById(old).orElseThrow().getStatus());
+    }
+
+    @Test
+    void twoBookingsGoneAtOnceIsNotAClearMatch() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("a1", "20300617", "20300620"), event("a2", "20300701", "20300705"), stays));
+        UUID a1 = reservationFor("a1").getId();
+
+        reconcile(List.of(event("new-uid", "20300616", "20300619"), stays));
+
+        assertTrue(externalEventRepository.findByExternalCalendarIdAndUid(calendar.getId(), "new-uid").isEmpty(),
+                "not linked to a1; it overlaps a1, still live, so it waits as a conflict");
+        assertEquals(1, conflictRepository.findAllByExternalCalendarIdAndStatus(calendar.getId(), ConflictStatus.OPEN).size());
+        assertEquals(ReservationStatus.CONFIRMED, reservationRepository.findById(a1).orElseThrow().getStatus());
+    }
+
+    @Test
+    void aMovedCheckInOntoAnotherBookingIsStillAConflict() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("old-uid", "20300617", "20300620"), stays));
+        directIn(unit, "2030-06-14", "2030-06-17");
+
+        reconcile(List.of(event("new-uid", "20300615", "20300619"), stays));
+
+        assertTrue(externalEventRepository.findByExternalCalendarIdAndUid(calendar.getId(), "old-uid").isPresent());
+        assertEquals(1, conflictRepository.findAllByExternalCalendarIdAndStatus(calendar.getId(), ConflictStatus.OPEN).size());
+    }
+
+    // Owner's decision (2026-11-14): a cancelled channel booking its channel no longer lists would be cancelled again by
+    // the next sync if restored as is; the app offers to restore it as Direct, which the sync then leaves alone.
+    @Test
+    void aBookingBookingComDroppedIsFlaggedAndCanBeRestoredAsDirect() {
         ParsedIcalEvent stays = event("stays", "20300801", "20300805");
         reconcile(List.of(event("a1", "20300610", "20300615"), stays));
         reconcile(List.of(stays));
-
-        ExternalEvent e = externalEventRepository.findByExternalCalendarIdAndUid(calendar.getId(), "a1").orElseThrow();
-        e.setMissingSince(Instant.now().minus(Duration.ofHours(2)));
         reconcile(List.of(stays));
+        Reservation gone = reservationFor("a1");
+        assertEquals(ReservationStatus.CANCELLED, gone.getStatus());
+        lastSuccessfulSyncWas(Instant.now()); // the read that no longer had it
 
-        assertEquals(ReservationStatus.CONFIRMED, reservationFor("a1").getStatus(), "only 2 syncs so far");
+        assertTrue(reservationService.findOneForOwner(unit.getOwnerId(), gone.getId()).missingFromFeed());
+
+        reservationService.update(unit.getOwnerId(), gone.getId(), restore(gone, true));
+        entityManager.clear();
+
+        Reservation restored = reservationRepository.findById(gone.getId()).orElseThrow();
+        assertEquals(ReservationStatus.CONFIRMED, restored.getStatus());
+        assertEquals(ReservationSource.DIRECT, restored.getSource());
+        assertFalse(externalEventRepository.existsByReservationId(gone.getId()), "the sync no longer knows it");
+
+        reconcile(List.of(stays));
+        reconcile(List.of(stays));
+        assertEquals(ReservationStatus.CONFIRMED, reservationRepository.findById(gone.getId()).orElseThrow().getStatus(),
+                "not cancelled again");
+    }
+
+    @Test
+    void aCancelledBookingTheFeedStillListsIsNotFlagged() {
+        lastSuccessfulSyncWas(Instant.now().minusSeconds(1));
+        reconcile(List.of(event("a1", "20300610", "20300615")));
+        Reservation r = reservationFor("a1");
+        r.setStatus(ReservationStatus.CANCELLED); // the next sync would bring it back anyway
+        reservationRepository.save(r);
+
+        assertFalse(reservationService.findOneForOwner(unit.getOwnerId(), r.getId()).missingFromFeed(),
+                "restoring it as a Booking.com booking is fine: the feed still has it");
+    }
+
+    @Test
+    void restoringAsIsWithoutAsDirectKeepsTheChannel() {
+        ParsedIcalEvent stays = event("stays", "20300801", "20300805");
+        reconcile(List.of(event("a1", "20300610", "20300615"), stays));
+        reconcile(List.of(stays)); // marked missing, so the owner may cancel it
+        Reservation booking = reservationFor("a1");
+        reservationService.delete(unit.getOwnerId(), booking.getId());
+
+        reservationService.update(unit.getOwnerId(), booking.getId(), restore(booking, false));
+
+        assertEquals(ReservationSource.AIRBNB, reservationRepository.findById(booking.getId()).orElseThrow().getSource());
+        assertTrue(externalEventRepository.existsByReservationId(booking.getId()));
+    }
+
+    private void lastSuccessfulSyncWas(Instant when) {
+        calendar.setLastSuccessAt(when);
+        calendar = calendarRepository.save(calendar);
+    }
+
+    private static ReservationRequest restore(Reservation r, boolean asDirect) {
+        return new ReservationRequest(r.getUnit().getId(), r.getStayRange().lower(), r.getStayRange().upper(),
+                ReservationStatus.CONFIRMED, null, null, null, "", null, null, 2, null, asDirect);
+    }
+
+    @Test
+    void anEmptyFeedDoesNotAskForAQuickRecheck() {
+        reconcile(List.of(event("a1", "20300610", "20300615")));
+        reconcile(List.of());
+        assertFalse(calendar.isRecheckSoon(), "an empty feed waits hours anyway");
     }
 
     @Test

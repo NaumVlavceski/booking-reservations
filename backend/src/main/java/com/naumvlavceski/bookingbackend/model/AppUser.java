@@ -52,6 +52,17 @@ public class AppUser {
     private String termsVersion;
     private String privacyVersion;
 
+    /**
+     * Written only by LastSeenTracker with its own UPDATE; read-only here so saving a user loaded earlier can never
+     * put an older value back.
+     */
+    @Column(insertable = false, updatable = false)
+    private java.time.OffsetDateTime lastSeenAt;
+
+    /** Set by hand in the database only (ADMIN_PANEL_CHANGES.md). No code path may write it. */
+    @Column(name = "is_admin", insertable = false, updatable = false)
+    private boolean admin;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

@@ -727,6 +727,29 @@
     opacity: 1;
 }
 
+/* An imported booking its channel's feed no longer lists: faded, with a "?" in the top-right corner (inside the
+   slanted edge) until the next sync cancels it or finds it again. */
+.cal-bar.is-missing-from-feed .cal-bar-svg,
+.cal-bar.is-missing-from-feed .cal-bar-line {
+    opacity: 0.5;
+}
+
+.cal-bar-feed-check {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: var(--rt-warning-solid);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}
+
 /*
  * Bar colours. CalendarPage.tsx writes each bar's colours as an SVG fill/stroke attribute and an inline
  * text colour; the fill value says which kind of bar it is (Paid and Blocked win over the source).

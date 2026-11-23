@@ -9,4 +9,8 @@ public record MeResponse(String email, String fullName, String termsVersion, Str
                          OffsetDateTime termsAcceptedAt,
                          @Schema(description = "A temporary demo from POST /api/auth/demo: sample data, deleted after "
                                  + "its lifetime, with a few account actions turned off")
-                         boolean demo) {}
+                         boolean demo,
+                         @Schema(description = "True only for the signed-in account when it is the admin and the admin panel is "
+                                 + "switched on (APP_ADMIN_ENABLED). A hint for the menu; every admin route checks on the server.")
+                         @com.fasterxml.jackson.annotation.JsonProperty("isAdmin")
+                         boolean isAdmin) {}

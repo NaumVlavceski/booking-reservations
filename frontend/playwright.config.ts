@@ -25,7 +25,14 @@ const common = {
   navigationTimeout: 20_000,
 }
 
-const NOT_SPECIAL = ['**/responsive.spec.ts', '**/pwa.spec.ts']
+const NOT_SPECIAL = ['**/responsive.spec.ts', '**/pwa.spec.ts', '**/perf.spec.ts']
+
+const RESPONSIVE_SIZES = [
+  [360, 640],
+  [768, 1024],
+  [1280, 800],
+  [1920, 1080],
+]
 
 export default defineConfig({
   testDir: './e2e',
@@ -57,12 +64,7 @@ export default defineConfig({
       },
     },
     // Responsive matrix (the 390x844 phone is webkit-mobile above).
-    ...[
-      [360, 640],
-      [768, 1024],
-      [1280, 800],
-      [1920, 1080],
-    ].map(([width, height]) => ({
+    ...RESPONSIVE_SIZES.map(([width, height]) => ({
       name: `responsive-${width}x${height}`,
       testMatch: '**/responsive.spec.ts',
       use: {
@@ -76,6 +78,20 @@ export default defineConfig({
       name: 'pwa',
       testMatch: '**/pwa.spec.ts',
       use: { ...devices['Desktop Chrome'], ...common, serviceWorkers: 'allow' },
+    },
+    // Timing budgets (perf.spec.ts) measure wall-clock time, so they run after every other project, with nothing
+    // beside them; in parallel with other browsers they measured the busy machine, not the app. On their own:
+    // `npm run test:e2e:perf` (--no-deps). If another project fails, this one does not run.
+    {
+      name: 'perf',
+      testMatch: '**/perf.spec.ts',
+      dependencies: [
+        'chromium',
+        'webkit-mobile',
+        ...RESPONSIVE_SIZES.map(([width, height]) => `responsive-${width}x${height}`),
+        'pwa',
+      ],
+      use: { ...devices['Desktop Chrome'], ...common, viewport: { width: 1280, height: 800 } },
     },
   ],
   webServer: process.env.E2E_BASE_URL

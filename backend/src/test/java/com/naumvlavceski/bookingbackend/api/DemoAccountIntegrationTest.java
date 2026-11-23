@@ -8,7 +8,7 @@ import com.naumvlavceski.bookingbackend.repository.AppUserRepository;
 import com.naumvlavceski.bookingbackend.repository.OwnerRepository;
 import com.naumvlavceski.bookingbackend.repository.PasswordResetRepository;
 import com.naumvlavceski.bookingbackend.repository.ReservationRepository;
-import com.naumvlavceski.bookingbackend.service.AccountService;
+import com.naumvlavceski.bookingbackend.service.OwnerDeletionService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,7 @@ class DemoAccountIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired DemoAccounts demos;
-    @Autowired AccountService accountService;
+    @Autowired OwnerDeletionService ownerDeletion;
     @Autowired AppUserRepository users;
     @Autowired OwnerRepository owners;
     @Autowired ReservationRepository reservations;
@@ -66,7 +66,7 @@ class DemoAccountIntegrationTest {
     /** Each test starts without demos, so max-active counts only its own. */
     @BeforeEach
     void noDemos() {
-        owners.findAllByDemoTrue().forEach(o -> accountService.deleteOwnerData(o.getId()));
+        owners.findAllByDemoTrue().forEach(o -> ownerDeletion.deleteOwnerData(o.getId()));
     }
 
     private ResultActions send(MockHttpServletRequestBuilder req, String token, String body, String ip) throws Exception {

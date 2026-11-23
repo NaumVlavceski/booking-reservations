@@ -450,12 +450,18 @@ test.describe("edit, move, copy, cancel", () => {
         expect((await apiOk<Full>("GET", `/api/reservations/${r.id}`, o.token)).status).toBe("PAID");
     });
 
-    test("a Booking.com booking: no Move; Cancel warns (green Keep booking) and Cancel anyway cancels it", async ({page, signedIn}) => {
-        // Owner's decision (2026-11-13): for any booking that is not Direct, Cancel shows where to cancel it, with
-        // Keep booking (green, focused) and Cancel anyway. A booking cancelled here stays cancelled (IcalSyncE2eAuditTest).
+    test("a Booking.com booking Booking.com still lists: no Move; Cancel only says to cancel it on Booking.com", async ({page, signedIn}) => {
+        // Owner's decision (2026-11-14, ICAL-01 revisited): while its channel lists it, a booking is cancelled on the
+        // channel; the dialog has only OK and nothing is cancelled here (the server refuses it too).
         const o = await freshOwner();
         const r = await createReservation(o.token, {unitId: o.units[0].id, checkIn: day(5), checkOut: day(8), guestName: "CLOSED - Not available"});
         psql(`UPDATE reservation SET source = 'BOOKING' WHERE id = '${r.id}'`);
+        // Linked to a feed that listed it at the last sync (marked synced, so the scheduler leaves it alone)
+        psql(`WITH cal AS (INSERT INTO external_calendar (id, unit_id, platform, ics_url, created_at, updated_at, last_synced_at)
+              VALUES (gen_random_uuid(), '${o.units[0].id}', 'BOOKING', 'https://ical.booking.com/v1/export?t=e2e', now(), now(), now() + interval '1 day')
+              RETURNING id)
+              INSERT INTO external_event (id, external_calendar_id, uid, reservation_id, raw_hash, last_seen_at, created_at)
+              SELECT gen_random_uuid(), cal.id, 'e2e@booking.com', '${r.id}', repeat('0', 64), now(), now() FROM cal`);
         await signedIn(o);
         await page.goto(`/dashboard/reservations/${r.id}`);
         await page.getByRole("button", {name: "Booking actions"}).click();
@@ -464,19 +470,24 @@ test.describe("edit, move, copy, cancel", () => {
         await expect(page.getByRole("menuitem", {name: "Move"})).toHaveCount(0);
         await page.getByRole("menuitem", {name: "Cancel"}).click();
         const dialog = page.getByRole("alertdialog");
-        await expect(dialog.getByText("This booking is still on Booking.com. Cancel it on Booking.com: RoomTrack takes it off the calendar by itself at the next syncs.")).toBeVisible();
-        const keep = dialog.getByRole("button", {name: "Keep booking"});
-        await expect(keep).toBeFocused();
-        await expect(keep).toHaveClass(/btn-success/); // green
-        await expect(dialog.getByRole("button", {name: "Cancel anyway"})).toHaveClass(/btn-danger/);
-        // Keep booking: nothing changes
-        await keep.click();
+        await expect(dialog.getByText("This booking is still on Booking.com. Cancel it there: RoomTrack takes it off the calendar by itself within a few minutes.")).toBeVisible();
+        await expect(dialog.getByRole("button")).toHaveCount(1);
+        const ok = dialog.getByRole("button", {name: "OK"});
+        await expect(ok).toBeFocused();
+        await ok.click();
         await expect(dialog).toBeHidden();
         expect((await apiOk<Full>("GET", `/api/reservations/${r.id}`, o.token)).status).toBe("CONFIRMED");
-        // Cancel anyway: cancelled
+    });
+
+    test("a Booking.com booking no calendar syncs any more can be cancelled here", async ({page, signedIn}) => {
+        const o = await freshOwner();
+        const r = await createReservation(o.token, {unitId: o.units[0].id, checkIn: day(5), checkOut: day(8), guestName: "CLOSED - Not available"});
+        psql(`UPDATE reservation SET source = 'BOOKING' WHERE id = '${r.id}'`);
+        await signedIn(o);
+        await page.goto(`/dashboard/reservations/${r.id}`);
         await page.getByRole("button", {name: "Booking actions"}).click();
         await page.getByRole("menuitem", {name: "Cancel"}).click();
-        await dialog.getByRole("button", {name: "Cancel anyway"}).click();
+        await page.getByRole("alertdialog").getByRole("button", {name: "Cancel booking"}).click();
         await expect(page.getByText("Booking cancelled. The dates are free again.")).toBeVisible();
         expect((await apiOk<Full>("GET", `/api/reservations/${r.id}`, o.token)).status).toBe("CANCELLED");
     });

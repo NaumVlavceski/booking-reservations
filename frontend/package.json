@@ -13,6 +13,7 @@
     "test:e2e:mobile": "playwright test --project=webkit-mobile",
     "test:e2e:responsive": "playwright test --project=responsive-*",
     "test:e2e:pwa": "playwright test --project=pwa",
+    "test:e2e:perf": "playwright test --project=perf --no-deps --workers=1",
     "e2e:stack:up": "bash e2e/stack/up.sh",
     "e2e:stack:down": "bash e2e/stack/down.sh",
     "e2e": "bash e2e/stack/up.sh && playwright test"
