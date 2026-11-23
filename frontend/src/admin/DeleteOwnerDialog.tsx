@@ -1,6 +1,6 @@
 // Delete owner: lists what goes (counts from the server), warns twice, and keeps "Delete permanently" disabled until
 // the owner's email is typed exactly (any letter case).
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {useMutation, useQuery} from "@tanstack/react-query";
 import Sheet from "../components/ui/Sheet";
 import Button from "../components/ui/Button";
@@ -29,9 +29,12 @@ export default function DeleteOwnerDialog({open, onClose, onDeleted, ownerId, na
     });
     const remove = useMutation({mutationFn: () => deleteOwner(ownerId, typed.trim()), onSuccess: onDeleted});
 
-    useEffect(() => {
+    // An empty confirmation field each time it opens (state adjusted during render when `open` changes, not in an effect)
+    const [wasOpen, setWasOpen] = useState(open);
+    if (open !== wasOpen) {
+        setWasOpen(open);
         if (open) setTyped("");
-    }, [open]);
+    }
 
     const matches = typed.trim().toLowerCase() === email.toLowerCase();
     const s = summary.data;

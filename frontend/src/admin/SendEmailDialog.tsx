@@ -1,6 +1,6 @@
 // Send email: To (prefilled with the owner's email when opened from an owner, editable), From read-only (set on the
 // server), Subject, Message. A failed send keeps everything typed.
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import {useMutation, useQueryClient} from "@tanstack/react-query";
 import Sheet from "../components/ui/Sheet";
 import Button from "../components/ui/Button";
@@ -30,14 +30,17 @@ export default function SendEmailDialog({open, onClose, from, to: initialTo = ""
     const toast = useToast();
     const queryClient = useQueryClient();
 
-    // A fresh form each time it opens (with the owner's address when opened from an owner)
-    useEffect(() => {
-        if (!open) return;
-        setTo(initialTo);
-        setSubject("");
-        setMessage("");
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    // A fresh form each time it opens (with the owner's address when opened from an owner). State is adjusted during
+    // render when `open` changes, not in an effect.
+    const [wasOpen, setWasOpen] = useState(open);
+    if (open !== wasOpen) {
+        setWasOpen(open);
+        if (open) {
+            setTo(initialTo);
+            setSubject("");
+            setMessage("");
+        }
+    }
 
     const send = useMutation({
         mutationFn: () => sendAdminEmail({to: to.trim(), subject: subject.trim(), message, ownerId}),

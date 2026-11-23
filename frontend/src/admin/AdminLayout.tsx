@@ -13,7 +13,8 @@ import Button from "../components/ui/Button";
 import {CountBubble} from "../components/ui/Badge";
 import {ChevronRightIcon, LogoutIcon, MoreHorizontalIcon} from "../components/icons";
 import {useAdminShell} from "./AdminContext";
-import {AdminChip, ClockIcon, GridIcon, ListIcon, MailIcon, mmss, PeopleIcon} from "./adminUi";
+import {AdminChip, ClockIcon, GridIcon, ListIcon, MailIcon, PeopleIcon} from "./adminUi";
+import {mmss} from "./adminFormat";
 import {getEmailConfig} from "./adminApi";
 import SendEmailDialog from "./SendEmailDialog";
 

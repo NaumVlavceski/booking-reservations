@@ -20,7 +20,8 @@ import AdminOverviewPage from "./AdminOverviewPage";
 import AdminOwnersPage from "./AdminOwnersPage";
 import AdminOwnerPage from "./AdminOwnerPage";
 import AdminAuditPage from "./AdminAuditPage";
-import {ClockIcon, mmss} from "./adminUi";
+import {ClockIcon} from "./adminUi";
+import {mmss} from "./adminFormat";
 
 const WINDOW_SECONDS = 30 * 60;
 const WARN_AT = 60;

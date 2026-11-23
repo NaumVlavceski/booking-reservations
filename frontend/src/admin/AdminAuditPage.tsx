@@ -7,7 +7,8 @@ import Pager from "../components/ui/Pager";
 import {ErrorState, ListSkeleton} from "../components/ui/States";
 import {getAuditLog} from "./adminApi";
 import AdminPageHeader from "./AdminPageHeader";
-import {absolute, RelativeTime} from "./adminUi";
+import {RelativeTime} from "./adminUi";
+import {absolute} from "./adminFormat";
 import {auditText} from "./auditText";
 
 export default function AdminAuditPage() {

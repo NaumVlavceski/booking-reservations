@@ -1,7 +1,8 @@
 import {Link} from "react-router-dom";
 import {ChevronRightIcon} from "../components/icons";
 import type {OwnerRow} from "./adminApi";
-import {OwnerAvatar, ReasonChip, RelativeTime, shortDate, SyncChip, timeAgo} from "./adminUi";
+import {OwnerAvatar, ReasonChip, RelativeTime, SyncChip} from "./adminUi";
+import {shortDate, timeAgo} from "./adminFormat";
 
 function plural(n: number, word: string) {
     return `${n} ${word}${n === 1 ? "" : "s"}`;

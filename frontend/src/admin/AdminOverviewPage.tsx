@@ -12,7 +12,8 @@ import {CheckIcon, ChevronRightIcon, RefreshIcon, WarningIcon} from "../componen
 import {getOverview, type AuditEntry, type FunnelStep, type Overview, type ReasonCode, type Reminder, type SystemStatus} from "./adminApi";
 import AdminPageHeader from "./AdminPageHeader";
 import {OwnerCards, OwnerTable} from "./AdminOwnerList";
-import {ClockIcon, OkChip, ReasonChip, RelativeTime, timeAgo} from "./adminUi";
+import {ClockIcon, OkChip, ReasonChip, RelativeTime} from "./adminUi";
+import {timeAgo} from "./adminFormat";
 import {auditText} from "./auditText";
 
 type Section = "summary" | "attention" | "onboarding" | "system";

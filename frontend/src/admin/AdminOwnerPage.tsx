@@ -24,10 +24,8 @@ import {
 import AdminPageHeader from "./AdminPageHeader";
 import SendEmailDialog from "./SendEmailDialog";
 import DeleteOwnerDialog from "./DeleteOwnerDialog";
-import {
-    absolute, ClockIcon, emailTypeLabel, EmailStatusChip, MailIcon, OkChip, OwnerAvatar, platformLabel, ReasonChip,
-    RelativeTime, shortDate, timeAgo,
-} from "./adminUi";
+import {ClockIcon, EmailStatusChip, MailIcon, OkChip, OwnerAvatar, ReasonChip, RelativeTime} from "./adminUi";
+import {absolute, emailTypeLabel, platformLabel, shortDate, timeAgo} from "./adminFormat";
 
 type Tab = "reservations" | "calendars" | "emails" | "notes";
 const TABS: { key: Tab; label: string }[] = [

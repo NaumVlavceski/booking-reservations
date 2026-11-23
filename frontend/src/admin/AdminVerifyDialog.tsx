@@ -10,7 +10,7 @@ import {ShieldIcon} from "../components/icons";
 import {errorCode, errorMessage} from "../lib/errors";
 import {requestAdminCode, verifyAdminCode} from "./adminApi";
 import {adminSession} from "./adminSession";
-import {mmss} from "./adminUi";
+import {mmss} from "./adminFormat";
 
 const EMPTY = Array.from({length: CODE_LENGTH}, () => "");
 

@@ -1,10 +1,10 @@
 // Small shared pieces of the admin panel: status chips (always icon + word, never colour alone), relative times
 // with the exact time on hover or tap, the ADMIN chip and the session countdown pill.
 import {useState, type ReactNode} from "react";
-import {format} from "date-fns";
 import Badge, {type BadgeTone} from "../components/ui/Badge";
 import {AlertIcon, CheckIcon, InfoIcon, WarningIcon} from "../components/icons";
 import type {ReasonCode} from "./adminApi";
+import {absolute, mmss, reasonLabel, timeAgo} from "./adminFormat";
 
 export function ClockIcon({size = 14}: { size?: number }) {
     return (
@@ -66,34 +66,6 @@ export function ListIcon({size = 20}: { size?: number }) {
 
 // ---------- time ----------
 
-export function daysSince(iso: string | null, now = Date.now()): number | null {
-    if (!iso) return null;
-    return Math.floor((now - new Date(iso).getTime()) / 86_400_000);
-}
-
-/** "just now", "5 min ago", "2 hours ago", "yesterday", "3 days ago", "12 Nov 2026". */
-export function timeAgo(iso: string | null, now = Date.now()): string {
-    if (!iso) return "never";
-    const diff = now - new Date(iso).getTime();
-    const min = Math.round(diff / 60_000);
-    if (min < 1) return "just now";
-    if (min < 60) return `${min} min ago`;
-    const hours = Math.round(diff / 3_600_000);
-    if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
-    const days = Math.floor(diff / 86_400_000);
-    if (days === 1) return "yesterday";
-    if (days < 30) return `${days} days ago`;
-    return format(new Date(iso), "d MMM yyyy");
-}
-
-export function absolute(iso: string): string {
-    return format(new Date(iso), "d MMM yyyy, HH:mm");
-}
-
-export function shortDate(iso: string | null): string {
-    return iso ? format(new Date(iso), "d MMM yyyy") : "—";
-}
-
 /** A relative time; hover shows the exact time, a tap (or long-press) switches between the two. */
 export function RelativeTime({iso, prefix = "", className = ""}: { iso: string | null; prefix?: string; className?: string }) {
     const [exact, setExact] = useState(false);
@@ -115,21 +87,6 @@ export function RelativeTime({iso, prefix = "", className = ""}: { iso: string |
 }
 
 // ---------- chips ----------
-
-export function reasonLabel(code: ReasonCode, row?: { registeredAt: string | null; lastSeenAt: string | null }): string {
-    const sinceRegistered = row ? daysSince(row.registeredAt) : null;
-    switch (code) {
-        case "SYNC_FAILING": return "Sync failing";
-        case "OPEN_CONFLICTS": return "Open conflict";
-        case "EMAIL_BOUNCED": return "Email bounced";
-        case "UNVERIFIED_24H": return sinceRegistered != null && sinceRegistered >= 1 ? `Email unverified ${sinceRegistered} d` : "Email unverified";
-        case "STUCK_ONBOARDING": return sinceRegistered != null ? `No setup after ${sinceRegistered} d` : "No setup";
-        case "INACTIVE_14D": {
-            const d = row ? daysSince(row.lastSeenAt ?? row.registeredAt) : null;
-            return d != null ? `Inactive ${d} d` : "Inactive";
-        }
-    }
-}
 
 const REASON_STYLE: Record<ReasonCode, { tone: BadgeTone; icon: ReactNode }> = {
     SYNC_FAILING: {tone: "danger", icon: <WarningIcon size={12}/>},
@@ -171,30 +128,6 @@ export function EmailStatusChip({status}: { status: string }) {
     }
 }
 
-const EMAIL_TYPES: Record<string, string> = {
-    VERIFY_EMAIL: "Verification",
-    PASSWORD_RESET: "Password reset",
-    PASSWORD_CHANGED: "Password changed",
-    ALREADY_REGISTERED: "Already registered",
-    TEST: "Test email",
-    EXTERNAL_RESERVATION_IMPORTED: "New booking",
-    EXTERNAL_RESERVATION_CANCELLED: "Cancelled booking",
-    EXTERNAL_RESERVATION_MODIFIED: "Changed booking",
-    CALENDAR_SYNC_FAILING: "System alert",
-    BOOKING_CONFLICT: "Conflict alert",
-    BOOKING_CONFLICT_CHANGED: "Conflict alert",
-    ADMIN_STEP_UP: "Admin code",
-    ADMIN_MESSAGE: "Sent by you",
-};
-
-export function emailTypeLabel(type: string): string {
-    return EMAIL_TYPES[type] ?? "Email";
-}
-
-export function platformLabel(platform: string | null): string {
-    return platform === "BOOKING" || platform === "Booking.com" ? "Booking.com" : platform ? "Imported" : "Manual";
-}
-
 // ---------- header pieces ----------
 
 export function AdminChip() {
@@ -203,11 +136,6 @@ export function AdminChip() {
             ADMIN
         </span>
     );
-}
-
-export function mmss(seconds: number): string {
-    const s = Math.max(0, Math.floor(seconds));
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 export function CountdownPill({seconds}: { seconds: number }) {
