@@ -39,6 +39,10 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Landing pictures and videos have no hash in their name: a day, then revalidate (not immutable).
+/landing/*
+  Cache-Control: public, max-age=86400
+
 # Font files carry a version in their name (-v1); a new version gets a new name.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable

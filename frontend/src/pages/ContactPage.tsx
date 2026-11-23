@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {Link} from "react-router-dom";
 import {useMutation} from "@tanstack/react-query";
 import {sendContactMessage} from "../lib/api/contact";
@@ -42,12 +42,7 @@ export default function ContactPage() {
     const formRef = useRef<HTMLFormElement>(null);
     const {errors, validate, recheck, showServerErrors} = useInlineValidation(MESSAGES);
 
-    useEffect(() => {
-        document.title = "Contact RoomTrack";
-        return () => {
-            document.title = "RoomTrack";
-        };
-    }, []);
+    // The tab title and description come from src/publicRoutes.ts (usePageMeta in App.tsx).
 
     const mutation = useMutation({
         mutationFn: sendContactMessage,
@@ -102,7 +97,9 @@ export default function ContactPage() {
                     <Button variant="secondary" size="lg" block onClick={writeAnother}>Write another message</Button>
                 </div>
             ) : (
-                <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
+                // method="post": the prerendered page shows this form before JavaScript runs; a submit then must not put
+                // the message in the URL. Once the app runs, handleSubmit takes over (preventDefault).
+                <form ref={formRef} method="post" onSubmit={handleSubmit} noValidate className="space-y-5">
                     <TextField
                         label="Your email"
                         id="email"

@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+# The signed-in app, the admin panel, the API (calendar feeds) and email-verification links.
+# Disallow stops crawling, not indexing: these pages also carry <meta name="robots" content="noindex,nofollow">.
+# /login, /register and /forgot-password stay crawlable on purpose, so crawlers can see their noindex tag.
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api/
+Disallow: /verify-email
+
+Sitemap: https://roomtrack.app/sitemap.xml

@@ -8,5 +8,7 @@ export function useMediaQuery(query: string): boolean {
             return () => list.removeEventListener("change", onChange);
         },
         () => window.matchMedia(query).matches,
+        // Build-time render (src/prerender.tsx) only: no screen, so no match. Never used in the browser (no hydration).
+        () => false,
     );
 }
